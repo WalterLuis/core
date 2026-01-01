@@ -260,7 +260,7 @@ trailer
   });
 
   describe("parseAt", () => {
-    it("auto-detects table format at offset", () => {
+    it("auto-detects table format at offset", async () => {
       const input = `padding here
 xref
 0 1
@@ -269,15 +269,15 @@ trailer
 << /Size 1 /Root 1 0 R >>
 `;
       const p = parser(input);
-      const result = p.parseAt(13); // offset to "xref"
+      const result = await p.parseAt(13); // offset to "xref"
 
       expect(result.entries.size).toBe(1);
     });
 
-    it("throws for invalid format at offset", () => {
+    it("throws for invalid format at offset", async () => {
       const p = parser("random garbage here");
 
-      expect(() => p.parseAt(0)).toThrow();
+      await expect(p.parseAt(0)).rejects.toThrow();
     });
   });
 
@@ -340,6 +340,258 @@ trailer
 << /Size 2 /Root 1 0 R >>
 `);
       const result = p.parseTable();
+
+      expect(result.entries.size).toBe(2);
+    });
+  });
+
+  describe("parseStream", () => {
+    /**
+     * Helper to create an XRef stream with given entries.
+     * Uses uncompressed stream for testing (no Filter).
+     */
+    function createXRefStream(
+      entries: Array<{ objNum: number; type: 0 | 1 | 2; field2: number; field3: number }>,
+      options: { w?: [number, number, number]; index?: number[] } = {},
+    ): Uint8Array {
+      const w = options.w ?? [1, 3, 2]; // Default: 1 byte type, 3 byte offset, 2 byte gen
+      const [w1, w2, w3] = w;
+
+      // Build index array from entries if not provided
+      let indexArray = options.index;
+      if (!indexArray) {
+        // Simple case: contiguous from min to max
+        const objNums = entries.map(e => e.objNum).sort((a, b) => a - b);
+        const first = objNums[0];
+        const count = objNums[objNums.length - 1] - first + 1;
+        indexArray = [first, count];
+      }
+
+      // Build binary data
+      const data: number[] = [];
+      for (const entry of entries) {
+        // Type field
+        const type = entry.type;
+        for (let i = w1 - 1; i >= 0; i--) {
+          data.push((type >> (i * 8)) & 0xff);
+        }
+        // Field 2
+        const f2 = entry.field2;
+        for (let i = w2 - 1; i >= 0; i--) {
+          data.push((f2 >> (i * 8)) & 0xff);
+        }
+        // Field 3
+        const f3 = entry.field3;
+        for (let i = w3 - 1; i >= 0; i--) {
+          data.push((f3 >> (i * 8)) & 0xff);
+        }
+      }
+
+      const streamData = new Uint8Array(data);
+
+      // Build the object
+      const size = Math.max(...entries.map(e => e.objNum)) + 1;
+      const dictStr = `<< /Type /XRef /Size ${size} /W [${w.join(" ")}] /Index [${indexArray.join(" ")}] /Length ${streamData.length} /Root 1 0 R >>`;
+
+      // Create full indirect object
+      const header = new TextEncoder().encode(`99 0 obj\n${dictStr}\nstream\n`);
+      const footer = new TextEncoder().encode(`\nendstream\nendobj\n`);
+
+      const result = new Uint8Array(header.length + streamData.length + footer.length);
+      result.set(header, 0);
+      result.set(streamData, header.length);
+      result.set(footer, header.length + streamData.length);
+
+      return result;
+    }
+
+    it("parses xref stream with uncompressed entries", async () => {
+      const bytes = createXRefStream([
+        { objNum: 0, type: 0, field2: 0, field3: 65535 }, // free
+        { objNum: 1, type: 1, field2: 100, field3: 0 }, // uncompressed at offset 100
+        { objNum: 2, type: 1, field2: 200, field3: 0 }, // uncompressed at offset 200
+      ]);
+
+      const scanner = new Scanner(bytes);
+      const p = new XRefParser(scanner);
+      const result = await p.parseStream();
+
+      expect(result.entries.size).toBe(3);
+
+      const entry0 = result.entries.get(0);
+      expect(entry0?.type).toBe("free");
+      if (entry0?.type === "free") {
+        expect(entry0.nextFree).toBe(0);
+        expect(entry0.generation).toBe(65535);
+      }
+
+      const entry1 = result.entries.get(1);
+      expect(entry1?.type).toBe("uncompressed");
+      if (entry1?.type === "uncompressed") {
+        expect(entry1.offset).toBe(100);
+        expect(entry1.generation).toBe(0);
+      }
+
+      const entry2 = result.entries.get(2);
+      expect(entry2?.type).toBe("uncompressed");
+      if (entry2?.type === "uncompressed") {
+        expect(entry2.offset).toBe(200);
+      }
+    });
+
+    it("parses xref stream with compressed entries", async () => {
+      const bytes = createXRefStream([
+        { objNum: 0, type: 0, field2: 0, field3: 65535 }, // free
+        { objNum: 1, type: 2, field2: 10, field3: 0 }, // compressed in obj stream 10, index 0
+        { objNum: 2, type: 2, field2: 10, field3: 1 }, // compressed in obj stream 10, index 1
+      ]);
+
+      const scanner = new Scanner(bytes);
+      const p = new XRefParser(scanner);
+      const result = await p.parseStream();
+
+      expect(result.entries.size).toBe(3);
+
+      const entry1 = result.entries.get(1);
+      expect(entry1?.type).toBe("compressed");
+      if (entry1?.type === "compressed") {
+        expect(entry1.streamObjNum).toBe(10);
+        expect(entry1.indexInStream).toBe(0);
+      }
+
+      const entry2 = result.entries.get(2);
+      expect(entry2?.type).toBe("compressed");
+      if (entry2?.type === "compressed") {
+        expect(entry2.streamObjNum).toBe(10);
+        expect(entry2.indexInStream).toBe(1);
+      }
+    });
+
+    it("parses xref stream with multiple index ranges", async () => {
+      const bytes = createXRefStream(
+        [
+          { objNum: 0, type: 0, field2: 0, field3: 65535 },
+          { objNum: 1, type: 1, field2: 100, field3: 0 },
+          { objNum: 5, type: 1, field2: 500, field3: 0 },
+          { objNum: 6, type: 1, field2: 600, field3: 0 },
+        ],
+        { index: [0, 2, 5, 2] }, // Two ranges: [0,1] and [5,6]
+      );
+
+      const scanner = new Scanner(bytes);
+      const p = new XRefParser(scanner);
+      const result = await p.parseStream();
+
+      expect(result.entries.size).toBe(4);
+      expect(result.entries.has(0)).toBe(true);
+      expect(result.entries.has(1)).toBe(true);
+      expect(result.entries.has(2)).toBe(false); // gap
+      expect(result.entries.has(5)).toBe(true);
+      expect(result.entries.has(6)).toBe(true);
+    });
+
+    it("uses larger field widths correctly", async () => {
+      // Use 2-byte type, 4-byte offset, 2-byte generation
+      const bytes = createXRefStream(
+        [
+          { objNum: 0, type: 0, field2: 0, field3: 65535 },
+          { objNum: 1, type: 1, field2: 0x12345678, field3: 256 }, // Large offset
+        ],
+        { w: [2, 4, 2] },
+      );
+
+      const scanner = new Scanner(bytes);
+      const p = new XRefParser(scanner);
+      const result = await p.parseStream();
+
+      const entry1 = result.entries.get(1);
+      expect(entry1?.type).toBe("uncompressed");
+      if (entry1?.type === "uncompressed") {
+        expect(entry1.offset).toBe(0x12345678);
+        expect(entry1.generation).toBe(256);
+      }
+    });
+
+    it("defaults type to 1 when w1 is 0", async () => {
+      // w1=0 means type field is absent, defaults to 1 (uncompressed)
+      const w: [number, number, number] = [0, 3, 1];
+
+      // Build data manually since our helper expects type field
+      const data = new Uint8Array([
+        // Entry for obj 0: just offset (3 bytes) + gen (1 byte)
+        0x00,
+        0x00,
+        0x64, // offset = 100
+        0x00, // gen = 0
+        // Entry for obj 1
+        0x00,
+        0x00,
+        0xc8, // offset = 200
+        0x00, // gen = 0
+      ]);
+
+      const dictStr = `<< /Type /XRef /Size 2 /W [0 3 1] /Length ${data.length} /Root 1 0 R >>`;
+      const header = new TextEncoder().encode(`99 0 obj\n${dictStr}\nstream\n`);
+      const footer = new TextEncoder().encode(`\nendstream\nendobj\n`);
+
+      const bytes = new Uint8Array(header.length + data.length + footer.length);
+      bytes.set(header, 0);
+      bytes.set(data, header.length);
+      bytes.set(footer, header.length + data.length);
+
+      const scanner = new Scanner(bytes);
+      const p = new XRefParser(scanner);
+      const result = await p.parseStream();
+
+      // Both entries should be type 1 (uncompressed)
+      const entry0 = result.entries.get(0);
+      expect(entry0?.type).toBe("uncompressed");
+      if (entry0?.type === "uncompressed") {
+        expect(entry0.offset).toBe(100);
+      }
+
+      const entry1 = result.entries.get(1);
+      expect(entry1?.type).toBe("uncompressed");
+      if (entry1?.type === "uncompressed") {
+        expect(entry1.offset).toBe(200);
+      }
+    });
+
+    it("extracts /Prev from xref stream", async () => {
+      // Manually create stream with /Prev
+      const data = new Uint8Array([
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0xff, // free, next=0, gen=255
+      ]);
+
+      const dictStr = `<< /Type /XRef /Size 1 /W [1 3 1] /Prev 12345 /Length ${data.length} /Root 1 0 R >>`;
+      const header = new TextEncoder().encode(`99 0 obj\n${dictStr}\nstream\n`);
+      const footer = new TextEncoder().encode(`\nendstream\nendobj\n`);
+
+      const bytes = new Uint8Array(header.length + data.length + footer.length);
+      bytes.set(header, 0);
+      bytes.set(data, header.length);
+      bytes.set(footer, header.length + data.length);
+
+      const scanner = new Scanner(bytes);
+      const p = new XRefParser(scanner);
+      const result = await p.parseStream();
+
+      expect(result.prev).toBe(12345);
+    });
+
+    it("parseAt auto-detects stream format", async () => {
+      const bytes = createXRefStream([
+        { objNum: 0, type: 0, field2: 0, field3: 65535 },
+        { objNum: 1, type: 1, field2: 100, field3: 0 },
+      ]);
+
+      const scanner = new Scanner(bytes);
+      const p = new XRefParser(scanner);
+      const result = await p.parseAt(0);
 
       expect(result.entries.size).toBe(2);
     });

@@ -1,6 +1,9 @@
 import { CR, DIGIT_0, DIGIT_9, LF, SPACE, TAB } from "#src/helpers/chars";
 import type { Scanner } from "#src/io/scanner";
 import type { PdfDict } from "#src/objects/pdf-dict";
+import { PdfNumber } from "#src/objects/pdf-number";
+import { PdfStream } from "#src/objects/pdf-stream";
+import { IndirectObjectParser } from "./indirect-object-parser";
 import { ObjectParser } from "./object-parser";
 import { TokenReader } from "./token-reader";
 
@@ -77,7 +80,7 @@ export class XRefParser {
    * Parse xref at given byte offset.
    * Auto-detects table vs stream format.
    */
-  parseAt(offset: number): XRefData {
+  async parseAt(offset: number): Promise<XRefData> {
     this.scanner.moveTo(offset);
 
     // Peek to detect format
@@ -139,13 +142,141 @@ export class XRefParser {
   }
 
   /**
-   * Parse xref stream format.
-   * Scanner must be positioned at stream object start.
+   * Parse xref stream format (PDF 1.5+).
+   * Scanner must be positioned at stream object start ("N M obj").
+   *
+   * XRef streams encode cross-reference data as binary in a stream object.
+   * The stream dictionary contains:
+   * - /Type /XRef
+   * - /Size - total number of objects
+   * - /W [w1 w2 w3] - byte widths for type, offset, generation fields
+   * - /Index [first count ...] - object number ranges (optional, defaults to [0 Size])
    */
-  parseStream(): XRefData {
-    // TODO: Implement xref stream parsing
-    // For now, throw to indicate not yet supported
-    throw new Error("XRef stream format not yet implemented");
+  async parseStream(): Promise<XRefData> {
+    // Parse the indirect object containing the xref stream
+    const parser = new IndirectObjectParser(this.scanner);
+    const indirectObj = parser.parseObject();
+
+    if (!(indirectObj.value instanceof PdfStream)) {
+      throw new Error("Expected XRef stream object");
+    }
+
+    const stream = indirectObj.value;
+
+    // Validate /Type is /XRef (optional per spec, but good to check)
+    const type = stream.getName("Type");
+    if (type !== null && type.value !== "XRef") {
+      throw new Error(`Expected /Type /XRef, got /Type /${type.value}`);
+    }
+
+    // Get required /W array (field widths)
+    const wArray = stream.getArray("W");
+    if (wArray === undefined || wArray.length < 3) {
+      throw new Error("XRef stream missing or invalid /W array");
+    }
+
+    const w0 = wArray.at(0);
+    const w1Val = wArray.at(1);
+    const w2Val = wArray.at(2);
+
+    const w1 = w0 instanceof PdfNumber ? w0.value : 0; // Type field width
+    const w2 = w1Val instanceof PdfNumber ? w1Val.value : 0; // Offset field width
+    const w3 = w2Val instanceof PdfNumber ? w2Val.value : 0; // Generation field width
+    const entrySize = w1 + w2 + w3;
+
+    // Get /Size (total object count)
+    const size = stream.getNumber("Size")?.value;
+    if (size === undefined) {
+      throw new Error("XRef stream missing /Size");
+    }
+
+    // Get /Index array or default to [0 Size]
+    const indexArray = stream.getArray("Index");
+    const ranges: Array<{ first: number; count: number }> = [];
+
+    if (indexArray !== undefined) {
+      for (let i = 0; i < indexArray.length; i += 2) {
+        const firstObj = indexArray.at(i);
+        const countObj = indexArray.at(i + 1);
+
+        if (!(firstObj instanceof PdfNumber) || !(countObj instanceof PdfNumber)) {
+          throw new Error("Invalid /Index array in XRef stream");
+        }
+
+        ranges.push({ first: firstObj.value, count: countObj.value });
+      }
+    } else {
+      // Default: single range [0, Size]
+      ranges.push({ first: 0, count: size });
+    }
+
+    // Decode the stream data
+    const decodedData = await stream.getDecodedData();
+
+    // Parse entries from binary data
+    const entries = new Map<number, XRefEntry>();
+    let dataOffset = 0;
+
+    for (const range of ranges) {
+      for (let i = 0; i < range.count; i++) {
+        const objNum = range.first + i;
+
+        if (dataOffset + entrySize > decodedData.length) {
+          throw new Error("XRef stream data truncated");
+        }
+
+        // Read type field (default to 1 if width is 0)
+        let entryType = w1 === 0 ? 1 : 0;
+        for (let j = 0; j < w1; j++) {
+          entryType = (entryType << 8) | decodedData[dataOffset++];
+        }
+
+        // Read field 2 (offset or object stream number)
+        let field2 = 0;
+        for (let j = 0; j < w2; j++) {
+          field2 = (field2 << 8) | decodedData[dataOffset++];
+        }
+
+        // Read field 3 (generation or index in object stream)
+        let field3 = 0;
+        for (let j = 0; j < w3; j++) {
+          field3 = (field3 << 8) | decodedData[dataOffset++];
+        }
+
+        // Create entry based on type
+        let entry: XRefEntry;
+        switch (entryType) {
+          case 0:
+            // Free entry
+            entry = { type: "free", nextFree: field2, generation: field3 };
+            break;
+          case 1:
+            // Uncompressed object
+            entry = { type: "uncompressed", offset: field2, generation: field3 };
+            break;
+          case 2:
+            // Compressed object in object stream
+            entry = { type: "compressed", streamObjNum: field2, indexInStream: field3 };
+            break;
+          default:
+            throw new Error(`Invalid XRef entry type: ${entryType}`);
+        }
+
+        // Only store if not already present (first definition wins)
+        if (!entries.has(objNum)) {
+          entries.set(objNum, entry);
+        }
+      }
+    }
+
+    // The stream dictionary serves as the trailer
+    const prev = stream.getNumber("Prev")?.value;
+
+    return {
+      entries,
+      trailer: stream,
+      prev,
+    };
   }
 
   /**
