@@ -514,7 +514,7 @@ trailer
 
     it("defaults type to 1 when w1 is 0", async () => {
       // w1=0 means type field is absent, defaults to 1 (uncompressed)
-      const w: [number, number, number] = [0, 3, 1];
+      const _w: [number, number, number] = [0, 3, 1];
 
       // Build data manually since our helper expects type field
       const data = new Uint8Array([

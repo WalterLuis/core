@@ -165,7 +165,7 @@ export class XRefParser {
 
     // Validate /Type is /XRef (optional per spec, but good to check)
     const type = stream.getName("Type");
-    if (type !== null && type.value !== "XRef") {
+    if (type !== undefined && type.value !== "XRef") {
       throw new Error(`Expected /Type /XRef, got /Type /${type.value}`);
     }
 

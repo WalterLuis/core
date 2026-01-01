@@ -851,16 +851,8 @@ describe("DocumentParser", () => {
 
       const doc = await parser.parse();
 
-      // PDFBox expects 11 pages
-      const catalog = await doc.getCatalog();
-      expect(catalog).not.toBeNull();
-
-      const pagesRef = catalog?.getRef("Pages");
-      expect(pagesRef).toBeDefined();
-
-      const pages = (await doc.getObject(pagesRef!)) as PdfDict;
       // PDFBox: assertEquals(11, doc.getNumberOfPages())
-      expect(pages.getNumber("Count")?.value).toBe(11);
+      expect(await doc.getPageCount()).toBe(11);
     });
 
     // PDFBOX-3940: Corrupt file, /Info without modification date
@@ -891,9 +883,8 @@ describe("DocumentParser", () => {
     });
 
     // PDFBOX-3948: Object stream with unexpected newlines
-    // TODO: Our brute-force parser doesn't yet handle object streams with embedded newlines
-    // PDFBox has special handling for whitespace variations in object stream indices
-    it.skip("PDFBOX-3948: parses object stream with unexpected newlines", async () => {
+    // Brute-force parser extracts objects from object streams to find Catalog/Pages
+    it("PDFBOX-3948: parses object stream with unexpected newlines", async () => {
       const bytes = await loadFixture("malformed", "pdfbox/PDFBOX-3948.pdf");
       const scanner = new Scanner(bytes);
       const parser = new DocumentParser(scanner);
@@ -915,10 +906,9 @@ describe("DocumentParser", () => {
     });
 
     // PDFBOX-3950: Truncated file with missing pages
-    // NOTE: PDFBox walks the page tree to count REACHABLE pages (4), we read /Count (11).
-    // This is a feature difference - we trust metadata, PDFBox validates it.
-    // TODO: Implement page tree walking to count actual reachable pages
-    it("PDFBOX-3950: truncated file parses (page count in metadata may be wrong)", async () => {
+    // The metadata claims 11 pages, but only 4 are actually reachable
+    // We walk the tree to get the accurate count, matching PDFBox behavior
+    it("PDFBOX-3950: truncated file has correct page count (4 reachable pages)", async () => {
       const bytes = await loadFixture("malformed", "pdfbox/PDFBOX-3950.pdf");
       const scanner = new Scanner(bytes);
       const parser = new DocumentParser(scanner);
@@ -928,13 +918,16 @@ describe("DocumentParser", () => {
       const catalog = await doc.getCatalog();
       expect(catalog).not.toBeNull();
 
+      // Metadata says 11 pages
       const pagesRef = catalog?.getRef("Pages");
       if (pagesRef) {
-        const pages = (await doc.getObject(pagesRef)) as PdfDict;
-        // PDFBox walks tree and finds 4 reachable pages, but /Count says 11
-        // We currently trust /Count; PDFBox validates by walking tree
-        expect(pages.getNumber("Count")?.value).toBe(11);
+        const pagesDict = (await doc.getObject(pagesRef)) as PdfDict;
+        expect(pagesDict.getNumber("Count")?.value).toBe(11);
       }
+
+      // But only 4 are actually reachable by walking the tree
+      // This matches PDFBox's behavior
+      expect(await doc.getPageCount()).toBe(4);
     });
 
     // PDFBOX-3951: Truncated file
@@ -945,15 +938,8 @@ describe("DocumentParser", () => {
 
       const doc = await parser.parse();
 
-      const catalog = await doc.getCatalog();
-      expect(catalog).not.toBeNull();
-
-      const pagesRef = catalog?.getRef("Pages");
-      if (pagesRef) {
-        const pages = (await doc.getObject(pagesRef)) as PdfDict;
-        // PDFBox: assertEquals(143, doc.getNumberOfPages())
-        expect(pages.getNumber("Count")?.value).toBe(143);
-      }
+      // PDFBox: assertEquals(143, doc.getNumberOfPages())
+      expect(await doc.getPageCount()).toBe(143);
     });
 
     // PDFBOX-3964: Broken file
@@ -964,15 +950,8 @@ describe("DocumentParser", () => {
 
       const doc = await parser.parse();
 
-      const catalog = await doc.getCatalog();
-      expect(catalog).not.toBeNull();
-
-      const pagesRef = catalog?.getRef("Pages");
-      if (pagesRef) {
-        const pages = (await doc.getObject(pagesRef)) as PdfDict;
-        // PDFBox: assertEquals(10, doc.getNumberOfPages())
-        expect(pages.getNumber("Count")?.value).toBe(10);
-      }
+      // PDFBox: assertEquals(10, doc.getNumberOfPages())
+      expect(await doc.getPageCount()).toBe(10);
     });
 
     // PDFBOX-3977: Brute force search for Info/Catalog
@@ -1049,15 +1028,8 @@ describe("DocumentParser", () => {
 
       const doc = await parser.parse();
 
-      const catalog = await doc.getCatalog();
-      expect(catalog).not.toBeNull();
-
-      const pagesRef = catalog?.getRef("Pages");
-      if (pagesRef) {
-        const pages = (await doc.getObject(pagesRef)) as PdfDict;
-        // PDFBox: assertEquals(3, doc.getNumberOfPages())
-        expect(pages.getNumber("Count")?.value).toBe(3);
-      }
+      // PDFBox: assertEquals(3, doc.getNumberOfPages())
+      expect(await doc.getPageCount()).toBe(3);
     });
 
     // PDFBOX-5025: "74191endobj" - number runs directly into keyword
@@ -1074,12 +1046,8 @@ describe("DocumentParser", () => {
       const catalog = await doc.getCatalog();
       expect(catalog).not.toBeNull();
 
-      const pagesRef = catalog?.getRef("Pages");
-      if (pagesRef) {
-        const pages = (await doc.getObject(pagesRef)) as PdfDict;
-        // PDFBox: assertEquals(1, doc.getNumberOfPages())
-        expect(pages.getNumber("Count")?.value).toBe(1);
-      }
+      // PDFBox: assertEquals(1, doc.getNumberOfPages())
+      expect(await doc.getPageCount()).toBe(1);
     });
   });
 });

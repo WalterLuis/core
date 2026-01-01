@@ -170,23 +170,23 @@ endobj`;
   });
 
   describe("recover", () => {
-    it("returns null for empty file", () => {
+    it("returns null for empty file", async () => {
       const p = parser("");
-      const result = p.recover();
+      const result = await p.recover();
 
       expect(result).toBeNull();
     });
 
-    it("returns null for file with no objects", () => {
+    it("returns null for file with no objects", async () => {
       const p = parser(`%PDF-1.4
 Just garbage
 %%EOF`);
-      const result = p.recover();
+      const result = await p.recover();
 
       expect(result).toBeNull();
     });
 
-    it("recovers document with Catalog", () => {
+    it("recovers document with Catalog", async () => {
       const p = parser(`
 1 0 obj
 << /Type /Catalog /Pages 2 0 R >>
@@ -195,14 +195,14 @@ endobj
 << /Type /Pages /Kids [] /Count 0 >>
 endobj
 `);
-      const result = p.recover();
+      const result = await p.recover();
 
       expect(result).not.toBeNull();
       expect(result!.trailer.Root.objectNumber).toBe(1);
       expect(result!.trailer.Size).toBe(3); // highest obj + 1
     });
 
-    it("finds Catalog when not first object", () => {
+    it("finds Catalog when not first object", async () => {
       const p = parser(`
 1 0 obj
 << /Type /Pages /Kids [] /Count 0 >>
@@ -211,13 +211,13 @@ endobj
 << /Type /Catalog /Pages 1 0 R >>
 endobj
 `);
-      const result = p.recover();
+      const result = await p.recover();
 
       expect(result).not.toBeNull();
       expect(result!.trailer.Root.objectNumber).toBe(2);
     });
 
-    it("falls back to Pages when no Catalog found", () => {
+    it("falls back to Pages when no Catalog found", async () => {
       const p = parser(`
 1 0 obj
 << /Type /Pages /Kids [] /Count 0 >>
@@ -226,14 +226,14 @@ endobj
 << /Type /Page /Parent 1 0 R >>
 endobj
 `);
-      const result = p.recover();
+      const result = await p.recover();
 
       expect(result).not.toBeNull();
       expect(result!.trailer.Root.objectNumber).toBe(1);
       expect(result!.warnings.some(w => w.includes("Catalog"))).toBe(true);
     });
 
-    it("builds xref with correct offsets", () => {
+    it("builds xref with correct offsets", async () => {
       const input = `1 0 obj
 << /Type /Catalog /Pages 2 0 R >>
 endobj
@@ -241,39 +241,39 @@ endobj
 << /Type /Pages /Kids [] /Count 0 >>
 endobj`;
       const p = parser(input);
-      const result = p.recover();
+      const result = await p.recover();
 
       expect(result).not.toBeNull();
       expect(result!.xref.getOffset(1, 0)).toBe(0);
       expect(result!.xref.getOffset(2, 0)).toBeGreaterThan(0);
     });
 
-    it("collects warnings for issues", () => {
+    it("collects warnings for issues", async () => {
       // No Catalog, only Pages
       const p = parser(`
 1 0 obj
 << /Type /Pages /Kids [] /Count 0 >>
 endobj
 `);
-      const result = p.recover();
+      const result = await p.recover();
 
       expect(result).not.toBeNull();
       expect(result!.warnings.length).toBeGreaterThan(0);
     });
 
-    it("handles truncated object gracefully", () => {
+    it("handles truncated object gracefully", async () => {
       // Truncated Catalog - forces parser to check this object and encounter the error
       const p = parser(`
 1 0 obj
 << /Type /Cata`);
-      const result = p.recover();
+      const result = await p.recover();
 
       // Should still return a result (with fallback to null root or partial)
       // The key is that we collect warnings about the truncation
       expect(result).toBeNull(); // No valid root found
     });
 
-    it("collects warnings when parsing truncated objects", () => {
+    it("collects warnings when parsing truncated objects", async () => {
       // Pages object first (will be found), then truncated Catalog
       const p = parser(`
 1 0 obj
@@ -281,7 +281,7 @@ endobj
 endobj
 2 0 obj
 << /Type /Cata`);
-      const result = p.recover();
+      const result = await p.recover();
 
       // Should recover with Pages as root since Catalog is truncated
       expect(result).not.toBeNull();
@@ -294,23 +294,23 @@ endobj
   });
 
   describe("RecoveredXRef", () => {
-    it("getOffset returns undefined for unknown object", () => {
+    it("getOffset returns undefined for unknown object", async () => {
       const p = parser(`
 1 0 obj
 << /Type /Catalog >>
 endobj
 `);
-      const result = p.recover();
+      const result = await p.recover();
 
       expect(result!.xref.getOffset(999, 0)).toBeUndefined();
     });
 
-    it("getOffset returns correct offset for known object", () => {
+    it("getOffset returns correct offset for known object", async () => {
       const input = `1 0 obj
 << /Type /Catalog >>
 endobj`;
       const p = parser(input);
-      const result = p.recover();
+      const result = await p.recover();
 
       expect(result!.xref.getOffset(1, 0)).toBe(0);
     });

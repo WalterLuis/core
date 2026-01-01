@@ -38,6 +38,18 @@ export interface ParsedDocument {
 
   /** Get the document catalog */
   getCatalog(): Promise<PdfDict | null>;
+
+  /**
+   * Get the actual page count by walking the page tree.
+   * This is more reliable than trusting /Count metadata for corrupted PDFs.
+   */
+  getPageCount(): Promise<number>;
+
+  /**
+   * Get all page references by walking the page tree.
+   * Returns an array of PdfRef for each reachable page, in document order.
+   */
+  getPages(): Promise<PdfRef[]>;
 }
 
 // PDF header signature: %PDF-
@@ -136,7 +148,7 @@ export class DocumentParser {
     // Use brute-force parser to find objects
     const bruteForce = new BruteForceParser(this.scanner);
 
-    const result = bruteForce.recover();
+    const result = await bruteForce.recover();
 
     if (result === null) {
       throw new Error("Could not recover PDF structure: no objects found");
@@ -147,14 +159,23 @@ export class DocumentParser {
     // Build xref from recovered entries
     const xref = new Map<number, XRefEntry>();
 
-    for (const [key, offset] of result.xref.entries()) {
+    for (const [key, recoveredEntry] of result.xref.entries()) {
       // Key is "objNum genNum"
       const [objNumStr, genNumStr] = key.split(" ");
 
       const objNum = parseInt(objNumStr, 10);
       const generation = parseInt(genNumStr, 10);
 
-      xref.set(objNum, { type: "uncompressed", offset, generation });
+      if (recoveredEntry.type === "uncompressed") {
+        xref.set(objNum, { type: "uncompressed", offset: recoveredEntry.offset, generation });
+      } else {
+        // Compressed entry from object stream
+        xref.set(objNum, {
+          type: "compressed",
+          streamObjNum: recoveredEntry.streamObjNum,
+          indexInStream: recoveredEntry.indexInStream,
+        });
+      }
     }
 
     // Build trailer from recovered root
@@ -436,6 +457,86 @@ export class DocumentParser {
       return root as PdfDict;
     };
 
+    /**
+     * Walk the page tree and collect all page references.
+     * Handles circular references and missing objects gracefully.
+     */
+    const getPages = async (): Promise<PdfRef[]> => {
+      const pages: PdfRef[] = [];
+      const visited = new Set<string>();
+
+      const walkNode = async (nodeOrRef: PdfObject | null, currentRef?: PdfRef): Promise<void> => {
+        // Handle references
+        if (nodeOrRef instanceof PdfRef) {
+          const key = `${nodeOrRef.objectNumber} ${nodeOrRef.generation}`;
+
+          if (visited.has(key)) {
+            this.warnings.push(`Circular reference in page tree: ${key}`);
+            return;
+          }
+
+          visited.add(key);
+
+          const resolved = await getObject(nodeOrRef);
+
+          await walkNode(resolved, nodeOrRef);
+          return;
+        }
+
+        // Must be a dictionary
+        if (!(nodeOrRef instanceof PdfDict)) {
+          return;
+        }
+
+        const type = nodeOrRef.getName("Type");
+
+        if (type?.value === "Page") {
+          // Leaf node - this is a page
+          if (currentRef) {
+            pages.push(currentRef);
+          }
+        } else if (type?.value === "Pages") {
+          // Intermediate node - recurse into kids
+          const kids = nodeOrRef.getArray("Kids");
+
+          if (kids) {
+            for (let i = 0; i < kids.length; i++) {
+              const kid = kids.at(i);
+
+              if (kid instanceof PdfRef) {
+                await walkNode(kid);
+              } else if (kid instanceof PdfDict) {
+                await walkNode(kid);
+              }
+              // Skip null/invalid kids silently
+            }
+          }
+        }
+        // Ignore nodes without proper /Type
+      };
+
+      // Start from the catalog's Pages reference
+      const catalog = await getCatalog();
+
+      if (!catalog) {
+        return pages;
+      }
+
+      const pagesRef = catalog.getRef("Pages");
+
+      if (pagesRef) {
+        await walkNode(pagesRef);
+      }
+
+      return pages;
+    };
+
+    const getPageCount = async (): Promise<number> => {
+      const pages = await getPages();
+
+      return pages.length;
+    };
+
     return {
       version,
       trailer,
@@ -443,6 +544,8 @@ export class DocumentParser {
       warnings: this.warnings,
       getObject,
       getCatalog,
+      getPageCount,
+      getPages,
     };
   }
 
