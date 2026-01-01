@@ -9,11 +9,13 @@
 
 import { clearAllDirtyFlags, collectChanges } from "#src/document/change-collector";
 import type { ObjectRegistry } from "#src/document/object-registry";
+import { FilterPipeline } from "#src/filters/filter-pipeline";
 import { CR, LF } from "#src/helpers/chars.ts";
 import { ByteWriter } from "#src/io/byte-writer";
+import { PdfName } from "#src/objects/pdf-name";
 import type { PdfObject } from "#src/objects/pdf-object.ts";
-import type { PdfPrimitive } from "#src/objects/pdf-primitive";
 import type { PdfRef } from "#src/objects/pdf-ref";
+import { PdfStream } from "#src/objects/pdf-stream";
 import { writeXRefStream, writeXRefTable, type XRefWriteEntry } from "./xref-writer";
 
 /**
@@ -37,6 +39,15 @@ export interface WriteOptions {
 
   /** Use XRef stream instead of table (PDF 1.5+) */
   useXRefStream?: boolean;
+
+  /**
+   * Compress uncompressed streams with FlateDecode (default: true).
+   *
+   * When enabled, streams without a /Filter entry will be compressed
+   * before writing. Streams that already have filters (including image
+   * formats like DCTDecode/JPXDecode) are left unchanged.
+   */
+  compressStreams?: boolean;
 }
 
 /**
@@ -73,6 +84,53 @@ function writeIndirectObject(writer: ByteWriter, ref: PdfRef, obj: PdfObject): v
 }
 
 /**
+ * Prepare an object for writing, applying compression if needed.
+ *
+ * For PdfStream objects without a /Filter entry, compresses the data
+ * with FlateDecode and returns a new stream with the compressed data.
+ * The original stream is not modified.
+ *
+ * Streams that already have filters are returned unchanged - this includes
+ * image formats (DCTDecode, JPXDecode, etc.) that are already compressed.
+ */
+async function prepareObjectForWrite(obj: PdfObject, compress: boolean): Promise<PdfObject> {
+  // Only process streams
+  if (!(obj instanceof PdfStream)) {
+    return obj;
+  }
+
+  // Already has a filter - leave it alone
+  if (obj.has("Filter")) {
+    return obj;
+  }
+
+  // Compression disabled
+  if (!compress) {
+    return obj;
+  }
+
+  // Empty streams don't need compression
+  if (obj.data.length === 0) {
+    return obj;
+  }
+
+  // Compress with FlateDecode
+  const compressed = await FilterPipeline.encode(obj.data, { name: "FlateDecode" });
+
+  // Only use compression if it actually reduces size
+  if (compressed.length >= obj.data.length) {
+    return obj;
+  }
+
+  // Create a new stream with compressed data
+  // Copy all existing entries from the original stream
+  const compressedStream = new PdfStream(obj, compressed);
+  compressedStream.set("Filter", PdfName.of("FlateDecode"));
+
+  return compressedStream;
+}
+
+/**
  * Write a complete PDF from scratch.
  *
  * Structure:
@@ -93,8 +151,12 @@ function writeIndirectObject(writer: ByteWriter, ref: PdfRef, obj: PdfObject): v
  * %%EOF
  * ```
  */
-export function writeComplete(registry: ObjectRegistry, options: WriteOptions): WriteResult {
+export async function writeComplete(
+  registry: ObjectRegistry,
+  options: WriteOptions,
+): Promise<WriteResult> {
   const writer = new ByteWriter();
+  const compress = options.compressStreams ?? true;
 
   // Version
   const version = options.version ?? "1.7";
@@ -116,12 +178,15 @@ export function writeComplete(registry: ObjectRegistry, options: WriteOptions): 
 
   // Write objects and record offsets
   for (const [ref, obj] of allObjects) {
+    // Prepare object (compress streams if needed)
+    const prepared = await prepareObjectForWrite(obj, compress);
+
     offsets.set(ref.objectNumber, {
       offset: writer.position,
       generation: ref.generation,
     });
 
-    writeIndirectObject(writer, ref, obj);
+    writeIndirectObject(writer, ref, prepared);
   }
 
   // Record xref offset before writing it
@@ -199,10 +264,10 @@ export function writeComplete(registry: ObjectRegistry, options: WriteOptions): 
  * %%EOF
  * ```
  */
-export function writeIncremental(
+export async function writeIncremental(
   registry: ObjectRegistry,
   options: IncrementalWriteOptions,
-): WriteResult {
+): Promise<WriteResult> {
   // Collect changes
   const changes = collectChanges(registry);
 
@@ -213,6 +278,8 @@ export function writeIncremental(
       xrefOffset: options.originalXRefOffset,
     };
   }
+
+  const compress = options.compressStreams ?? true;
 
   // Initialize ByteWriter with original bytes
   const writer = new ByteWriter(options.originalBytes);
@@ -229,22 +296,26 @@ export function writeIncremental(
 
   // Write modified objects
   for (const [ref, obj] of changes.modified) {
+    const prepared = await prepareObjectForWrite(obj, compress);
+
     offsets.set(ref.objectNumber, {
       offset: writer.position,
       generation: ref.generation,
     });
 
-    writeIndirectObject(writer, ref, obj);
+    writeIndirectObject(writer, ref, prepared);
   }
 
   // Write new objects
   for (const [ref, obj] of changes.created) {
+    const prepared = await prepareObjectForWrite(obj, compress);
+
     offsets.set(ref.objectNumber, {
       offset: writer.position,
       generation: ref.generation,
     });
 
-    writeIndirectObject(writer, ref, obj);
+    writeIndirectObject(writer, ref, prepared);
   }
 
   // Record xref offset

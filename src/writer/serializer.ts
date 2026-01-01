@@ -9,7 +9,6 @@
 
 import { ByteWriter } from "#src/io/byte-writer";
 import type { PdfObject } from "#src/objects/pdf-object.ts";
-import type { PdfPrimitive } from "#src/objects/pdf-primitive";
 import type { PdfRef } from "#src/objects/pdf-ref";
 
 /**

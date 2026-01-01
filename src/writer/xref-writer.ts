@@ -12,7 +12,6 @@ import { PdfDict } from "#src/objects/pdf-dict";
 import { PdfName } from "#src/objects/pdf-name";
 import { PdfNumber } from "#src/objects/pdf-number";
 import type { PdfObject } from "#src/objects/pdf-object";
-import type { PdfPrimitive } from "#src/objects/pdf-primitive";
 import { PdfRef } from "#src/objects/pdf-ref";
 import { PdfStream } from "#src/objects/pdf-stream";
 import { PdfString } from "#src/objects/pdf-string";

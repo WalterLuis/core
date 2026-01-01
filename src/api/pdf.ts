@@ -346,7 +346,7 @@ export class PDF {
     const useXRefStream = options.useXRefStream;
 
     if (useIncremental) {
-      const result = writeIncremental(this.registry, {
+      const result = await writeIncremental(this.registry, {
         originalBytes: this.originalBytes,
         originalXRefOffset: this.originalXRefOffset,
         root,
@@ -362,7 +362,7 @@ export class PDF {
     await this.ensureObjectsLoaded();
 
     // Full save
-    const result = writeComplete(this.registry, {
+    const result = await writeComplete(this.registry, {
       version: this.parsed.version,
       root,
       info: info ?? undefined,

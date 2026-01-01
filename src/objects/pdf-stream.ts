@@ -5,7 +5,6 @@ import { PdfArray } from "./pdf-array";
 import { PdfDict } from "./pdf-dict";
 import { PdfName } from "./pdf-name";
 import type { PdfObject } from "./pdf-object";
-import type { PdfPrimitive } from "./pdf-primitive";
 
 /**
  * PDF stream object (dictionary + binary data).
@@ -49,10 +48,15 @@ export class PdfStream extends PdfDict {
   }
 
   /**
-   * Set new stream data.
-   * Marks the stream as dirty for modification tracking.
+   * Set new stream content (decoded/uncompressed).
+   *
+   * Clears any existing filters since the data is now uncompressed.
+   * Compression will be applied at write time if `compressStreams` is enabled.
    */
   setData(value: Uint8Array): void {
+    // Clear filters - the new data is uncompressed
+    this.delete("Filter");
+    this.delete("DecodeParms");
     this._data = value;
     this.dirty = true;
   }
@@ -93,6 +97,22 @@ export class PdfStream extends PdfDict {
 
     // Decode through filter pipeline
     return FilterPipeline.decode(this._data, filterSpecs);
+  }
+
+  async getEncodedData(): Promise<Uint8Array> {
+    const filterEntry = this.get("Filter");
+
+    if (!filterEntry) {
+      return this._data;
+    }
+
+    const filterSpecs = this.buildFilterSpecs(filterEntry);
+
+    if (filterSpecs.length === 0) {
+      return this._data;
+    }
+
+    return FilterPipeline.encode(this._data, filterSpecs);
   }
 
   /**

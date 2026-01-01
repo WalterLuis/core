@@ -80,6 +80,21 @@ describe("PdfStream", () => {
       expect(stream.dirty).toBe(true);
     });
 
+    it("setData() clears Filter and DecodeParms", () => {
+      const stream = new PdfStream([
+        ["Filter", PdfName.FlateDecode],
+        ["DecodeParms", PdfDict.of({ Predictor: PdfNumber.of(12) })],
+      ]);
+
+      expect(stream.has("Filter")).toBe(true);
+      expect(stream.has("DecodeParms")).toBe(true);
+
+      stream.setData(new Uint8Array([1, 2, 3]));
+
+      expect(stream.has("Filter")).toBe(false);
+      expect(stream.has("DecodeParms")).toBe(false);
+    });
+
     it("dict changes mark as dirty", () => {
       const stream = new PdfStream();
 
