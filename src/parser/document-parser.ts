@@ -1,0 +1,436 @@
+import type { Scanner } from "#src/io/scanner";
+import type { PdfObject } from "#src/objects/object";
+import type { PdfDict } from "#src/objects/pdf-dict";
+import { PdfRef } from "#src/objects/pdf-ref";
+import type { PdfStream } from "#src/objects/pdf-stream";
+import { BruteForceParser } from "./brute-force-parser";
+import { IndirectObjectParser, type LengthResolver } from "./indirect-object-parser";
+import { ObjectStreamParser } from "./object-stream-parser";
+import { type XRefData, type XRefEntry, XRefParser } from "./xref-parser";
+
+/**
+ * Options for document parsing.
+ */
+export interface ParseOptions {
+  /** Enable lenient parsing for malformed PDFs (default: true) */
+  lenient?: boolean;
+}
+
+/**
+ * Parsed document result.
+ */
+export interface ParsedDocument {
+  /** PDF version from header (e.g., "1.7", "2.0") */
+  version: string;
+
+  /** Combined trailer dictionary (merged from incremental updates) */
+  trailer: PdfDict;
+
+  /** Combined cross-reference entries */
+  xref: Map<number, XRefEntry>;
+
+  /** Warnings encountered during parsing */
+  warnings: string[];
+
+  /** Get an object by reference (with caching) */
+  getObject(ref: PdfRef): Promise<PdfObject | null>;
+
+  /** Get the document catalog */
+  getCatalog(): Promise<PdfDict | null>;
+}
+
+// PDF header signature: %PDF-
+const PDF_HEADER = [0x25, 0x50, 0x44, 0x46, 0x2d]; // %PDF-
+
+// Version pattern: X.Y where X is 1-9 and Y is 0-9
+const VERSION_PATTERN = /^[1-9]\.\d$/;
+
+// Default version when unparseable (PDFBox uses 1.7)
+const DEFAULT_VERSION = "1.4";
+
+// Maximum bytes to search for header
+const HEADER_SEARCH_LIMIT = 1024;
+
+/**
+ * Top-level PDF document parser.
+ *
+ * Orchestrates header parsing, xref loading, trailer resolution, and object access.
+ * Provides the main entry point for opening PDF files.
+ *
+ * @example
+ * ```typescript
+ * const parser = new DocumentParser(scanner);
+ * const doc = await parser.parse();
+ *
+ * // Access catalog
+ * const catalog = await doc.getCatalog();
+ *
+ * // Load an object by reference
+ * const obj = await doc.getObject(PdfRef.of(1, 0));
+ * ```
+ */
+export class DocumentParser {
+  private readonly scanner: Scanner;
+  private readonly options: Required<ParseOptions>;
+  private readonly warnings: string[] = [];
+
+  constructor(scanner: Scanner, options: ParseOptions = {}) {
+    this.scanner = scanner;
+    this.options = {
+      lenient: options.lenient ?? true,
+    };
+  }
+
+  /**
+   * Parse the PDF document.
+   */
+  async parse(): Promise<ParsedDocument> {
+    try {
+      return await this.parseNormal();
+    } catch (error) {
+      if (this.options.lenient) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.warnings.push(`Normal parsing failed: ${message}`);
+        return this.parseWithRecovery();
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Normal parsing path.
+   */
+  private async parseNormal(): Promise<ParsedDocument> {
+    // Phase 1: Parse header
+    const version = this.parseHeader();
+
+    // Phase 2: Find startxref
+    const xrefParser = new XRefParser(this.scanner);
+    const startXRef = xrefParser.findStartXRef();
+
+    // Phase 3: Parse XRef chain (follow /Prev)
+    const { xref, trailer } = await this.parseXRefChain(xrefParser, startXRef);
+
+    // Phase 4: Build document with lazy object loading
+    return this.buildDocument(version, xref, trailer);
+  }
+
+  /**
+   * Recovery parsing using brute-force when normal parsing fails.
+   */
+  private async parseWithRecovery(): Promise<ParsedDocument> {
+    // Try to get version even if header is malformed
+    let version = DEFAULT_VERSION;
+    try {
+      version = this.parseHeader();
+    } catch {
+      this.warnings.push("Could not parse header, using default version");
+    }
+
+    // Use brute-force parser to find objects
+    const bruteForce = new BruteForceParser(this.scanner);
+    const result = bruteForce.recover();
+
+    if (result === null) {
+      throw new Error("Could not recover PDF structure: no objects found");
+    }
+
+    this.warnings.push(...result.warnings);
+
+    // Build xref from recovered entries
+    const xref = new Map<number, XRefEntry>();
+    for (const [key, offset] of result.xref.entries()) {
+      // Key is "objNum genNum"
+      const [objNumStr, genNumStr] = key.split(" ");
+      const objNum = parseInt(objNumStr, 10);
+      const generation = parseInt(genNumStr, 10);
+      xref.set(objNum, { type: "uncompressed", offset, generation });
+    }
+
+    // Build trailer from recovered root
+    const { PdfDict: PdfDictClass } = await import("#src/objects/pdf-dict");
+    const { PdfNumber } = await import("#src/objects/pdf-number");
+
+    const trailer = new PdfDictClass([
+      ["Root", result.trailer.Root],
+      ["Size", new PdfNumber(result.trailer.Size)],
+    ]);
+
+    return this.buildDocument(version, xref, trailer);
+  }
+
+  /**
+   * Parse PDF header and extract version.
+   *
+   * Lenient handling (like pdf.js and PDFBox):
+   * - Search first 1024 bytes for %PDF-
+   * - Accept garbage before/after header
+   * - Default to 1.4 if version unparseable
+   */
+  parseHeader(): string {
+    const bytes = this.scanner.bytes;
+    const searchLimit = Math.min(bytes.length, HEADER_SEARCH_LIMIT);
+
+    // Search for %PDF- marker
+    let headerPos = -1;
+    for (let i = 0; i <= searchLimit - PDF_HEADER.length; i++) {
+      if (this.matchesAt(i, PDF_HEADER)) {
+        headerPos = i;
+        break;
+      }
+    }
+
+    if (headerPos === -1) {
+      if (this.options.lenient) {
+        this.warnings.push("PDF header not found, using default version");
+        return DEFAULT_VERSION;
+      }
+      throw new Error("PDF header not found");
+    }
+
+    if (headerPos > 0) {
+      this.warnings.push(`PDF header found at offset ${headerPos} (expected 0)`);
+    }
+
+    // Read version string after %PDF-
+    const versionStart = headerPos + PDF_HEADER.length;
+    let version = "";
+
+    // Read characters until whitespace or non-version char (max 7 chars like pdf.js)
+    for (let i = 0; i < 7 && versionStart + i < bytes.length; i++) {
+      const byte = bytes[versionStart + i];
+
+      // Stop at whitespace or control chars
+      if (byte <= 0x20) {
+        break;
+      }
+
+      version += String.fromCharCode(byte);
+    }
+
+    // Validate version format
+    if (VERSION_PATTERN.test(version)) {
+      return version;
+    }
+
+    // Try to extract just the version part (handle garbage after version)
+    const match = version.match(/^(\d\.\d)/);
+    if (match) {
+      this.warnings.push(`Version string has garbage after it: ${version}`);
+      return match[1];
+    }
+
+    if (this.options.lenient) {
+      this.warnings.push(`Invalid PDF version: ${version}, using default`);
+      return DEFAULT_VERSION;
+    }
+
+    throw new Error(`Invalid PDF version: ${version}`);
+  }
+
+  /**
+   * Parse the XRef chain, following /Prev links for incremental updates.
+   */
+  private async parseXRefChain(
+    xrefParser: XRefParser,
+    startOffset: number,
+  ): Promise<{ xref: Map<number, XRefEntry>; trailer: PdfDict }> {
+    const combinedXRef = new Map<number, XRefEntry>();
+    let firstTrailer: PdfDict | null = null;
+
+    // Track visited offsets to prevent infinite loops
+    const visited = new Set<number>();
+    const queue: number[] = [startOffset];
+
+    while (queue.length > 0) {
+      const offset = queue.shift()!;
+
+      // Circular reference check
+      if (visited.has(offset)) {
+        this.warnings.push(`Circular xref reference at offset ${offset}`);
+        continue;
+      }
+      visited.add(offset);
+
+      try {
+        const xrefData = await xrefParser.parseAt(offset);
+
+        // Merge entries (first definition wins for each object number)
+        for (const [objNum, entry] of xrefData.entries) {
+          if (!combinedXRef.has(objNum)) {
+            combinedXRef.set(objNum, entry);
+          }
+        }
+
+        // Keep the first (most recent) trailer
+        if (!firstTrailer) {
+          firstTrailer = xrefData.trailer;
+        }
+
+        // Queue /Prev if present
+        if (xrefData.prev !== undefined) {
+          queue.push(xrefData.prev);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (this.options.lenient) {
+          this.warnings.push(`Error parsing xref at ${offset}: ${message}`);
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    if (!firstTrailer) {
+      throw new Error("No valid trailer found");
+    }
+
+    return { xref: combinedXRef, trailer: firstTrailer };
+  }
+
+  /**
+   * Build the final ParsedDocument with lazy object loading.
+   */
+  private buildDocument(
+    version: string,
+    xref: Map<number, XRefEntry>,
+    trailer: PdfDict,
+  ): ParsedDocument {
+    // Object cache: "objNum genNum" -> PdfObject
+    const cache = new Map<string, PdfObject>();
+
+    // Object stream cache: streamObjNum -> ObjectStreamParser
+    const objectStreamCache = new Map<number, ObjectStreamParser>();
+
+    // Create length resolver for stream objects with indirect /Length
+    const lengthResolver: LengthResolver = (ref: PdfRef) => {
+      // Synchronous lookup in cache only - can't do async here
+      const key = `${ref.objectNumber} ${ref.generation}`;
+      const cached = cache.get(key);
+      if (cached && cached.type === "number") {
+        return (cached as { value: number }).value;
+      }
+
+      // Try to parse synchronously if it's a simple uncompressed object
+      const entry = xref.get(ref.objectNumber);
+      if (entry?.type === "uncompressed") {
+        try {
+          const parser = new IndirectObjectParser(this.scanner);
+          const result = parser.parseObjectAt(entry.offset);
+          if (result.value.type === "number") {
+            cache.set(key, result.value);
+            return (result.value as { value: number }).value;
+          }
+        } catch {
+          // Fall through to return null
+        }
+      }
+
+      return null;
+    };
+
+    const getObject = async (ref: PdfRef): Promise<PdfObject | null> => {
+      const key = `${ref.objectNumber} ${ref.generation}`;
+
+      // Check cache
+      if (cache.has(key)) {
+        return cache.get(key)!;
+      }
+
+      // Look up in xref
+      const entry = xref.get(ref.objectNumber);
+      if (!entry) {
+        return null;
+      }
+
+      let obj: PdfObject | null = null;
+
+      switch (entry.type) {
+        case "free":
+          return null;
+
+        case "uncompressed": {
+          const parser = new IndirectObjectParser(this.scanner, lengthResolver);
+          const result = parser.parseObjectAt(entry.offset);
+
+          // Verify generation matches
+          if (result.genNum !== ref.generation) {
+            this.warnings.push(
+              `Generation mismatch for object ${ref.objectNumber}: expected ${ref.generation}, got ${result.genNum}`,
+            );
+          }
+
+          obj = result.value;
+          break;
+        }
+
+        case "compressed": {
+          // Get or create object stream parser
+          let streamParser = objectStreamCache.get(entry.streamObjNum);
+
+          if (!streamParser) {
+            // Load the object stream
+            const streamRef = PdfRef.of(entry.streamObjNum, 0);
+            const streamObj = await getObject(streamRef);
+
+            if (!streamObj || streamObj.type !== "stream") {
+              this.warnings.push(`Object stream ${entry.streamObjNum} not found or invalid`);
+              return null;
+            }
+
+            streamParser = new ObjectStreamParser(streamObj as PdfStream);
+            objectStreamCache.set(entry.streamObjNum, streamParser);
+          }
+
+          obj = await streamParser.getObject(entry.indexInStream);
+          break;
+        }
+      }
+
+      // Cache the result
+      if (obj !== null) {
+        cache.set(key, obj);
+      }
+
+      return obj;
+    };
+
+    const getCatalog = async (): Promise<PdfDict | null> => {
+      const rootRef = trailer.getRef("Root");
+      if (!rootRef) {
+        return null;
+      }
+
+      const root = await getObject(rootRef);
+      if (!root || (root.type !== "dict" && root.type !== "stream")) {
+        return null;
+      }
+
+      return root as PdfDict;
+    };
+
+    return {
+      version,
+      trailer,
+      xref,
+      warnings: this.warnings,
+      getObject,
+      getCatalog,
+    };
+  }
+
+  /**
+   * Check if bytes at position match a pattern.
+   */
+  private matchesAt(pos: number, pattern: number[]): boolean {
+    const bytes = this.scanner.bytes;
+
+    for (let i = 0; i < pattern.length; i++) {
+      if (pos + i >= bytes.length || bytes[pos + i] !== pattern[i]) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+}
