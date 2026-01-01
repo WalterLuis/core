@@ -119,32 +119,32 @@ export class PdfDict implements PdfPrimitive {
   getNumber(key: string): PdfNumber | undefined {
     const value = this.get(key);
 
-    return value?.type === "number" ? (value as PdfNumber) : undefined;
+    return value?.type === "number" ? value : undefined;
   }
 
   getString(key: string): PdfString | undefined {
     const value = this.get(key);
-    return value?.type === "string" ? (value as PdfString) : undefined;
+    return value?.type === "string" ? value : undefined;
   }
 
   getArray(key: string): PdfArray | undefined {
     const value = this.get(key);
-    return value?.type === "array" ? (value as PdfArray) : undefined;
+    return value?.type === "array" ? value : undefined;
   }
 
   getDict(key: string): PdfDict | undefined {
     const value = this.get(key);
-    return value?.type === "dict" ? (value as PdfDict) : undefined;
+    return value?.type === "dict" ? value : undefined;
   }
 
   getRef(key: string): PdfRef | undefined {
     const value = this.get(key);
-    return value?.type === "ref" ? (value as PdfRef) : undefined;
+    return value?.type === "ref" ? value : undefined;
   }
 
   getBool(key: string): PdfBool | undefined {
     const value = this.get(key);
-    return value?.type === "bool" ? (value as PdfBool) : undefined;
+    return value?.type === "bool" ? value : undefined;
   }
 
   /**

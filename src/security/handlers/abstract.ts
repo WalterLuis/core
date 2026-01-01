@@ -63,6 +63,3 @@ export class IdentityHandler extends AbstractSecurityHandler {
     return data;
   }
 }
-
-// Re-export for convenience
-export type { AbstractSecurityHandler as DecryptionHandler };

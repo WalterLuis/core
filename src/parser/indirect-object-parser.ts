@@ -229,12 +229,12 @@ export class IndirectObjectParser {
 
     // Direct number
     if (lengthObj.type === "number") {
-      return (lengthObj as { value: number }).value;
+      return lengthObj.value;
     }
 
     // Indirect reference
     if (lengthObj.type === "ref") {
-      const ref = lengthObj as PdfRef;
+      const ref = lengthObj;
 
       if (!this.lengthResolver) {
         throw new ObjectParseError(

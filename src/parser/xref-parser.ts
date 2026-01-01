@@ -125,11 +125,11 @@ export class XRefParser {
     const parser = new ObjectParser(reader);
     const result = parser.parseObject();
 
-    if (result === null || !(result.object.type === "dict")) {
+    if (result === null || result.object.type !== "dict") {
       throw new XRefParseError("Invalid trailer dictionary");
     }
 
-    const trailer = result.object as PdfDict;
+    const trailer = result.object;
 
     // Extract /Prev if present
     const prevNum = trailer.getNumber("Prev");

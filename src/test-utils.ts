@@ -13,7 +13,14 @@ const FIXTURES_PATH = join(import.meta.dirname, "..", "fixtures");
 /**
  * Fixture categories matching the fixtures directory structure.
  */
-export type FixtureCategory = "basic" | "xref" | "filter" | "encryption" | "malformed" | "text";
+export type FixtureCategory =
+  | "attachments"
+  | "basic"
+  | "encryption"
+  | "filter"
+  | "malformed"
+  | "text"
+  | "xref";
 
 /**
  * Load a PDF fixture file as a Uint8Array.

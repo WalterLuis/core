@@ -468,13 +468,17 @@ export class DocumentParser {
       const cached = cache.get(key);
 
       if (cached && cached.type === "number") {
-        return (cached as { value: number }).value;
+        return cached.value;
       }
 
       // Try to parse synchronously if it's a simple uncompressed object
       const entry = xref.get(ref.objectNumber);
 
       if (entry?.type === "uncompressed") {
+        // Save scanner position - we must restore it after parsing the length
+        // because we're in the middle of parsing a stream
+        const savedPosition = this.scanner.position;
+
         try {
           const parser = new IndirectObjectParser(this.scanner);
 
@@ -483,10 +487,14 @@ export class DocumentParser {
           if (result.value.type === "number") {
             cache.set(key, result.value);
 
-            return (result.value as { value: number }).value;
+            // Restore scanner position before returning
+            this.scanner.moveTo(savedPosition);
+
+            return result.value.value;
           }
         } catch {
-          // Fall through to return null
+          // Restore scanner position and fall through to return null
+          this.scanner.moveTo(savedPosition);
         }
       }
 

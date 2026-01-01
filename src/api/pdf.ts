@@ -5,12 +5,21 @@
  * Wraps the low-level parsing and writing infrastructure.
  */
 
+import {
+  type AddAttachmentOptions,
+  type AttachmentInfo,
+  createEmbeddedFileStream,
+  createFileSpec,
+  getEmbeddedFileStream,
+  parseFileSpec,
+} from "#src/attachments";
 import { hasChanges } from "#src/document/change-collector";
 import {
   checkIncrementalSaveBlocker,
   type IncrementalSaveBlocker,
   isLinearizationDict,
 } from "#src/document/linearization";
+import { buildNameTree, NameTree } from "#src/document/name-tree";
 import { ObjectRegistry } from "#src/document/object-registry";
 import { Scanner } from "#src/io/scanner";
 import { PdfArray } from "#src/objects/pdf-array";
@@ -68,6 +77,9 @@ export class PDF {
   private readonly registry: ObjectRegistry;
   private readonly originalBytes: Uint8Array;
   private readonly originalXRefOffset: number;
+
+  /** Cached embedded files tree (undefined = not loaded, null = no tree) */
+  private embeddedFilesTree: NameTree | null | undefined = undefined;
 
   /** Whether this document was recovered via brute-force parsing */
   readonly recoveredViaBruteForce: boolean;
@@ -278,6 +290,301 @@ export class PDF {
     }
 
     return this.register(stream);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Attachments
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Get the embedded files name tree.
+   * Caches the result for repeated access.
+   */
+  private async getEmbeddedFilesTree(): Promise<NameTree | null> {
+    if (this.embeddedFilesTree !== undefined) {
+      return this.embeddedFilesTree;
+    }
+
+    const catalog = await this.getCatalog();
+    if (!catalog) {
+      this.embeddedFilesTree = null;
+      return null;
+    }
+
+    // Get /Names dictionary
+    const namesEntry = catalog.get("Names");
+    let names: PdfDict | null = null;
+
+    if (namesEntry instanceof PdfRef) {
+      const resolved = await this.getObject(namesEntry);
+      if (resolved instanceof PdfDict) {
+        names = resolved;
+      }
+    } else if (namesEntry instanceof PdfDict) {
+      names = namesEntry;
+    }
+
+    if (!names) {
+      this.embeddedFilesTree = null;
+      return null;
+    }
+
+    // Get /EmbeddedFiles entry
+    const embeddedFilesEntry = names.get("EmbeddedFiles");
+    let embeddedFiles: PdfDict | null = null;
+
+    if (embeddedFilesEntry instanceof PdfRef) {
+      const resolved = await this.getObject(embeddedFilesEntry);
+      if (resolved instanceof PdfDict) {
+        embeddedFiles = resolved;
+      }
+    } else if (embeddedFilesEntry instanceof PdfDict) {
+      embeddedFiles = embeddedFilesEntry;
+    }
+
+    if (!embeddedFiles) {
+      this.embeddedFilesTree = null;
+      return null;
+    }
+
+    this.embeddedFilesTree = new NameTree(embeddedFiles, this.getObject.bind(this));
+    return this.embeddedFilesTree;
+  }
+
+  /**
+   * List all attachments in the document.
+   *
+   * @returns Map of attachment name to attachment info
+   */
+  async getAttachments(): Promise<Map<string, AttachmentInfo>> {
+    const result = new Map<string, AttachmentInfo>();
+    const tree = await this.getEmbeddedFilesTree();
+
+    if (!tree) {
+      return result;
+    }
+
+    for await (const [name, value] of tree.entries()) {
+      if (!(value instanceof PdfDict)) {
+        continue;
+      }
+
+      const info = await parseFileSpec(value, name, this.getObject.bind(this));
+
+      if (info) {
+        result.set(name, info);
+      } else {
+        // External file reference - skip but warn
+        this.warnings.push(`Attachment "${name}" is an external file reference (not embedded)`);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Get the raw bytes of an attachment.
+   *
+   * @param name The attachment name (key in the EmbeddedFiles tree)
+   * @returns The attachment bytes, or null if not found
+   */
+  async getAttachment(name: string): Promise<Uint8Array | null> {
+    const tree = await this.getEmbeddedFilesTree();
+
+    if (!tree) {
+      return null;
+    }
+
+    const fileSpec = await tree.get(name);
+
+    if (!(fileSpec instanceof PdfDict)) {
+      return null;
+    }
+
+    const stream = await getEmbeddedFileStream(fileSpec, this.getObject.bind(this));
+
+    if (!stream) {
+      return null;
+    }
+
+    return stream.getDecodedData();
+  }
+
+  /**
+   * Check if an attachment exists.
+   *
+   * @param name The attachment name
+   * @returns True if the attachment exists
+   */
+  async hasAttachment(name: string): Promise<boolean> {
+    const tree = await this.getEmbeddedFilesTree();
+
+    if (!tree) {
+      return false;
+    }
+
+    return tree.has(name);
+  }
+
+  /**
+   * Add a file attachment to the document.
+   *
+   * @param name The attachment name (key in the EmbeddedFiles tree)
+   * @param data The file data
+   * @param options Attachment options (description, MIME type, dates)
+   * @throws Error if name already exists and overwrite !== true
+   */
+  async addAttachment(
+    name: string,
+    data: Uint8Array,
+    options: AddAttachmentOptions = {},
+  ): Promise<void> {
+    // Check if attachment already exists
+    if (!options.overwrite && (await this.hasAttachment(name))) {
+      throw new Error(`Attachment "${name}" already exists. Use { overwrite: true } to replace.`);
+    }
+
+    // Create the embedded file stream
+    const embeddedFileStream = createEmbeddedFileStream(data, name, options);
+    const embeddedFileRef = this.register(embeddedFileStream);
+
+    // Create the file specification
+    const fileSpec = createFileSpec(name, embeddedFileRef, options);
+    const fileSpecRef = this.register(fileSpec);
+
+    // Get or create the /Names dictionary in the catalog
+    const catalog = await this.getCatalog();
+
+    if (!catalog) {
+      throw new Error("Document has no catalog");
+    }
+
+    // Collect all existing attachments
+    const existingAttachments: Array<[string, PdfRef]> = [];
+    const tree = await this.getEmbeddedFilesTree();
+
+    if (tree) {
+      for await (const [key, value] of tree.entries()) {
+        if (key === name && options.overwrite) {
+          // Skip the one we're replacing
+          continue;
+        }
+
+        // Get the ref for this file spec
+        const ref = this.registry.getRef(value);
+
+        if (ref) {
+          existingAttachments.push([key, ref]);
+        }
+      }
+    }
+
+    // Add the new attachment
+    existingAttachments.push([name, fileSpecRef]);
+
+    // Build new name tree
+    const newNameTree = buildNameTree(existingAttachments);
+    const nameTreeRef = this.register(newNameTree);
+
+    // Get or create /Names dict
+    let names: PdfDict;
+    const namesEntry = catalog.get("Names");
+
+    if (namesEntry instanceof PdfRef) {
+      const resolved = await this.getObject(namesEntry);
+
+      if (resolved instanceof PdfDict) {
+        names = resolved;
+      } else {
+        names = new PdfDict();
+        catalog.set("Names", this.register(names));
+      }
+    } else if (namesEntry instanceof PdfDict) {
+      names = namesEntry;
+    } else {
+      names = new PdfDict();
+      catalog.set("Names", this.register(names));
+    }
+
+    // Set /EmbeddedFiles to point to new tree
+    names.set("EmbeddedFiles", nameTreeRef);
+
+    // Clear the cached tree so it gets reloaded
+    this.embeddedFilesTree = undefined;
+  }
+
+  /**
+   * Remove an attachment from the document.
+   *
+   * @param name The attachment name
+   * @returns True if the attachment was removed, false if not found
+   */
+  async removeAttachment(name: string): Promise<boolean> {
+    const tree = await this.getEmbeddedFilesTree();
+
+    if (!tree) {
+      return false;
+    }
+
+    // Check if it exists
+    if (!(await tree.has(name))) {
+      return false;
+    }
+
+    // Collect all attachments except the one to remove
+    const remainingAttachments: Array<[string, PdfRef]> = [];
+
+    for await (const [key, value] of tree.entries()) {
+      if (key === name) {
+        continue; // Skip the one we're removing
+      }
+
+      const ref = this.registry.getRef(value);
+
+      if (ref) {
+        remainingAttachments.push([key, ref]);
+      }
+    }
+
+    // Get catalog and /Names
+    const catalog = await this.getCatalog();
+
+    if (!catalog) {
+      return false;
+    }
+
+    const namesEntry = catalog.get("Names");
+    let names: PdfDict | null = null;
+
+    if (namesEntry instanceof PdfRef) {
+      const resolved = await this.getObject(namesEntry);
+
+      if (resolved instanceof PdfDict) {
+        names = resolved;
+      }
+    } else if (namesEntry instanceof PdfDict) {
+      names = namesEntry;
+    }
+
+    if (!names) {
+      return false;
+    }
+
+    if (remainingAttachments.length === 0) {
+      // No attachments left - remove /EmbeddedFiles entry
+      names.delete("EmbeddedFiles");
+    } else {
+      // Build new tree with remaining attachments
+      const newNameTree = buildNameTree(remainingAttachments);
+      const nameTreeRef = this.register(newNameTree);
+
+      names.set("EmbeddedFiles", nameTreeRef);
+    }
+
+    // Clear the cached tree
+    this.embeddedFilesTree = undefined;
+
+    return true;
   }
 
   // ─────────────────────────────────────────────────────────────────────────────

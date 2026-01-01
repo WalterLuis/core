@@ -10,6 +10,7 @@
  */
 
 import type { PdfDict } from "#src/objects/pdf-dict";
+import { PdfNumber } from "#src/objects/pdf-number.ts";
 
 /**
  * Linearization dictionary parameters.
@@ -91,8 +92,8 @@ export function parseLinearizationDict(dict: PdfDict): LinearizationParams | nul
   return {
     version,
     fileLength,
-    hintOffset: hintOffset && "value" in hintOffset ? (hintOffset.value as number) : 0,
-    hintLength: hintLength && "value" in hintLength ? (hintLength.value as number) : 0,
+    hintOffset: hintOffset && hintOffset instanceof PdfNumber ? hintOffset.value : 0,
+    hintLength: hintLength && hintLength instanceof PdfNumber ? hintLength.value : 0,
     firstPage,
     endOfFirstPage,
     pageCount,
