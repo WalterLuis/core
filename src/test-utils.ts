@@ -19,12 +19,13 @@ export type FixtureCategory = "basic" | "xref" | "filter" | "encryption" | "malf
  * Load a PDF fixture file as a Uint8Array.
  *
  * @param category - The fixture category (subdirectory)
- * @param filename - The PDF filename
+ * @param filename - The PDF filename (can include subdirectories, e.g., "pdfbox/PDFBOX-3208.pdf")
  * @returns The file contents as Uint8Array
  *
  * @example
  * ```ts
  * const bytes = await loadFixture("basic", "rot0.pdf");
+ * const pdfboxBytes = await loadFixture("malformed", "pdfbox/PDFBOX-3208.pdf");
  * ```
  */
 export async function loadFixture(category: FixtureCategory, filename: string) {
