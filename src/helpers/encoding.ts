@@ -1,4 +1,3 @@
-/** biome-ignore-all lint/complexity/useSimpleNumberKeys: remaps character codes */
 /**
  * PDF text string encoding/decoding.
  *
@@ -9,6 +8,8 @@
  * Detection: If bytes start with 0xFE 0xFF (UTF-16BE BOM), decode as UTF-16BE.
  * Otherwise, decode as PDFDocEncoding.
  */
+
+/** biome-ignore-all lint/complexity/useSimpleNumberKeys: remaps character codes */
 
 import { CR, LF, TAB } from "./chars";
 
@@ -182,6 +183,7 @@ export function decodeTextString(bytes: Uint8Array): string {
  */
 export function canEncodePdfDoc(text: string): boolean {
   for (const char of text) {
+    // biome-ignore lint/style/noNonNullAssertion: char will exist since it's a string
     const code = char.codePointAt(0)!;
 
     // Check if it's in the reverse mapping (special chars)
@@ -218,6 +220,7 @@ export function encodePdfDocEncoding(text: string): Uint8Array | null {
   const bytes: number[] = [];
 
   for (const char of text) {
+    // biome-ignore lint/style/noNonNullAssertion: char will exist since it's a string
     const code = char.codePointAt(0)!;
 
     // Check reverse mapping first (for special chars like €, •, —)
@@ -264,6 +267,7 @@ export function encodeUtf16BE(text: string): Uint8Array {
   const bytes: number[] = [0xfe, 0xff]; // BOM
 
   for (const char of text) {
+    // biome-ignore lint/style/noNonNullAssertion: char will exist since it's a string
     const code = char.codePointAt(0)!;
 
     if (code > 0xffff) {

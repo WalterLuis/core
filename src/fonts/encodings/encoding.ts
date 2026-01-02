@@ -74,6 +74,7 @@ export abstract class SimpleEncoding implements FontEncoding {
     const codes: number[] = [];
 
     for (const char of text) {
+      // biome-ignore lint/style/noNonNullAssertion: char will exist since it's a string
       const unicode = char.codePointAt(0)!;
       const code = this.fromUnicode.get(unicode);
 

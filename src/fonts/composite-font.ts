@@ -101,6 +101,7 @@ export class CompositeFont extends PdfFont {
   toUnicode(code: number): string {
     // Try ToUnicode map first (most accurate)
     if (this.toUnicodeMap?.has(code)) {
+      // biome-ignore lint/style/noNonNullAssertion: checked with has(...)
       return this.toUnicodeMap.get(code)!;
     }
 
@@ -111,10 +112,12 @@ export class CompositeFont extends PdfFont {
         // High surrogate - return as-is (incomplete)
         return String.fromCharCode(code);
       }
+
       if (code >= 0xdc00 && code <= 0xdfff) {
         // Low surrogate - return as-is (incomplete)
         return String.fromCharCode(code);
       }
+
       return String.fromCharCode(code);
     }
 

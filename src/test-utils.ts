@@ -19,10 +19,13 @@ const TEST_OUTPUT_PATH = join(import.meta.dirname, "..", "test-output");
  * Fixture categories matching the fixtures directory structure.
  */
 export type FixtureCategory =
+  | "afm"
   | "attachments"
   | "basic"
+  | "cmap"
   | "encryption"
   | "filter"
+  | "fonts"
   | "forms"
   | "malformed"
   | "text"
