@@ -9,6 +9,9 @@
 // Parser
 export { parseCFF, isCFF } from "./parser.ts";
 
+// Subsetter
+export { CFFSubsetter } from "./subsetter.ts";
+
 // Types
 export type {
   CFFHeader,

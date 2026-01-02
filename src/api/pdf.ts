@@ -22,6 +22,8 @@ import { buildNameTree, NameTree } from "#src/document/name-tree";
 import { ObjectCopier } from "#src/document/object-copier";
 import { ObjectRegistry } from "#src/document/object-registry";
 import { PageTree } from "#src/document/page-tree";
+import { EmbeddedFont, type EmbedFontOptions } from "#src/fonts/embedded-font";
+import { createFontObjects, registerFontObjects } from "#src/fonts/font-embedder";
 import { resolvePageSize } from "#src/helpers/page-size";
 import { Scanner } from "#src/io/scanner";
 import { PdfArray } from "#src/objects/pdf-array";
@@ -120,6 +122,9 @@ export class PDF {
 
   /** Cached embedded files tree (undefined = not loaded, null = no tree) */
   private embeddedFilesTree: NameTree | null | undefined = undefined;
+
+  /** Embedded fonts that need to be written on save */
+  private readonly embeddedFonts: Map<EmbeddedFont, PdfRef | null> = new Map();
 
   /** Whether this document was recovered via brute-force parsing */
   readonly recoveredViaBruteForce: boolean;
@@ -520,6 +525,80 @@ export class PDF {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // Font Embedding
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Embed a font for use in the document.
+   *
+   * The font is parsed and prepared for embedding. The actual PDF objects
+   * are created during save, which allows subsetting to only include
+   * the glyphs that were actually used.
+   *
+   * @param data - Font data (TTF, OTF, or Type1)
+   * @param options - Embedding options
+   * @returns EmbeddedFont instance for encoding text
+   *
+   * @example
+   * ```typescript
+   * const fontBytes = await fs.readFile("NotoSans-Regular.ttf");
+   * const font = pdf.embedFont(fontBytes);
+   *
+   * // Use the font
+   * const codes = font.encodeText("Hello World");
+   * const width = font.getTextWidth("Hello World", 12);
+   *
+   * // Add font to page resources (using the font's reference)
+   * const fontRef = pdf.getFontRef(font);
+   * ```
+   */
+  embedFont(data: Uint8Array, options?: EmbedFontOptions): EmbeddedFont {
+    const font = EmbeddedFont.fromBytes(data, options);
+
+    // Track the font (ref will be assigned during save)
+    this.embeddedFonts.set(font, null);
+
+    return font;
+  }
+
+  /**
+   * Get the reference for an embedded font.
+   *
+   * Note: The reference is only available after `prepareEmbeddedFonts()` is called
+   * (which happens automatically during save). Before that, this returns null.
+   *
+   * For most use cases, you should add the font to page resources after saving,
+   * or use the async version that ensures fonts are prepared.
+   */
+  getFontRef(font: EmbeddedFont): PdfRef | null {
+    return this.embeddedFonts.get(font) ?? null;
+  }
+
+  /**
+   * Prepare all embedded fonts by creating their PDF objects.
+   *
+   * This is called automatically during save, but can be called manually
+   * if you need the font references before saving.
+   */
+  async prepareEmbeddedFonts(): Promise<void> {
+    for (const [font, existingRef] of this.embeddedFonts) {
+      // Skip if already prepared
+      if (existingRef !== null) {
+        continue;
+      }
+
+      // Create PDF objects for the font
+      const result = await createFontObjects(font);
+
+      // Register all objects and get the Type0 font reference
+      const fontRef = registerFontObjects(result, obj => this.register(obj));
+
+      // Store the reference
+      this.embeddedFonts.set(font, fontRef);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // Attachments
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -851,6 +930,9 @@ export class PDF {
    * @returns The saved PDF bytes
    */
   async save(options: SaveOptions = {}): Promise<Uint8Array> {
+    // Prepare embedded fonts (creates PDF objects, subsets fonts)
+    await this.prepareEmbeddedFonts();
+
     const wantsIncremental = options.incremental ?? false;
     const blocker = this.canSaveIncrementally();
 
@@ -862,7 +944,7 @@ export class PDF {
     const useIncremental = wantsIncremental && blocker === null;
 
     // If no changes, return original bytes
-    if (!this.hasChanges()) {
+    if (!this.hasChanges() && this.embeddedFonts.size === 0) {
       return this.originalBytes;
     }
 

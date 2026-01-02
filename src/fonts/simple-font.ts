@@ -22,6 +22,7 @@ import { unicodeToGlyphName } from "#src/helpers/unicode";
 import type { PdfArray } from "#src/objects/pdf-array";
 import type { PdfDict } from "#src/objects/pdf-dict";
 import type { PdfName } from "#src/objects/pdf-name";
+import { type EmbeddedParserOptions, parseEmbeddedProgram } from "./embedded-parser";
 import { DifferencesEncoding } from "./encodings/differences";
 import type { FontEncoding } from "./encodings/encoding";
 import { MacRomanEncoding } from "./encodings/mac-roman";
@@ -30,6 +31,7 @@ import { SymbolEncoding } from "./encodings/symbol";
 import { WinAnsiEncoding } from "./encodings/win-ansi";
 import { ZapfDingbatsEncoding } from "./encodings/zapf-dingbats";
 import { FontDescriptor } from "./font-descriptor";
+import type { FontProgram } from "./font-program/index.ts";
 import { PdfFont } from "./pdf-font";
 import {
   getStandard14DefaultWidth,
@@ -71,6 +73,9 @@ export class SimpleFont extends PdfFont {
   /** Whether this is a Standard 14 font */
   readonly isStandard14: boolean;
 
+  /** Embedded font program (if available) */
+  private readonly embeddedProgram: FontProgram | null;
+
   constructor(options: {
     subtype: SimpleFontSubtype;
     baseFontName: string;
@@ -80,6 +85,7 @@ export class SimpleFont extends PdfFont {
     encoding?: FontEncoding;
     toUnicodeMap?: ToUnicodeMap | null;
     descriptor?: FontDescriptor | null;
+    embeddedProgram?: FontProgram | null;
   }) {
     super();
     this.subtype = options.subtype;
@@ -91,6 +97,21 @@ export class SimpleFont extends PdfFont {
     this.toUnicodeMap = options.toUnicodeMap ?? null;
     this._descriptor = options.descriptor ?? null;
     this.isStandard14 = isStandard14Font(this.baseFontName);
+    this.embeddedProgram = options.embeddedProgram ?? null;
+  }
+
+  /**
+   * Check if an embedded font program is available.
+   */
+  get hasEmbeddedProgram(): boolean {
+    return this.embeddedProgram !== null;
+  }
+
+  /**
+   * Get the embedded font program, if available.
+   */
+  getEmbeddedProgram(): FontProgram | null {
+    return this.embeddedProgram;
   }
 
   /**
@@ -123,6 +144,23 @@ export class SimpleFont extends PdfFont {
         }
       }
       return getStandard14DefaultWidth(this.baseFontName);
+    }
+
+    // Try embedded font program
+    if (this.embeddedProgram) {
+      // Get Unicode for the character code
+      const unicode = this.encoding.getUnicode(code);
+
+      if (unicode !== undefined) {
+        const gid = this.embeddedProgram.getGlyphId(unicode);
+
+        if (gid !== 0) {
+          const width = this.embeddedProgram.getAdvanceWidth(gid);
+
+          // Convert from font units to 1000 units
+          return Math.round((width * 1000) / this.embeddedProgram.unitsPerEm);
+        }
+      }
     }
 
     // Fall back to missing width
@@ -161,7 +199,17 @@ export class SimpleFont extends PdfFont {
     }
 
     // Fall back to encoding
-    return this.encoding.decode(code);
+    const encoded = this.encoding.decode(code);
+
+    if (encoded) {
+      return encoded;
+    }
+
+    // If encoding failed, try to infer from embedded program
+    // For TrueType fonts with symbolic encoding, the code might map directly to GID
+    // and we can try to get the Unicode from the font's cmap
+    // (This is complex and font-specific, so we just return empty for now)
+    return "";
   }
 
   /**
@@ -207,6 +255,7 @@ export function parseSimpleFont(
   options: {
     resolveRef?: (ref: unknown) => PdfDict | PdfArray | null;
     decodeStream?: (stream: unknown) => Uint8Array | null;
+    toUnicodeMap?: ToUnicodeMap | null;
   } = {},
 ): SimpleFont {
   const subtypeName = dict.getName("Subtype");
@@ -221,6 +270,7 @@ export function parseSimpleFont(
   if (widthsArray) {
     for (let i = 0; i < widthsArray.length; i++) {
       const item = widthsArray.at(i);
+
       if (item && item.type === "number") {
         widths.push(item.value);
       } else {
@@ -232,18 +282,27 @@ export function parseSimpleFont(
   // Parse encoding
   const encoding = parseEncoding(dict, options.resolveRef);
 
-  // Parse FontDescriptor
+  // Parse FontDescriptor and embedded font program
   let descriptor: FontDescriptor | null = null;
+  let embeddedProgram: FontProgram | null = null;
+
   const descriptorRef = dict.get("FontDescriptor");
   if (descriptorRef && options.resolveRef) {
     const descriptorDict = options.resolveRef(descriptorRef);
     if (descriptorDict && "getString" in descriptorDict) {
       descriptor = FontDescriptor.parse(descriptorDict as PdfDict);
+
+      // Try to parse embedded font program from FontDescriptor
+      if (options.decodeStream) {
+        const parserOptions: EmbeddedParserOptions = {
+          decodeStream: options.decodeStream,
+          resolveRef: options.resolveRef as ((ref: unknown) => unknown) | undefined,
+        };
+
+        embeddedProgram = parseEmbeddedProgram(descriptorDict as PdfDict, parserOptions);
+      }
     }
   }
-
-  // Parse ToUnicode (handled externally due to stream decoding)
-  // The caller should provide a decoded ToUnicodeMap if available
 
   return new SimpleFont({
     subtype,
@@ -253,6 +312,8 @@ export function parseSimpleFont(
     widths,
     encoding,
     descriptor,
+    embeddedProgram,
+    toUnicodeMap: options.toUnicodeMap,
   });
 }
 
@@ -282,12 +343,12 @@ function parseEncoding(
 
   // Name encoding (e.g., /WinAnsiEncoding)
   if (encodingValue.type === "name") {
-    return getEncodingByName((encodingValue as PdfName).value);
+    return getEncodingByName(encodingValue.value);
   }
 
   // Dictionary encoding with /BaseEncoding and /Differences
   if (encodingValue.type === "dict") {
-    return parseEncodingDict(encodingValue as PdfDict);
+    return parseEncodingDict(encodingValue);
   }
 
   // Reference to encoding dict
@@ -314,12 +375,14 @@ function parseEncodingDict(dict: PdfDict): FontEncoding {
 
   // Parse differences array
   const differencesArray = dict.getArray("Differences");
+
   if (!differencesArray || differencesArray.length === 0) {
     return baseEncoding;
   }
 
   // Convert array to [number, string, string, ...] format
   const items: Array<number | string> = [];
+
   for (let i = 0; i < differencesArray.length; i++) {
     const item = differencesArray.at(i);
 

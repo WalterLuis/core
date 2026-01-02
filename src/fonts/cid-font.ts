@@ -20,7 +20,9 @@
 
 import type { PdfArray } from "#src/objects/pdf-array";
 import type { PdfDict } from "#src/objects/pdf-dict";
+import { type EmbeddedParserOptions, parseEmbeddedProgram } from "./embedded-parser";
 import { FontDescriptor } from "./font-descriptor";
+import type { FontProgram } from "./font-program/index.ts";
 
 export type CIDFontSubtype = "CIDFontType0" | "CIDFontType2";
 
@@ -58,6 +60,9 @@ export class CIDFont {
   /** CID to GID mapping (null = Identity, Uint16Array = explicit map) */
   private readonly cidToGidMap: "Identity" | Uint16Array | null;
 
+  /** Embedded font program (if available) */
+  private readonly embeddedProgram: FontProgram | null;
+
   constructor(options: {
     subtype: CIDFontSubtype;
     baseFontName: string;
@@ -66,6 +71,7 @@ export class CIDFont {
     defaultWidth?: number;
     widths?: CIDWidthMap;
     cidToGidMap?: "Identity" | Uint16Array | null;
+    embeddedProgram?: FontProgram | null;
   }) {
     this.subtype = options.subtype;
     this.baseFontName = options.baseFontName;
@@ -78,13 +84,47 @@ export class CIDFont {
     this.defaultWidth = options.defaultWidth ?? 1000;
     this.widths = options.widths ?? new CIDWidthMap();
     this.cidToGidMap = options.cidToGidMap ?? "Identity";
+    this.embeddedProgram = options.embeddedProgram ?? null;
+  }
+
+  /**
+   * Check if an embedded font program is available.
+   */
+  get hasEmbeddedProgram(): boolean {
+    return this.embeddedProgram !== null;
+  }
+
+  /**
+   * Get the embedded font program, if available.
+   */
+  getEmbeddedProgram(): FontProgram | null {
+    return this.embeddedProgram;
   }
 
   /**
    * Get width for a CID in glyph units (1000 = 1 em).
    */
   getWidth(cid: number): number {
-    return this.widths.get(cid) ?? this.defaultWidth;
+    // Try explicit widths first
+    const explicitWidth = this.widths.get(cid);
+
+    if (explicitWidth !== undefined) {
+      return explicitWidth;
+    }
+
+    // Try embedded font program
+    if (this.embeddedProgram) {
+      const gid = this.getGid(cid);
+
+      if (gid !== 0 || cid === 0) {
+        const width = this.embeddedProgram.getAdvanceWidth(gid);
+
+        // Convert from font units to 1000 units
+        return Math.round((width * 1000) / this.embeddedProgram.unitsPerEm);
+      }
+    }
+
+    return this.defaultWidth;
   }
 
   /**
@@ -95,6 +135,7 @@ export class CIDFont {
     if (this.cidToGidMap === "Identity" || this.cidToGidMap === null) {
       return cid;
     }
+
     return this.cidToGidMap[cid] ?? 0;
   }
 }
@@ -116,6 +157,7 @@ export class CIDWidthMap {
   get(cid: number): number | undefined {
     // Check individual mappings first (more specific)
     const individual = this.individual.get(cid);
+
     if (individual !== undefined) {
       return individual;
     }
@@ -169,6 +211,7 @@ export function parseCIDWidths(wArray: PdfArray): CIDWidthMap {
 
   while (i < wArray.length) {
     const first = wArray.at(i);
+
     if (!first || first.type !== "number") {
       i++;
       continue;
@@ -184,20 +227,25 @@ export function parseCIDWidths(wArray: PdfArray): CIDWidthMap {
     if (second.type === "array") {
       // Individual widths: cid [w1 w2 w3 ...]
       const widthArray = second as PdfArray;
+
       for (let j = 0; j < widthArray.length; j++) {
         const widthItem = widthArray.at(j);
+
         if (widthItem && widthItem.type === "number") {
           map.set(startCid + j, widthItem.value);
         }
       }
+
       i += 2;
     } else if (second.type === "number") {
       // Range: cidStart cidEnd width
       const endCid = second.value;
       const third = wArray.at(i + 2);
+
       if (third && third.type === "number") {
         map.addRange(startCid, endCid, third.value);
       }
+
       i += 3;
     } else {
       i++;
@@ -214,6 +262,7 @@ export function parseCIDFont(
   dict: PdfDict,
   options: {
     resolveRef?: (ref: unknown) => PdfDict | PdfArray | null;
+    decodeStream?: (stream: unknown) => Uint8Array | null;
   } = {},
 ): CIDFont {
   const subtypeName = dict.getName("Subtype");
@@ -226,7 +275,9 @@ export function parseCIDFont(
     ordering: "Identity",
     supplement: 0,
   };
+
   const sysInfoDict = dict.getDict("CIDSystemInfo");
+
   if (sysInfoDict) {
     cidSystemInfo = {
       registry: sysInfoDict.getString("Registry")?.asString() ?? "Adobe",
@@ -241,28 +292,58 @@ export function parseCIDFont(
   // Parse /W array
   let widths = new CIDWidthMap();
   const wArray = dict.getArray("W");
+
   if (wArray) {
     widths = parseCIDWidths(wArray);
   }
 
-  // Parse FontDescriptor
+  // Parse FontDescriptor and embedded font program
   let descriptor: FontDescriptor | null = null;
+  let embeddedProgram: FontProgram | null = null;
+
   const descriptorRef = dict.get("FontDescriptor");
+
   if (descriptorRef && options.resolveRef) {
     const descriptorDict = options.resolveRef(descriptorRef);
+
     if (descriptorDict && descriptorDict.type === "dict") {
       descriptor = FontDescriptor.parse(descriptorDict as PdfDict);
+
+      // Try to parse embedded font program from FontDescriptor
+      if (options.decodeStream) {
+        const parserOptions: EmbeddedParserOptions = {
+          decodeStream: options.decodeStream,
+          resolveRef: options.resolveRef as ((ref: unknown) => unknown) | undefined,
+        };
+
+        embeddedProgram = parseEmbeddedProgram(descriptorDict as PdfDict, parserOptions);
+      }
     }
   }
 
   // Parse CIDToGIDMap
   let cidToGidMap: "Identity" | Uint16Array | null = "Identity";
   const cidToGidValue = dict.get("CIDToGIDMap");
+
   if (cidToGidValue) {
     if (cidToGidValue.type === "name" && cidToGidValue.value === "Identity") {
       cidToGidMap = "Identity";
     }
-    // Stream-based CIDToGIDMap not implemented (would need to decode stream)
+
+    // Stream-based CIDToGIDMap - decode to Uint16Array
+    if (cidToGidValue.type === "stream" && options.decodeStream) {
+      const mapData = options.decodeStream(cidToGidValue);
+
+      if (mapData && mapData.length >= 2) {
+        // CIDToGIDMap is a stream of 2-byte big-endian integers
+        const numEntries = mapData.length / 2;
+        cidToGidMap = new Uint16Array(numEntries);
+
+        for (let i = 0; i < numEntries; i++) {
+          cidToGidMap[i] = (mapData[i * 2] << 8) | mapData[i * 2 + 1];
+        }
+      }
+    }
   }
 
   return new CIDFont({
@@ -273,5 +354,6 @@ export function parseCIDFont(
     defaultWidth,
     widths,
     cidToGidMap,
+    embeddedProgram,
   });
 }

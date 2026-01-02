@@ -30,12 +30,7 @@ export class PdfStream extends PdfDict {
     dict?: PdfDict | Iterable<[PdfName | string, PdfObject]>,
     data: Uint8Array = new Uint8Array(0),
   ) {
-    if (dict instanceof PdfDict) {
-      // Copy entries from existing dict
-      super(dict);
-    } else {
-      super(dict);
-    }
+    super(dict);
 
     this._data = data;
   }

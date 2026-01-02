@@ -43,6 +43,9 @@
         "rules": {
           "style": {
             "noNonNullAssertion": "off"
+          },
+          "suspicious": {
+            "noApproximativeNumericConstant": "off"
           }
         }
       }

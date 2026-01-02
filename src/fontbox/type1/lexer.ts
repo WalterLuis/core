@@ -85,13 +85,13 @@ export class Type1Lexer {
   /**
    * Reads an ASCII char from the buffer, throwing on EOF.
    */
-  private getCharOrThrow(): number {
-    if (this.position >= this.data.length) {
-      throw new Error("Premature end of buffer reached");
-    }
+  // private getCharOrThrow(): number {
+  //   if (this.position >= this.data.length) {
+  //     throw new Error("Premature end of buffer reached");
+  //   }
 
-    return this.data[this.position++];
-  }
+  //   return this.data[this.position++];
+  // }
 
   /**
    * Check if there's more data available.
