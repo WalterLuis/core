@@ -1,4 +1,5 @@
 import { CHAR_PARENTHESIS_CLOSE, CHAR_PARENTHESIS_OPEN } from "#src/helpers/chars";
+import { canEncodePdfDoc, decodeTextString, encodeTextString } from "#src/helpers/encoding";
 import { bytesToHex, escapeLiteralString, hexToBytes } from "#src/helpers/strings";
 import type { ByteWriter } from "#src/io/byte-writer";
 import type { PdfPrimitive } from "./pdf-primitive";
@@ -8,7 +9,8 @@ import type { PdfPrimitive } from "./pdf-primitive";
  *
  * In PDF: `(Hello World)` (literal) or `<48656C6C6F>` (hex)
  *
- * Stores raw bytes — decode with `.asString()` when needed.
+ * Stores raw bytes. Use `.asString()` to decode as PDF text string
+ * (auto-detects PDFDocEncoding vs UTF-16BE).
  */
 export class PdfString implements PdfPrimitive {
   get type(): "string" {
@@ -21,20 +23,27 @@ export class PdfString implements PdfPrimitive {
   ) {}
 
   /**
-   * Decode bytes as a string.
-   * Uses UTF-8 by default. For proper PDF text decoding,
-   * higher-level code should check for BOM and use appropriate encoding.
+   * Decode as PDF text string (auto-detects encoding).
+   *
+   * PDF text strings use either PDFDocEncoding (single-byte, similar to Latin-1)
+   * or UTF-16BE with BOM (0xFE 0xFF prefix). This method auto-detects and decodes.
    */
   asString(): string {
-    return new TextDecoder("utf-8").decode(this.bytes);
+    return decodeTextString(this.bytes);
   }
 
   /**
-   * Create a PdfString from a JavaScript string (encodes as UTF-8).
+   * Create a PdfString from text (auto-selects encoding).
+   *
+   * Uses PDFDocEncoding if all characters fit, otherwise UTF-16BE with BOM.
+   * PDFDocEncoding supports ASCII, Latin-1 supplement, and some special chars
+   * (€, •, —, ", ", etc.). For CJK, emoji, or other Unicode, uses UTF-16BE.
    */
-  static fromString(str: string): PdfString {
-    const bytes = new TextEncoder().encode(str);
-    return new PdfString(bytes, "literal");
+  static fromString(text: string): PdfString {
+    const bytes = encodeTextString(text);
+    // Use hex format for UTF-16 (has BOM, cleaner output), literal for PDFDoc
+    const format = canEncodePdfDoc(text) ? "literal" : "hex";
+    return new PdfString(bytes, format);
   }
 
   /**
