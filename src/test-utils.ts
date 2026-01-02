@@ -23,6 +23,7 @@ export type FixtureCategory =
   | "basic"
   | "encryption"
   | "filter"
+  | "forms"
   | "malformed"
   | "text"
   | "xref";

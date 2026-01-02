@@ -6,13 +6,12 @@
  */
 
 import {
-  type AddAttachmentOptions,
-  type AttachmentInfo,
   createEmbeddedFileStream,
   createFileSpec,
   getEmbeddedFileStream,
   parseFileSpec,
-} from "#src/attachments";
+} from "#src/attachments/file-spec";
+import type { AddAttachmentOptions, AttachmentInfo } from "#src/attachments/types";
 import { hasChanges } from "#src/document/change-collector";
 import {
   checkIncrementalSaveBlocker,
