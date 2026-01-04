@@ -9,11 +9,25 @@
  */
 
 import type { ObjectRegistry } from "#src/document/object-registry";
+import type { PdfDict } from "#src/objects/pdf-dict";
 import type { PdfObject } from "#src/objects/pdf-object";
 import type { PdfRef } from "#src/objects/pdf-ref";
-import type { ParsedDocument } from "#src/parser/document-parser";
 import type { PDFCatalog } from "./pdf-catalog";
 import type { PDFPageTree } from "./pdf-page-tree";
+
+/**
+ * Document metadata stored in the context.
+ */
+export interface DocumentInfo {
+  /** PDF version (e.g., "1.7", "2.0") */
+  version: string;
+  /** Whether the document is encrypted */
+  isEncrypted: boolean;
+  /** Whether authentication succeeded */
+  isAuthenticated: boolean;
+  /** Trailer dictionary */
+  trailer: PdfDict;
+}
 
 /**
  * Central context for PDF document operations.
@@ -22,7 +36,7 @@ import type { PDFPageTree } from "./pdf-page-tree";
  * - Object registry for tracking and resolving objects
  * - Catalog for document-level structures
  * - Page tree for page access
- * - Parsed document for raw access when needed
+ * - Document info (version, encryption status, trailer)
  */
 export class PDFContext {
   /** Object registry for tracking refs and objects */
@@ -34,19 +48,19 @@ export class PDFContext {
   /** Page tree for page access and manipulation */
   readonly pages: PDFPageTree;
 
-  /** The parsed document (for version, trailer, etc.) */
-  readonly parsed: ParsedDocument;
+  /** Document metadata */
+  readonly info: DocumentInfo;
 
   constructor(
     registry: ObjectRegistry,
     catalog: PDFCatalog,
     pages: PDFPageTree,
-    parsed: ParsedDocument,
+    info: DocumentInfo,
   ) {
     this.registry = registry;
     this.catalog = catalog;
     this.pages = pages;
-    this.parsed = parsed;
+    this.info = info;
   }
 
   // ─────────────────────────────────────────────────────────────────────────────

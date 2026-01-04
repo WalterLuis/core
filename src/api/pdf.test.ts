@@ -3,7 +3,7 @@ import { PdfDict } from "#src/objects/pdf-dict";
 import { PdfName } from "#src/objects/pdf-name";
 import { PdfNumber } from "#src/objects/pdf-number";
 import { PdfString } from "#src/objects/pdf-string";
-import { loadFixture } from "#src/test-utils";
+import { loadFixture, saveTestOutput } from "#src/test-utils";
 import { PDF } from "./pdf";
 
 describe("PDF", () => {
@@ -479,6 +479,426 @@ describe("PDF", () => {
 
       const copiedPage = (await dest.getObject(copiedRef)) as PdfDict;
       expect(copiedPage.has("Annots")).toBe(false);
+    });
+  });
+
+  describe("PDF.create", () => {
+    it("creates an empty document with no pages", () => {
+      const pdf = PDF.create();
+
+      expect(pdf.getPageCount()).toBe(0);
+      expect(pdf.version).toBe("1.7");
+      expect(pdf.isEncrypted).toBe(false);
+    });
+
+    it("allows adding pages", () => {
+      const pdf = PDF.create();
+
+      const page = pdf.addPage({ size: "letter" });
+
+      expect(pdf.getPageCount()).toBe(1);
+      expect(page.width).toBe(612);
+      expect(page.height).toBe(792);
+    });
+
+    it("can save and reload", async () => {
+      const pdf = PDF.create();
+      pdf.addPage({ size: "a4" });
+
+      const saved = await pdf.save();
+      const reloaded = await PDF.load(saved);
+
+      expect(reloaded.getPageCount()).toBe(1);
+    });
+  });
+
+  describe("PDF.merge", () => {
+    it("merges multiple documents", async () => {
+      const bytes1 = await loadFixture("basic", "rot0.pdf");
+      const bytes2 = await loadFixture("basic", "sample.pdf");
+
+      const pdf1 = await PDF.load(bytes1);
+      const pdf2 = await PDF.load(bytes2);
+      const totalPages = pdf1.getPageCount() + pdf2.getPageCount();
+
+      const merged = await PDF.merge([bytes1, bytes2]);
+
+      expect(merged.getPageCount()).toBe(totalPages);
+    });
+
+    it("returns empty document for empty array", async () => {
+      const merged = await PDF.merge([]);
+
+      expect(merged.getPageCount()).toBe(0);
+    });
+
+    it("returns clone of single document", async () => {
+      const bytes = await loadFixture("basic", "rot0.pdf");
+      const original = await PDF.load(bytes);
+
+      const merged = await PDF.merge([bytes]);
+
+      expect(merged.getPageCount()).toBe(original.getPageCount());
+    });
+
+    it("merged document can be saved and reloaded", async () => {
+      const bytes1 = await loadFixture("basic", "rot0.pdf");
+      const bytes2 = await loadFixture("basic", "sample.pdf");
+
+      const merged = await PDF.merge([bytes1, bytes2]);
+      const saved = await merged.save();
+      const reloaded = await PDF.load(saved);
+
+      expect(reloaded.getPageCount()).toBe(merged.getPageCount());
+    });
+  });
+
+  describe("extractPages", () => {
+    it("extracts specified pages into new document", async () => {
+      const bytes = await loadFixture("basic", "document.pdf");
+      const pdf = await PDF.load(bytes);
+
+      if (pdf.getPageCount() < 2) {
+        return; // Skip if not enough pages
+      }
+
+      const extracted = await pdf.extractPages([0]);
+
+      expect(extracted.getPageCount()).toBe(1);
+      expect(pdf.getPageCount()).toBeGreaterThan(1); // Original unchanged
+    });
+
+    it("extracts multiple pages in order", async () => {
+      const bytes = await loadFixture("basic", "document.pdf");
+      const pdf = await PDF.load(bytes);
+
+      if (pdf.getPageCount() < 3) {
+        return; // Skip if not enough pages
+      }
+
+      const extracted = await pdf.extractPages([0, 2]);
+
+      expect(extracted.getPageCount()).toBe(2);
+    });
+
+    it("throws RangeError for out of bounds index", async () => {
+      const bytes = await loadFixture("basic", "rot0.pdf");
+      const pdf = await PDF.load(bytes);
+
+      await expect(pdf.extractPages([999])).rejects.toThrow(RangeError);
+    });
+
+    it("extracted document can be saved", async () => {
+      const bytes = await loadFixture("basic", "document.pdf");
+      const pdf = await PDF.load(bytes);
+
+      const extracted = await pdf.extractPages([0]);
+      const saved = await extracted.save();
+
+      expect(saved.length).toBeGreaterThan(0);
+
+      const reloaded = await PDF.load(saved);
+
+      expect(reloaded.getPageCount()).toBe(1);
+    });
+
+    it("returns empty document for empty indices", async () => {
+      const bytes = await loadFixture("basic", "rot0.pdf");
+      const pdf = await PDF.load(bytes);
+
+      const extracted = await pdf.extractPages([]);
+
+      expect(extracted.getPageCount()).toBe(0);
+    });
+  });
+
+  describe("embedPage and drawPage", () => {
+    it("embeds a page from another document", async () => {
+      const destBytes = await loadFixture("basic", "rot0.pdf");
+      const dest = await PDF.load(destBytes);
+
+      const sourceBytes = await loadFixture("basic", "sample.pdf");
+      const source = await PDF.load(sourceBytes);
+
+      const sourcePage = await source.getPage(0);
+
+      const embedded = await dest.embedPage(source, 0);
+
+      expect(embedded.ref).toBeDefined();
+      expect(embedded.width).toBe(sourcePage!.width);
+      expect(embedded.height).toBe(sourcePage!.height);
+    });
+
+    it("throws for invalid page index", async () => {
+      const destBytes = await loadFixture("basic", "rot0.pdf");
+      const dest = await PDF.load(destBytes);
+
+      const sourceBytes = await loadFixture("basic", "sample.pdf");
+      const source = await PDF.load(sourceBytes);
+
+      await expect(dest.embedPage(source, 999)).rejects.toThrow(RangeError);
+    });
+
+    it("draws embedded page on a page", async () => {
+      const destBytes = await loadFixture("basic", "rot0.pdf");
+      const dest = await PDF.load(destBytes);
+
+      const sourceBytes = await loadFixture("basic", "sample.pdf");
+      const source = await PDF.load(sourceBytes);
+
+      const embedded = await dest.embedPage(source, 0);
+      const page = await dest.getPage(0);
+
+      expect(page).not.toBeNull();
+      page!.drawPage(embedded);
+
+      // Verify XObject was added to resources
+      const resources = page!.getResources();
+      const xobjects = resources.get("XObject");
+
+      expect(xobjects).toBeInstanceOf(PdfDict);
+    });
+
+    it("draws embedded page as background", async () => {
+      const destBytes = await loadFixture("basic", "rot0.pdf");
+      const dest = await PDF.load(destBytes);
+
+      const sourceBytes = await loadFixture("basic", "sample.pdf");
+      const source = await PDF.load(sourceBytes);
+
+      const embedded = await dest.embedPage(source, 0);
+      const page = await dest.getPage(0);
+
+      page!.drawPage(embedded, { background: true });
+
+      // Verify content was added
+      const contents = page!.dict.get("Contents");
+
+      expect(contents).toBeDefined();
+    });
+
+    it("draws with position and scale", async () => {
+      const destBytes = await loadFixture("basic", "rot0.pdf");
+      const dest = await PDF.load(destBytes);
+
+      const sourceBytes = await loadFixture("basic", "sample.pdf");
+      const source = await PDF.load(sourceBytes);
+
+      const embedded = await dest.embedPage(source, 0);
+      const page = await dest.getPage(0);
+
+      page!.drawPage(embedded, { x: 50, y: 100, scale: 0.5 });
+
+      // Verify XObject was added
+      const resources = page!.getResources();
+      const xobjects = resources.get("XObject");
+
+      expect(xobjects).toBeInstanceOf(PdfDict);
+    });
+
+    it("draws with opacity", async () => {
+      const destBytes = await loadFixture("basic", "rot0.pdf");
+      const dest = await PDF.load(destBytes);
+
+      const sourceBytes = await loadFixture("basic", "sample.pdf");
+      const source = await PDF.load(sourceBytes);
+
+      const embedded = await dest.embedPage(source, 0);
+      const page = await dest.getPage(0);
+
+      page!.drawPage(embedded, { opacity: 0.5 });
+
+      // Verify ExtGState was added for opacity
+      const resources = page!.getResources();
+      const extGState = resources.get("ExtGState");
+
+      expect(extGState).toBeInstanceOf(PdfDict);
+    });
+
+    it("survives save and reload", async () => {
+      const destBytes = await loadFixture("basic", "rot0.pdf");
+      const dest = await PDF.load(destBytes);
+
+      const sourceBytes = await loadFixture("basic", "sample.pdf");
+      const source = await PDF.load(sourceBytes);
+
+      const embedded = await dest.embedPage(source, 0);
+      const page = await dest.getPage(0);
+
+      page!.drawPage(embedded);
+
+      // Save and reload
+      const saved = await dest.save();
+      const reloaded = await PDF.load(saved);
+
+      expect(reloaded.getPageCount()).toBe(dest.getPageCount());
+
+      // Verify the XObject is in the reloaded document
+      const reloadedPage = await reloaded.getPage(0);
+      const resources = reloadedPage!.getResources();
+      const xobjects = resources.get("XObject");
+
+      expect(xobjects).toBeInstanceOf(PdfDict);
+    });
+  });
+
+  describe("visual output tests", () => {
+    it("outputs merged PDF", async () => {
+      const bytes1 = await loadFixture("basic", "rot0.pdf");
+      const bytes2 = await loadFixture("basic", "sample.pdf");
+
+      const merged = await PDF.merge([bytes1, bytes2]);
+      const saved = await merged.save();
+
+      const outputPath = await saveTestOutput("merge-split/merged.pdf", saved);
+      console.log(`  -> Merged output: ${outputPath}`);
+
+      expect(saved.length).toBeGreaterThan(0);
+    });
+
+    it("outputs extracted pages", async () => {
+      const bytes = await loadFixture("basic", "document.pdf");
+      const pdf = await PDF.load(bytes);
+
+      if (pdf.getPageCount() < 2) {
+        console.log("  -> Skipped: source has < 2 pages");
+        return;
+      }
+
+      const extracted = await pdf.extractPages([0]);
+      const saved = await extracted.save();
+
+      const outputPath = await saveTestOutput("merge-split/extracted-page-0.pdf", saved);
+      console.log(`  -> Extracted output: ${outputPath}`);
+
+      expect(saved.length).toBeGreaterThan(0);
+    });
+
+    it("outputs new document with added pages", async () => {
+      const pdf = PDF.create();
+
+      // Add a few pages with different sizes
+      pdf.addPage({ size: "letter" });
+      pdf.addPage({ size: "a4" });
+      pdf.addPage({ width: 400, height: 600 });
+
+      const saved = await pdf.save();
+
+      const outputPath = await saveTestOutput("merge-split/created-new.pdf", saved);
+      console.log(`  -> Created output: ${outputPath}`);
+
+      expect(pdf.getPageCount()).toBe(3);
+      expect(saved.length).toBeGreaterThan(0);
+    });
+
+    it("outputs overlay (foreground)", async () => {
+      const destBytes = await loadFixture("basic", "rot0.pdf");
+      const dest = await PDF.load(destBytes);
+
+      const sourceBytes = await loadFixture("basic", "sample.pdf");
+      const source = await PDF.load(sourceBytes);
+
+      const embedded = await dest.embedPage(source, 0);
+
+      // Draw on first page, scaled down and positioned
+      const page = await dest.getPage(0);
+      page!.drawPage(embedded, {
+        x: 50,
+        y: 50,
+        scale: 0.3,
+      });
+
+      const saved = await dest.save();
+
+      const outputPath = await saveTestOutput("merge-split/overlay-foreground.pdf", saved);
+      console.log(`  -> Overlay foreground: ${outputPath}`);
+
+      expect(saved.length).toBeGreaterThan(0);
+    });
+
+    it("outputs overlay (background)", async () => {
+      const destBytes = await loadFixture("basic", "rot0.pdf");
+      const dest = await PDF.load(destBytes);
+
+      const sourceBytes = await loadFixture("basic", "sample.pdf");
+      const source = await PDF.load(sourceBytes);
+
+      const embedded = await dest.embedPage(source, 0);
+
+      // Draw as background on first page
+      const page = await dest.getPage(0);
+      page!.drawPage(embedded, {
+        background: true,
+        scale: 0.5,
+        x: 100,
+        y: 200,
+      });
+
+      const saved = await dest.save();
+
+      const outputPath = await saveTestOutput("merge-split/overlay-background.pdf", saved);
+      console.log(`  -> Overlay background: ${outputPath}`);
+
+      expect(saved.length).toBeGreaterThan(0);
+    });
+
+    it("outputs overlay with opacity", async () => {
+      const destBytes = await loadFixture("basic", "rot0.pdf");
+      const dest = await PDF.load(destBytes);
+
+      const sourceBytes = await loadFixture("basic", "sample.pdf");
+      const source = await PDF.load(sourceBytes);
+
+      const embedded = await dest.embedPage(source, 0);
+
+      // Draw with 50% opacity
+      const page = await dest.getPage(0);
+      page!.drawPage(embedded, {
+        opacity: 0.5,
+        scale: 0.4,
+        x: 150,
+        y: 150,
+      });
+
+      const saved = await dest.save();
+
+      const outputPath = await saveTestOutput("merge-split/overlay-opacity.pdf", saved);
+      console.log(`  -> Overlay opacity: ${outputPath}`);
+
+      expect(saved.length).toBeGreaterThan(0);
+    });
+
+    it("outputs watermark on all pages", async () => {
+      const destBytes = await loadFixture("basic", "document.pdf");
+      const dest = await PDF.load(destBytes);
+
+      const sourceBytes = await loadFixture("basic", "rot0.pdf");
+      const source = await PDF.load(sourceBytes);
+
+      const watermark = await dest.embedPage(source, 0);
+
+      // Apply watermark to all pages
+      const pages = await dest.getPages();
+
+      for (const page of pages) {
+        // Center the watermark
+        const x = (page.width - watermark.width * 0.3) / 2;
+        const y = (page.height - watermark.height * 0.3) / 2;
+
+        page.drawPage(watermark, {
+          x,
+          y,
+          scale: 0.3,
+          opacity: 0.2,
+        });
+      }
+
+      const saved = await dest.save();
+
+      const outputPath = await saveTestOutput("merge-split/watermark-all-pages.pdf", saved);
+      console.log(`  -> Watermark all pages: ${outputPath}`);
+
+      expect(saved.length).toBeGreaterThan(0);
     });
   });
 

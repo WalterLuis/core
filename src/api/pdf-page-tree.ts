@@ -132,6 +132,23 @@ export class PDFPageTree {
   }
 
   /**
+   * Create a page tree from an existing root dict.
+   *
+   * Used when creating a new document with a fresh page tree.
+   *
+   * @param rootRef Reference to the Pages dict
+   * @param root The Pages dict
+   * @param getPageDict Function to look up page dicts by ref
+   */
+  static fromRoot(
+    rootRef: PdfRef,
+    root: PdfDict,
+    getPageDict: (ref: PdfRef) => PdfDict | null,
+  ): PDFPageTree {
+    return new PDFPageTree(rootRef, root, [], getPageDict);
+  }
+
+  /**
    * Get all page references in document order.
    * Returns a copy to prevent external mutation.
    */

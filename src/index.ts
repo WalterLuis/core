@@ -10,14 +10,22 @@ export { version } from "../package.json";
 // High-level API
 // ─────────────────────────────────────────────────────────────────────────────
 
-export { type LoadOptions, PDF, type SaveOptions } from "./api/pdf";
+export {
+  type CopyPagesOptions,
+  type ExtractPagesOptions,
+  type LoadOptions,
+  type MergeOptions,
+  PDF,
+  type SaveOptions,
+} from "./api/pdf";
+export { PDFEmbeddedPage } from "./api/pdf-embedded-page";
 export {
   type FieldValue,
   type FormProperties,
   PDFForm,
   TextAlignment,
 } from "./api/pdf-form";
-export { PDFPage } from "./api/pdf-page";
+export { type DrawPageOptions, PDFPage, type Rectangle } from "./api/pdf-page";
 export type {
   ButtonField,
   CheckboxField,

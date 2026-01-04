@@ -23,11 +23,13 @@ import type { PdfObject } from "#src/objects/pdf-object";
 import { PdfRef } from "#src/objects/pdf-ref";
 import { PdfStream } from "#src/objects/pdf-stream";
 import { DocumentParser, type ParseOptions } from "#src/parser/document-parser";
+
 import { XRefParser } from "#src/parser/xref-parser";
 import { writeComplete, writeIncremental } from "#src/writer/pdf-writer";
 import { PDFAttachments } from "./pdf-attachments";
 import { PDFCatalog } from "./pdf-catalog";
-import { PDFContext } from "./pdf-context";
+import { type DocumentInfo, PDFContext } from "./pdf-context";
+import { PDFEmbeddedPage } from "./pdf-embedded-page";
 import { PDFFonts } from "./pdf-fonts";
 import { PDFForm } from "./pdf-form";
 import { PDFPage } from "./pdf-page";
@@ -83,6 +85,22 @@ export interface CopyPagesOptions {
   includeThumbnails?: boolean;
   /** Include structure tree references (default: false) */
   includeStructure?: boolean;
+}
+
+/**
+ * Options for merging multiple PDFs.
+ */
+export interface MergeOptions extends LoadOptions {
+  /** Include annotations from source documents (default: true) */
+  includeAnnotations?: boolean;
+}
+
+/**
+ * Options for extracting pages to a new document.
+ */
+export interface ExtractPagesOptions {
+  /** Include annotations (default: true) */
+  includeAnnotations?: boolean;
 }
 
 /**
@@ -221,7 +239,15 @@ export class PDF {
       ? await PDFPageTree.load(pagesRef, parsed.getObject.bind(parsed))
       : PDFPageTree.empty();
 
-    const ctx = new PDFContext(registry, pdfCatalog, pages, parsed);
+    // Extract document info from parsed document
+    const info: DocumentInfo = {
+      version: parsed.version,
+      isEncrypted: parsed.isEncrypted,
+      isAuthenticated: parsed.isAuthenticated,
+      trailer: parsed.trailer,
+    };
+
+    const ctx = new PDFContext(registry, pdfCatalog, pages, info);
 
     return new PDF(ctx, bytes, originalXRefOffset, {
       recoveredViaBruteForce: parsed.recoveredViaBruteForce,
@@ -230,23 +256,127 @@ export class PDF {
     });
   }
 
+  /**
+   * Create a new empty PDF document.
+   *
+   * @returns A new PDF document with no pages
+   *
+   * @example
+   * ```typescript
+   * const pdf = PDF.create();
+   * pdf.addPage({ size: "letter" });
+   * const bytes = await pdf.save();
+   * ```
+   */
+  static create(): PDF {
+    // Create minimal PDF structure
+    const registry = new ObjectRegistry(new Map());
+
+    // Create empty pages tree
+    const pagesDict = PdfDict.of({
+      Type: PdfName.of("Pages"),
+      Kids: new PdfArray([]),
+      Count: PdfNumber.of(0),
+    });
+    const pagesRef = registry.register(pagesDict);
+
+    // Create catalog
+    const catalogDict = PdfDict.of({
+      Type: PdfName.of("Catalog"),
+      Pages: pagesRef,
+    });
+    const catalogRef = registry.register(catalogDict);
+
+    // Create trailer pointing to catalog
+    const trailer = PdfDict.of({
+      Root: catalogRef,
+    });
+
+    // Set resolver (returns from registry)
+    registry.setResolver(async (ref: PdfRef) => registry.getObject(ref));
+
+    const pdfCatalog = new PDFCatalog(catalogDict, registry);
+    const pages = PDFPageTree.fromRoot(
+      pagesRef,
+      pagesDict,
+      ref => registry.getObject(ref) as PdfDict | null,
+    );
+
+    // Create document info for a new document
+    const info: DocumentInfo = {
+      version: "1.7",
+      isEncrypted: false,
+      isAuthenticated: true,
+      trailer,
+    };
+
+    const ctx = new PDFContext(registry, pdfCatalog, pages, info);
+
+    return new PDF(ctx, new Uint8Array(0), 0, {
+      recoveredViaBruteForce: false,
+      isLinearized: false,
+      usesXRefStreams: false,
+    });
+  }
+
+  /**
+   * Merge multiple PDF documents into one.
+   *
+   * Creates a new document containing all pages from the source documents
+   * in order. The resulting document is a fresh copy — original documents
+   * are not modified.
+   *
+   * @param sources Array of PDF bytes to merge
+   * @param options Load and merge options
+   * @returns A new PDF containing all pages from the sources
+   *
+   * @example
+   * ```typescript
+   * const merged = await PDF.merge([pdfBytes1, pdfBytes2, pdfBytes3]);
+   * const bytes = await merged.save();
+   * ```
+   */
+  static async merge(sources: Uint8Array[], options: MergeOptions = {}): Promise<PDF> {
+    if (sources.length === 0) {
+      return PDF.create();
+    }
+
+    // Load first document as the base
+    const result = await PDF.load(sources[0], options);
+
+    // Copy pages from remaining documents
+    for (let i = 1; i < sources.length; i++) {
+      const source = await PDF.load(sources[i], options);
+      const pageCount = source.getPageCount();
+
+      if (pageCount > 0) {
+        const indices = Array.from({ length: pageCount }, (_, j) => j);
+        await result.copyPagesFrom(source, indices, {
+          includeAnnotations: options.includeAnnotations ?? true,
+        });
+      }
+    }
+
+    return result;
+  }
+
   // ─────────────────────────────────────────────────────────────────────────────
   // Document info
   // ─────────────────────────────────────────────────────────────────────────────
 
   /** PDF version string (e.g., "1.7", "2.0") */
   get version(): string {
-    return this.ctx.parsed.version;
+    return this.ctx.info.version;
   }
 
   /** Whether the document is encrypted */
   get isEncrypted(): boolean {
-    return this.ctx.parsed.isEncrypted;
+    return this.ctx.info.isEncrypted;
   }
 
   /** Whether authentication succeeded (for encrypted docs) */
   get isAuthenticated(): boolean {
-    return this.ctx.parsed.isAuthenticated;
+    return this.ctx.info.isAuthenticated;
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -287,7 +417,7 @@ export class PDF {
         throw new Error(`Page ${i} is not a dictionary`);
       }
 
-      pages.push(new PDFPage(ref, dict, i));
+      pages.push(new PDFPage(ref, dict, i, this.ctx));
     }
 
     return pages;
@@ -317,7 +447,7 @@ export class PDF {
       return null;
     }
 
-    return new PDFPage(ref, dict, index);
+    return new PDFPage(ref, dict, index, this.ctx);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -357,7 +487,7 @@ export class PDF {
     const index = options.insertAt ?? this.getPageCount();
     this.ctx.pages.insertPage(index, pageRef, pageDict);
 
-    return new PDFPage(pageRef, pageDict, index);
+    return new PDFPage(pageRef, pageDict, index, this.ctx);
   }
 
   /**
@@ -489,6 +619,191 @@ export class PDF {
     }
 
     return copiedRefs;
+  }
+
+  /**
+   * Extract pages into a new PDF document.
+   *
+   * Creates a new document containing only the specified pages, copied from
+   * this document. The original document is not modified.
+   *
+   * @param indices Array of page indices to extract (0-based)
+   * @param options Extraction options
+   * @returns A new PDF containing only the extracted pages
+   * @throws RangeError if any page index is out of bounds
+   *
+   * @example
+   * ```typescript
+   * const pdf = await PDF.load(bytes);
+   *
+   * // Extract first 3 pages
+   * const first3 = await pdf.extractPages([0, 1, 2]);
+   *
+   * // Extract odd pages
+   * const oddPages = await pdf.extractPages([0, 2, 4, 6]);
+   *
+   * // Save the extracted document
+   * const bytes = await first3.save();
+   * ```
+   */
+  async extractPages(indices: number[], options: ExtractPagesOptions = {}): Promise<PDF> {
+    // Validate indices first
+    for (const index of indices) {
+      if (index < 0 || index >= this.getPageCount()) {
+        throw new RangeError(`Page index ${index} out of bounds (0-${this.getPageCount() - 1})`);
+      }
+    }
+
+    // Create new empty document
+    const result = PDF.create();
+
+    // Copy pages from this document to the new one
+    if (indices.length > 0) {
+      await result.copyPagesFrom(this, indices, {
+        includeAnnotations: options.includeAnnotations ?? true,
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Embed a page from another PDF as a reusable Form XObject.
+   *
+   * The embedded page can be drawn onto pages in this document using
+   * `page.drawPage()`. This is useful for watermarks, letterheads,
+   * backgrounds, and page overlays.
+   *
+   * @param source The source PDF document
+   * @param pageIndex The page index to embed (0-based)
+   * @returns A PDFEmbeddedPage that can be drawn with page.drawPage()
+   *
+   * @example
+   * ```typescript
+   * const watermark = await PDF.load(watermarkBytes);
+   * const embedded = await pdf.embedPage(watermark, 0);
+   *
+   * // Draw on all pages as a background
+   * for (const page of await pdf.getPages()) {
+   *   page.drawPage(embedded, { background: true });
+   * }
+   * ```
+   */
+  async embedPage(source: PDF, pageIndex: number): Promise<PDFEmbeddedPage> {
+    const srcPage = await source.getPage(pageIndex);
+
+    if (!srcPage) {
+      throw new RangeError(`Page index ${pageIndex} out of bounds`);
+    }
+
+    // Get page content streams and concatenate
+    const contentData = await this.getPageContentData(source, srcPage);
+
+    // Copy resources from source to dest
+    const copier = new ObjectCopier(source, this, { includeAnnotations: false });
+    const srcResources = srcPage.dict.get("Resources");
+    let resources: PdfDict;
+
+    if (srcResources instanceof PdfDict) {
+      resources = (await copier.copyObject(srcResources)) as PdfDict;
+    } else if (srcResources instanceof PdfRef) {
+      const resolved = await source.getObject(srcResources);
+
+      if (resolved instanceof PdfDict) {
+        resources = (await copier.copyObject(resolved)) as PdfDict;
+      } else {
+        resources = new PdfDict();
+      }
+    } else {
+      resources = new PdfDict();
+    }
+
+    // Get the MediaBox
+    const mediaBox = srcPage.getMediaBox();
+
+    // Create Form XObject
+    const formXObject = PdfStream.fromDict(
+      {
+        Type: PdfName.of("XObject"),
+        Subtype: PdfName.of("Form"),
+        FormType: PdfNumber.of(1),
+        BBox: new PdfArray([
+          PdfNumber.of(mediaBox.x1),
+          PdfNumber.of(mediaBox.y1),
+          PdfNumber.of(mediaBox.x2),
+          PdfNumber.of(mediaBox.y2),
+        ]),
+        Resources: resources,
+      },
+      contentData,
+    );
+
+    const ref = this.register(formXObject);
+
+    return new PDFEmbeddedPage(ref, mediaBox, srcPage.width, srcPage.height);
+  }
+
+  /**
+   * Get the concatenated content stream data from a page.
+   */
+  private async getPageContentData(source: PDF, page: PDFPage): Promise<Uint8Array> {
+    const contents = page.dict.get("Contents");
+
+    if (!contents) {
+      return new Uint8Array(0);
+    }
+
+    // Single stream
+    if (contents instanceof PdfRef) {
+      const stream = await source.getObject(contents);
+
+      if (stream instanceof PdfStream) {
+        return await stream.getDecodedData();
+      }
+
+      return new Uint8Array(0);
+    }
+
+    // Array of streams - concatenate with newlines
+    if (contents instanceof PdfArray) {
+      const chunks: Uint8Array[] = [];
+
+      for (let i = 0; i < contents.length; i++) {
+        const ref = contents.at(i);
+
+        if (ref instanceof PdfRef) {
+          const stream = await source.getObject(ref);
+
+          if (stream instanceof PdfStream) {
+            if (chunks.length > 0) {
+              // Add newline separator
+              chunks.push(new Uint8Array([0x0a]));
+            }
+
+            chunks.push(await stream.getDecodedData());
+          }
+        }
+      }
+
+      // Concatenate all chunks
+      const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+      const result = new Uint8Array(totalLength);
+      let offset = 0;
+
+      for (const chunk of chunks) {
+        result.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      return result;
+    }
+
+    // Direct stream (unusual but possible)
+    if (contents instanceof PdfStream) {
+      return await contents.getDecodedData();
+    }
+
+    return new Uint8Array(0);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -799,14 +1114,14 @@ export class PDF {
     }
 
     // Get root reference from trailer
-    const root = this.ctx.parsed.trailer.getRef("Root");
+    const root = this.ctx.info.trailer.getRef("Root");
 
     if (!root) {
       throw new Error("Document has no catalog (missing /Root in trailer)");
     }
 
     // Get optional info reference
-    const info = this.ctx.parsed.trailer.getRef("Info");
+    const infoRef = this.ctx.info.trailer.getRef("Info");
 
     // TODO: Handle encryption, ID arrays properly
     // For incremental saves, use the same XRef format as the original document
@@ -818,7 +1133,7 @@ export class PDF {
         originalBytes: this.originalBytes,
         originalXRefOffset: this.originalXRefOffset,
         root,
-        info: info ?? undefined,
+        info: infoRef ?? undefined,
         useXRefStream,
       });
 
@@ -831,9 +1146,9 @@ export class PDF {
 
     // Full save
     const result = await writeComplete(this.ctx.registry, {
-      version: this.ctx.parsed.version,
+      version: this.ctx.info.version,
       root,
-      info: info ?? undefined,
+      info: infoRef ?? undefined,
       useXRefStream,
     });
 
@@ -877,17 +1192,17 @@ export class PDF {
     };
 
     // Start from root
-    const root = this.ctx.parsed.trailer.getRef("Root");
+    const root = this.ctx.info.trailer.getRef("Root");
 
     if (root) {
       await walk(root);
     }
 
     // Also load Info if present
-    const info = this.ctx.parsed.trailer.getRef("Info");
+    const infoRef = this.ctx.info.trailer.getRef("Info");
 
-    if (info) {
-      await walk(info);
+    if (infoRef) {
+      await walk(infoRef);
     }
   }
 }
