@@ -7,6 +7,7 @@ import type { PdfDict } from "./pdf-dict";
 import type { PdfName } from "./pdf-name";
 import type { PdfNull } from "./pdf-null";
 import type { PdfNumber } from "./pdf-number";
+import type { PdfRaw } from "./pdf-raw";
 import type { PdfRef } from "./pdf-ref";
 import type { PdfStream } from "./pdf-stream";
 import type { PdfString } from "./pdf-string";
@@ -24,7 +25,8 @@ export type PdfObject =
   | PdfRef
   | PdfArray
   | PdfDict
-  | PdfStream;
+  | PdfStream
+  | PdfRaw;
 
 // Type guards
 
@@ -62,4 +64,8 @@ export function isPdfDict(obj: PdfObject): obj is PdfDict {
 
 export function isPdfStream(obj: PdfObject): obj is PdfStream {
   return obj.type === "stream";
+}
+
+export function isPdfRaw(obj: PdfObject): obj is PdfRaw {
+  return obj.type === "raw";
 }

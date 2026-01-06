@@ -259,25 +259,37 @@ export class ObjectCopier {
         if (filterEntry) {
           try {
             const filterSpecs = this.buildFilterSpecs(srcStream);
+
             streamData = await FilterPipeline.encode(decodedData, filterSpecs);
+
             clonedDict.set("Length", PdfNumber.of(streamData.length));
-          } catch {
+          } catch (error) {
+            console.warn(`Could not re-encode stream ${key}, will use uncompressed data`);
+            console.warn(error);
+
             // If re-encoding fails, store uncompressed
             clonedDict.delete("Filter");
             clonedDict.delete("DecodeParms");
+
             streamData = decodedData;
+
             clonedDict.set("Length", PdfNumber.of(streamData.length));
           }
         } else {
           streamData = decodedData;
           clonedDict.set("Length", PdfNumber.of(streamData.length));
         }
-      } catch {
+      } catch (error) {
+        console.warn(`Could not decode stream ${key}, will use raw data`);
+        console.warn(error);
+
         // If decoding fails entirely, try to copy raw bytes as fallback
         // Clear filters since we can't guarantee the data is properly encoded
         clonedDict.delete("Filter");
         clonedDict.delete("DecodeParms");
+
         streamData = srcStream.data;
+
         clonedDict.set("Length", PdfNumber.of(streamData.length));
       }
     }
@@ -293,6 +305,7 @@ export class ObjectCopier {
     // Note: we modify the already-registered stream's dict entries
     for (const [entryKey, value] of clonedDict) {
       const copied = await this.copyObject(value);
+
       copiedStream.set(entryKey.value, copied);
     }
 
@@ -315,6 +328,7 @@ export class ObjectCopier {
   private async copyDictValues(dict: PdfDict): Promise<PdfDict> {
     for (const [key, value] of dict) {
       const copied = await this.copyObject(value);
+
       dict.set(key.value, copied);
     }
 
@@ -371,7 +385,10 @@ export class ObjectCopier {
           clonedDict.set("Length", PdfNumber.of(encodedData.length));
 
           return new PdfStream(clonedDict, encodedData);
-        } catch {
+        } catch (error) {
+          console.warn(`Could not re-encode stream, will use uncompressed data`);
+          console.warn(error);
+
           // If re-encoding fails, store uncompressed
           clonedDict.delete("Filter");
           clonedDict.delete("DecodeParms");
@@ -385,7 +402,10 @@ export class ObjectCopier {
       clonedDict.set("Length", PdfNumber.of(decodedData.length));
 
       return new PdfStream(clonedDict, decodedData);
-    } catch {
+    } catch (error) {
+      console.warn(`Could not decode stream, will use raw data`);
+      console.warn(error);
+
       // If decoding fails entirely, copy raw bytes as fallback
       clonedDict.delete("Filter");
       clonedDict.delete("DecodeParms");

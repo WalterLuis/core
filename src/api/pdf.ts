@@ -23,8 +23,8 @@ import type { PdfObject } from "#src/objects/pdf-object";
 import { PdfRef } from "#src/objects/pdf-ref";
 import { PdfStream } from "#src/objects/pdf-stream";
 import { DocumentParser, type ParseOptions } from "#src/parser/document-parser";
-
 import { XRefParser } from "#src/parser/xref-parser";
+import type { SignOptions, SignResult } from "#src/signatures/types";
 import { writeComplete, writeIncremental } from "#src/writer/pdf-writer";
 import { PDFAttachments } from "./pdf-attachments";
 import { PDFCatalog } from "./pdf-catalog";
@@ -34,6 +34,7 @@ import { PDFFonts } from "./pdf-fonts";
 import { PDFForm } from "./pdf-form";
 import { PDFPage } from "./pdf-page";
 import { PDFPageTree } from "./pdf-page-tree";
+import { PDFSignature } from "./pdf-signature";
 
 /**
  * Options for loading a PDF.
@@ -124,10 +125,10 @@ export interface ExtractPagesOptions {
  */
 export class PDF {
   /** Central context for document operations */
-  private readonly ctx: PDFContext;
+  private ctx: PDFContext;
 
-  private readonly originalBytes: Uint8Array;
-  private readonly originalXRefOffset: number;
+  private originalBytes: Uint8Array;
+  private originalXRefOffset: number;
 
   /** Font operations manager (created lazily) */
   private _fonts: PDFFonts | null = null;
@@ -150,6 +151,15 @@ export class PDF {
   /** Warnings from parsing and operations */
   get warnings(): string[] {
     return this.ctx.warnings;
+  }
+
+  /**
+   * Access the internal PDF context.
+   *
+   * @internal Used by related API classes (PDFSignature, etc.)
+   */
+  get context(): PDFContext {
+    return this.ctx;
   }
 
   private constructor(
@@ -254,6 +264,69 @@ export class PDF {
       isLinearized,
       usesXRefStreams,
     });
+  }
+
+  /**
+   * Reload the PDF from new bytes.
+   *
+   * Updates internal state after an incremental save. This allows
+   * continued use of the PDF instance after operations like signing.
+   *
+   * @param bytes - The new PDF bytes to reload from
+   */
+  async reload(bytes: Uint8Array): Promise<void> {
+    const scanner = new Scanner(bytes);
+    const parser = new DocumentParser(scanner);
+
+    const parsed = await parser.parse();
+
+    // Create new registry from xref
+    const registry = new ObjectRegistry(parsed.xref);
+    registry.setResolver(ref => parsed.getObject(ref));
+
+    // Find xref offset
+    const xrefParser = new XRefParser(scanner);
+    let xrefOffset: number;
+
+    try {
+      xrefOffset = xrefParser.findStartXRef();
+    } catch {
+      xrefOffset = 0;
+    }
+
+    // Load catalog
+    const rootRef = parsed.trailer.getRef("Root");
+
+    if (!rootRef) {
+      throw new Error("Document has no catalog");
+    }
+
+    const catalogDict = await registry.resolve(rootRef);
+
+    if (!(catalogDict instanceof PdfDict)) {
+      throw new Error("Document has no catalog");
+    }
+
+    const pdfCatalog = new PDFCatalog(catalogDict, registry);
+    const pagesRef = catalogDict.getRef("Pages");
+    const pages = pagesRef
+      ? await PDFPageTree.load(pagesRef, parsed.getObject.bind(parsed))
+      : PDFPageTree.empty();
+
+    const info: DocumentInfo = {
+      version: parsed.version,
+      isEncrypted: parsed.isEncrypted,
+      isAuthenticated: parsed.isAuthenticated,
+      trailer: parsed.trailer,
+    };
+
+    // Update internal state
+    this.ctx = new PDFContext(registry, pdfCatalog, pages, info);
+    this.originalBytes = bytes;
+    this.originalXRefOffset = xrefOffset;
+
+    // Clear cached form so it gets reloaded
+    this._form = undefined;
   }
 
   /**
@@ -1054,6 +1127,93 @@ export class PDF {
     return this._form;
   }
 
+  /**
+   * Get or create the document's interactive form.
+   *
+   * If the document has no AcroForm, one is created and added to the catalog.
+   * This is useful when you need to add fields to a document that doesn't
+   * already have a form.
+   *
+   * @returns The form (never null)
+   *
+   * @example
+   * ```typescript
+   * const form = await pdf.getOrCreateForm();
+   * const sigField = form.createSignatureField("Signature1", pageRef);
+   * ```
+   */
+  async getOrCreateForm(): Promise<PDFForm> {
+    const existing = await this.getForm();
+
+    if (existing) {
+      return existing;
+    }
+
+    // Create minimal AcroForm dictionary
+    const acroFormDict = PdfDict.of({
+      Fields: new PdfArray([]),
+      SigFlags: PdfNumber.of(3), // SignaturesExist + AppendOnly
+    });
+
+    const acroFormRef = this.ctx.registry.register(acroFormDict);
+
+    // Add to catalog
+    const catalog = await this.getCatalog();
+    if (catalog) {
+      catalog.set("AcroForm", acroFormRef);
+    }
+
+    // Reload form cache
+    this._form = await PDFForm.load(this.ctx);
+
+    if (!this._form) {
+      throw new Error("Failed to create form");
+    }
+
+    return this._form;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Digital Signatures
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Sign the PDF document.
+   *
+   * Creates a digital signature using PAdES (PDF Advanced Electronic Signatures)
+   * format. The signature is embedded as an incremental update, preserving any
+   * existing signatures.
+   *
+   * After signing, this PDF instance is automatically reloaded with the signed
+   * bytes. You can continue using it or call save() to get the final bytes.
+   *
+   * @param options Signing options including signer, reason, location, etc.
+   * @returns The signed PDF bytes and any warnings
+   *
+   * @example
+   * ```typescript
+   * import { P12Signer } from "@libpdf/core";
+   *
+   * // Basic signing
+   * const signer = await P12Signer.create(p12Bytes, "password");
+   * const { bytes } = await pdf.sign({
+   *   signer,
+   *   reason: "I approve this document",
+   *   location: "New York",
+   * });
+   *
+   * // Multiple signatures (PDF instance is reloaded after each sign)
+   * await pdf.sign({ signer: signer1 });
+   * await pdf.sign({ signer: signer2 });
+   * const bytes = await pdf.save();
+   * ```
+   */
+  async sign(options: SignOptions): Promise<SignResult> {
+    const signature = new PDFSignature(this);
+
+    return signature.sign(options);
+  }
+
   // ─────────────────────────────────────────────────────────────────────────────
   // Change tracking
   // ─────────────────────────────────────────────────────────────────────────────
@@ -1091,6 +1251,18 @@ export class PDF {
    * @returns The saved PDF bytes
    */
   async save(options: SaveOptions = {}): Promise<Uint8Array> {
+    const result = await this.saveInternal(options);
+
+    return result.bytes;
+  }
+
+  /**
+   * Internal save that returns full result including xref offset.
+   * Used by signing to chain incremental updates.
+   */
+  private async saveInternal(
+    options: SaveOptions = {},
+  ): Promise<{ bytes: Uint8Array; xrefOffset: number }> {
     // Prepare embedded fonts (creates PDF objects, subsets fonts)
     await this.fonts.prepare();
 
@@ -1110,7 +1282,10 @@ export class PDF {
     // If no changes, return original bytes
 
     if (!this.hasChanges() && !this.fonts.hasEmbeddedFonts) {
-      return this.originalBytes;
+      return {
+        bytes: this.originalBytes,
+        xrefOffset: this.originalXRefOffset,
+      };
     }
 
     // Get root reference from trailer
@@ -1129,15 +1304,13 @@ export class PDF {
     const useXRefStream = options.useXRefStream ?? (useIncremental ? this.usesXRefStreams : false);
 
     if (useIncremental) {
-      const result = await writeIncremental(this.ctx.registry, {
+      return writeIncremental(this.ctx.registry, {
         originalBytes: this.originalBytes,
         originalXRefOffset: this.originalXRefOffset,
         root,
         info: infoRef ?? undefined,
         useXRefStream,
       });
-
-      return result.bytes;
     }
 
     // For full save with changes, we need all referenced objects loaded
@@ -1145,14 +1318,12 @@ export class PDF {
     await this.ensureObjectsLoaded();
 
     // Full save
-    const result = await writeComplete(this.ctx.registry, {
+    return writeComplete(this.ctx.registry, {
       version: this.ctx.info.version,
       root,
       info: infoRef ?? undefined,
       useXRefStream,
     });
-
-    return result.bytes;
   }
 
   /**

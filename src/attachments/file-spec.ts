@@ -17,6 +17,7 @@
  * @see PDF 1.7 spec section 7.11.3
  */
 
+import { formatPdfDate, parsePdfDate } from "#src/helpers/format";
 import { PdfDict } from "#src/objects/pdf-dict";
 import { PdfName } from "#src/objects/pdf-name";
 import { PdfNumber } from "#src/objects/pdf-number";
@@ -128,78 +129,6 @@ function decodeFilename(str: PdfString): string {
   }
 
   return filename || "unnamed";
-}
-
-/**
- * Parse a PDF date string into a JavaScript Date.
- *
- * PDF date format: D:YYYYMMDDHHmmSSOHH'mm'
- * Example: D:20240115123045+05'30'
- */
-export function parsePdfDate(str: string): Date | undefined {
-  // Remove D: prefix if present
-  let s = str;
-
-  if (s.startsWith("D:")) {
-    s = s.slice(2);
-  }
-
-  // Minimum: YYYY (4 chars) and must start with digits
-
-  if (s.length < 4 || !/^\d{4}/.test(s)) {
-    return undefined;
-  }
-
-  try {
-    const year = parseInt(s.slice(0, 4), 10);
-    const month = s.length >= 6 ? parseInt(s.slice(4, 6), 10) - 1 : 0;
-    const day = s.length >= 8 ? parseInt(s.slice(6, 8), 10) : 1;
-    const hour = s.length >= 10 ? parseInt(s.slice(8, 10), 10) : 0;
-    const minute = s.length >= 12 ? parseInt(s.slice(10, 12), 10) : 0;
-    const second = s.length >= 14 ? parseInt(s.slice(12, 14), 10) : 0;
-
-    // Validate parsed values
-
-    if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) {
-      return undefined;
-    }
-
-    // Parse timezone if present
-    let tzOffset = 0;
-
-    if (s.length >= 15) {
-      const tzChar = s.charAt(14);
-
-      if (tzChar === "Z") {
-        tzOffset = 0;
-      } else if (tzChar === "+" || tzChar === "-") {
-        const tzHour = parseInt(s.slice(15, 17), 10) || 0;
-        const tzMin = parseInt(s.slice(18, 20), 10) || 0;
-        tzOffset = (tzHour * 60 + tzMin) * (tzChar === "-" ? 1 : -1);
-      }
-    }
-
-    const date = new Date(Date.UTC(year, month, day, hour, minute, second));
-    date.setUTCMinutes(date.getUTCMinutes() + tzOffset);
-
-    return date;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Format a JavaScript Date as a PDF date string.
- */
-export function formatPdfDate(date: Date): string {
-  const year = date.getUTCFullYear().toString().padStart(4, "0");
-  const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
-  const day = date.getUTCDate().toString().padStart(2, "0");
-  const hour = date.getUTCHours().toString().padStart(2, "0");
-  const minute = date.getUTCMinutes().toString().padStart(2, "0");
-  const second = date.getUTCSeconds().toString().padStart(2, "0");
-
-  return `D:${year}${month}${day}${hour}${minute}${second}Z`;
 }
 
 /**

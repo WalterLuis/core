@@ -5,6 +5,7 @@ describe("BinaryScanner", () => {
   describe("inherits Scanner behavior", () => {
     it("has position, length, isAtEnd", () => {
       const scanner = new BinaryScanner(new Uint8Array([0x01, 0x02, 0x03]));
+
       expect(scanner.position).toBe(0);
       expect(scanner.length).toBe(3);
       expect(scanner.isAtEnd).toBe(false);
@@ -12,6 +13,7 @@ describe("BinaryScanner", () => {
 
     it("peek and advance work", () => {
       const scanner = new BinaryScanner(new Uint8Array([0x41, 0x42]));
+
       expect(scanner.peek()).toBe(0x41);
       expect(scanner.advance()).toBe(0x41);
       expect(scanner.peek()).toBe(0x42);
@@ -19,7 +21,9 @@ describe("BinaryScanner", () => {
 
     it("moveTo works", () => {
       const scanner = new BinaryScanner(new Uint8Array([0x01, 0x02, 0x03, 0x04]));
+
       scanner.moveTo(2);
+
       expect(scanner.position).toBe(2);
       expect(scanner.peek()).toBe(0x03);
     });

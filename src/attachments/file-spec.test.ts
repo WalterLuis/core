@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { formatPdfDate, parsePdfDate } from "#src/helpers/format.ts";
 import { PdfDict } from "#src/objects/pdf-dict";
 import { PdfName } from "#src/objects/pdf-name";
 import { PdfNumber } from "#src/objects/pdf-number";
@@ -9,12 +10,10 @@ import { PdfString } from "#src/objects/pdf-string";
 import {
   createEmbeddedFileStream,
   createFileSpec,
-  formatPdfDate,
   getEmbeddedFileStream,
   getFilename,
   getMimeType,
   parseFileSpec,
-  parsePdfDate,
 } from "./file-spec";
 
 describe("getMimeType", () => {

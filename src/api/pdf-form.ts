@@ -41,6 +41,7 @@ import { AcroForm } from "#src/document/forms/acro-form";
 import {
   type ButtonField,
   type CheckboxField,
+  createFormField,
   type DropdownField,
   type FormField,
   type ListBoxField,
@@ -50,6 +51,12 @@ import {
   type TextField,
 } from "#src/document/forms/fields";
 import type { FlattenOptions } from "#src/document/forms/form-flattener";
+import { PdfArray } from "#src/objects/pdf-array";
+import { PdfDict } from "#src/objects/pdf-dict";
+import { PdfName } from "#src/objects/pdf-name";
+import { PdfNumber } from "#src/objects/pdf-number";
+import type { PdfRef } from "#src/objects/pdf-ref";
+import { PdfString } from "#src/objects/pdf-string";
 import type { PDFContext } from "./pdf-context";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -281,6 +288,69 @@ export class PDFForm {
    */
   getButtons(): ButtonField[] {
     return this.allFields.filter(f => f.type === "button") as ButtonField[];
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Field Creation
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Options for creating a signature field.
+   */
+  /**
+   * Create a new signature field.
+   *
+   * Creates an empty (unsigned) signature field that can later be signed.
+   * The field is added to the AcroForm and is invisible by default.
+   *
+   * @param name Field name (must be unique)
+   * @param pageRef Reference to the page where the field widget will be placed
+   * @returns The created signature field
+   *
+   * @example
+   * ```typescript
+   * const form = await pdf.getForm();
+   * const sigField = form.createSignatureField("Signature1", pageRef);
+   * // Later: sign the field via PDFSignature
+   * ```
+   */
+  createSignatureField(name: string, pageRef: PdfRef): SignatureField {
+    // Check if name already exists
+    if (this.fieldsByName.has(name)) {
+      throw new Error(`Field "${name}" already exists`);
+    }
+
+    // Create merged field + widget dictionary
+    // PDF allows merging field dict and widget annotation into one object
+    const fieldDict = PdfDict.of({
+      FT: PdfName.of("Sig"),
+      T: PdfString.fromString(name),
+      // Widget annotation properties
+      Type: PdfName.of("Annot"),
+      Subtype: PdfName.of("Widget"),
+      F: PdfNumber.of(132), // Print + Locked (4 + 128)
+      P: pageRef,
+      Rect: new PdfArray([PdfNumber.of(0), PdfNumber.of(0), PdfNumber.of(0), PdfNumber.of(0)]), // Invisible
+    });
+
+    // Register the field and add to AcroForm
+    const fieldRef = this._ctx.registry.register(fieldDict);
+    this._acroForm.addField(fieldRef);
+
+    // Create the SignatureField instance
+    const field = createFormField(
+      fieldDict,
+      fieldRef,
+      this._ctx.registry,
+      this._acroForm,
+      name,
+    ) as SignatureField;
+
+    // Add to cache
+    this.allFields.push(field);
+    this.fieldsByName.set(name, field);
+
+    return field;
   }
 
   // ─────────────────────────────────────────────────────────────────────────────

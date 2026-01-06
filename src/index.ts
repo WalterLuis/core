@@ -40,6 +40,36 @@ export type {
 export type { FlattenOptions } from "./document/forms/form-flattener";
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Digital Signatures
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type {
+  DigestAlgorithm,
+  HttpTimestampAuthorityOptions,
+  KeyType,
+  PAdESLevel,
+  RevocationProvider,
+  SignatureAlgorithm,
+  Signer,
+  SignOptions,
+  SignResult,
+  SignWarning,
+  SubFilter,
+  TimestampAuthority,
+} from "./signatures";
+export {
+  CertificateChainError,
+  CryptoKeySigner,
+  HttpTimestampAuthority,
+  P12Signer,
+  PlaceholderError,
+  RevocationError,
+  SignatureError,
+  SignerError,
+  TimestampError,
+} from "./signatures";
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PDF Objects
 // ─────────────────────────────────────────────────────────────────────────────
 

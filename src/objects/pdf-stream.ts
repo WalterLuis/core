@@ -161,7 +161,7 @@ export class PdfStream extends PdfDict {
    */
   override toBytes(writer: ByteWriter): void {
     // Write dictionary with /Length first
-    writer.writeAscii("<<");
+    writer.writeAscii("<<\n");
 
     // Always write /Length as direct value
     writer.writeAscii(`/Length ${this._data.length}`);
@@ -180,6 +180,7 @@ export class PdfStream extends PdfDict {
       key.toBytes(writer);
       writer.writeAscii(" ");
       value.toBytes(writer);
+      writer.writeAscii("\n");
     }
 
     writer.writeAscii(">>");

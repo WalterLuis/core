@@ -8,8 +8,9 @@
  */
 
 import type { PDFPageTree } from "#src/api/pdf-page-tree";
-import type { PdfArray } from "#src/objects/pdf-array";
+import { PdfArray } from "#src/objects/pdf-array";
 import { PdfDict } from "#src/objects/pdf-dict";
+import { PdfNumber } from "#src/objects/pdf-number";
 import { PdfRef } from "#src/objects/pdf-ref";
 import type { ObjectRegistry } from "../object-registry";
 import { AppearanceGenerator, extractAppearanceStyle } from "./appearance-generator";
@@ -19,7 +20,6 @@ import {
   type CheckboxField,
   createFormField,
   type DropdownField,
-  type FieldType,
   type ListBoxField,
   type RadioField,
   type TerminalField,
@@ -717,6 +717,36 @@ export class AcroForm implements AcroFormLike {
     // If first kid has no /T, it's a widget → parent is terminal
 
     return !firstKidDict.has("T");
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Field Creation
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Add a field reference to the Fields array.
+   *
+   * @param fieldRef Reference to the field dictionary
+   */
+  addField(fieldRef: PdfRef): void {
+    let fieldsArray = this.dict.getArray("Fields");
+
+    if (!fieldsArray) {
+      fieldsArray = new PdfArray([]);
+      this.dict.set("Fields", fieldsArray);
+    }
+
+    fieldsArray.push(fieldRef);
+
+    // Set signature flags if not already set
+    const currentFlags = this.signatureFlags;
+
+    if ((currentFlags & 3) !== 3) {
+      this.dict.set("SigFlags", PdfNumber.of(3)); // SignaturesExist + AppendOnly
+    }
+
+    // Clear cache since we added a field
+    this.clearCache();
   }
 
   // ─────────────────────────────────────────────────────────────────────────────

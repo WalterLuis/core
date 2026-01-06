@@ -169,7 +169,7 @@ export class PdfDict implements PdfPrimitive {
   }
 
   toBytes(writer: ByteWriter): void {
-    writer.writeAscii("<<");
+    writer.writeAscii("<<\n");
 
     for (const [key, value] of this.entries) {
       // Skip null/undefined values silently (lenient serialization)
@@ -183,6 +183,7 @@ export class PdfDict implements PdfPrimitive {
 
       // Write value (each type in PdfObject union implements PdfPrimitive)
       value.toBytes(writer);
+      writer.writeAscii("\n");
     }
 
     writer.writeAscii(">>");

@@ -22,6 +22,7 @@ export type FixtureCategory =
   | "afm"
   | "attachments"
   | "basic"
+  | "certificates"
   | "cmap"
   | "encryption"
   | "filter"

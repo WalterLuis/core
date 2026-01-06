@@ -103,3 +103,29 @@ export function hexToBytes(hex: string): Uint8Array {
 
   return bytes;
 }
+
+/**
+ * Generate a unique name by appending a number to a prefix.
+ *
+ * Finds the first available name by incrementing a counter until a name
+ * that doesn't exist in the provided set is found.
+ *
+ * @param existingNames - Set of names that already exist
+ * @param prefix - Prefix to use (e.g., "Signature_" or "DocTimeStamp_")
+ * @returns A unique name that doesn't exist in the set
+ *
+ * @example
+ * ```ts
+ * const names = new Set(["Signature_1", "Signature_2"]);
+ * generateUniqueName(names, "Signature_") // "Signature_3"
+ * ```
+ */
+export function generateUniqueName(existingNames: Set<string>, prefix: string): string {
+  let n = 1;
+
+  while (existingNames.has(`${prefix}${n}`)) {
+    n++;
+  }
+
+  return `${prefix}${n}`;
+}

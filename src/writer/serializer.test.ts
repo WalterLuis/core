@@ -190,7 +190,7 @@ describe("serializeObject", () => {
 
   describe("PdfDict", () => {
     it("serializes empty dict", () => {
-      expect(serialize(new PdfDict())).toBe("<<>>");
+      expect(serialize(new PdfDict())).toBe("<<\n>>");
     });
 
     it("serializes dict with entries", () => {
@@ -214,7 +214,7 @@ describe("serializeObject", () => {
 
       const result = serialize(outer);
 
-      expect(result).toContain("/Nested <</Value 42>>");
+      expect(result).toContain("/Nested <<\n/Value 42\n>>");
     });
 
     it("serializes dict with array value", () => {
@@ -226,13 +226,13 @@ describe("serializeObject", () => {
       );
       const dict = PdfDict.of({ MediaBox: arr });
 
-      expect(serialize(dict)).toBe("<</MediaBox [0 0 612 792]>>");
+      expect(serialize(dict)).toBe("<<\n/MediaBox [0 0 612 792]\n>>");
     });
 
     it("serializes dict with ref value", () => {
       const dict = PdfDict.of({ Parent: PdfRef.of(1, 0) });
 
-      expect(serialize(dict)).toBe("<</Parent 1 0 R>>");
+      expect(serialize(dict)).toBe("<<\n/Parent 1 0 R\n>>");
     });
   });
 
@@ -296,7 +296,7 @@ describe("serializeObject", () => {
 
       const result = serialize(outerDict);
 
-      expect(result).toBe("<</Items [<</Value 1>> 2]>>");
+      expect(result).toBe("<<\n/Items [<<\n/Value 1\n>> 2]\n>>");
     });
   });
 });
@@ -315,7 +315,7 @@ describe("serializeIndirectObject", () => {
     const dict = PdfDict.of({ Type: PdfName.Page });
     const result = new TextDecoder().decode(serializeIndirectObject(ref, dict));
 
-    expect(result).toBe("5 0 obj\n<</Type /Page>>\nendobj\n");
+    expect(result).toBe("5 0 obj\n<<\n/Type /Page\n>>\nendobj\n");
   });
 
   it("serializes indirect stream", () => {

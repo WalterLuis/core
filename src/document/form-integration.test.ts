@@ -235,6 +235,7 @@ describe("Form Integration: All Field Types", () => {
     }
 
     const checkboxes = form!.getCheckboxes();
+
     for (const cb of checkboxes) {
       try {
         cb.check();
