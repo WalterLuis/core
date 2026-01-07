@@ -632,26 +632,27 @@ export class PDF {
    * @param source The source PDF document
    * @param indices Array of page indices to copy (0-based)
    * @param options Copy options including insertion position
-   * @returns Array of references to the copied pages in this document
+   * @returns Array of PDFPage objects for the copied pages
    * @throws RangeError if any source page index is out of bounds
    *
    * @example
    * ```typescript
    * // Copy pages 0 and 2 from source, append to end
-   * const copiedRefs = await dest.copyPagesFrom(source, [0, 2]);
+   * const copiedPages = await dest.copyPagesFrom(source, [0, 2]);
+   * console.log(copiedPages[0].width, copiedPages[0].height);
    *
    * // Copy page 0 and insert at the beginning
-   * await dest.copyPagesFrom(source, [0], { insertAt: 0 });
+   * const [inserted] = await dest.copyPagesFrom(source, [0], { insertAt: 0 });
    *
    * // Duplicate page 0 in the same document, insert after it
-   * await pdf.copyPagesFrom(pdf, [0], { insertAt: 1 });
+   * const [duplicate] = await pdf.copyPagesFrom(pdf, [0], { insertAt: 1 });
    * ```
    */
   async copyPagesFrom(
     source: PDF,
     indices: number[],
     options: CopyPagesOptions = {},
-  ): Promise<PdfRef[]> {
+  ): Promise<PDFPage[]> {
     const copier = new ObjectCopier(source, this, {
       includeAnnotations: options.includeAnnotations ?? true,
       includeBeads: options.includeBeads ?? false,
@@ -659,7 +660,7 @@ export class PDF {
       includeStructure: options.includeStructure ?? false,
     });
 
-    const copiedRefs: PdfRef[] = [];
+    const copiedPages: PDFPage[] = [];
 
     // Fail-fast: validate all indices first
     for (const index of indices) {
@@ -669,6 +670,8 @@ export class PDF {
     }
 
     // Copy each page
+    const copiedRefs: PdfRef[] = [];
+
     for (const index of indices) {
       const srcPage = await source.getPage(index);
 
@@ -684,17 +687,22 @@ export class PDF {
     let insertIndex = options.insertAt ?? this.getPageCount();
 
     for (const copiedRef of copiedRefs) {
-      const copiedPage = await this.getObject(copiedRef);
+      const copiedDict = await this.getObject(copiedRef);
 
-      if (!(copiedPage instanceof PdfDict)) {
+      if (!(copiedDict instanceof PdfDict)) {
         throw new Error("Copied page is not a dictionary");
       }
 
-      this.ctx.pages.insertPage(insertIndex, copiedRef, copiedPage);
+      this.ctx.pages.insertPage(insertIndex, copiedRef, copiedDict);
+
+      // Create PDFPage wrapper and add to result
+      const page = new PDFPage(copiedRef, copiedDict, insertIndex, this.ctx);
+      copiedPages.push(page);
+
       insertIndex++;
     }
 
-    return copiedRefs;
+    return copiedPages;
   }
 
   /**

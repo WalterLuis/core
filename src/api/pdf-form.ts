@@ -10,21 +10,24 @@
  * - Memory usage is proportional to field count
  * - Call `reloadFields()` if the form structure changes externally
  *
+ * **Note on async**: All field value mutations (setValue, check, fill, etc.)
+ * are async because they regenerate appearance streams. Always await these calls.
+ *
  * @example
  * ```typescript
  * const pdf = await PDF.load(bytes);
  * const form = await pdf.getForm();
  *
  * if (form) {
- *   // Type-safe field access
+ *   // Type-safe field access (all mutations are async)
  *   const name = form.getTextField("name");
  *   const agree = form.getCheckbox("terms");
  *
- *   name?.setValue("John Doe");
- *   agree?.check();
+ *   await name?.setValue("John Doe");
+ *   await agree?.check();
  *
  *   // Or fill multiple at once (lenient - ignores missing fields)
- *   form.fill({
+ *   await form.fill({
  *     email: "john@example.com",
  *     country: "USA",
  *     nonexistent: "ignored",
@@ -1041,7 +1044,7 @@ export class PDFForm {
    *
    * @example
    * ```typescript
-   * const result = pdf.form.fill({
+   * const result = await form.fill({
    *   name: "John Doe",
    *   email: "john@example.com",
    *   agree: true,
@@ -1051,7 +1054,7 @@ export class PDFForm {
    * // result.skipped: ["nonexistent"]
    * ```
    */
-  fill(values: Record<string, FieldValue>): { filled: string[]; skipped: string[] } {
+  async fill(values: Record<string, FieldValue>): Promise<{ filled: string[]; skipped: string[] }> {
     const filled: string[] = [];
     const skipped: string[] = [];
 
@@ -1064,7 +1067,7 @@ export class PDFForm {
         continue;
       }
 
-      this.setFieldValue(field, value);
+      await this.setFieldValue(field, value);
 
       filled.push(name);
     }
@@ -1075,10 +1078,10 @@ export class PDFForm {
   /**
    * Reset all fields to their default values.
    */
-  resetAll(): void {
+  async resetAll(): Promise<void> {
     for (const field of this.allFields) {
       if (field instanceof TerminalField) {
-        field.resetValue();
+        await field.resetValue();
       }
     }
   }
@@ -1195,7 +1198,7 @@ export class PDFForm {
   /**
    * Set a field's value with type checking.
    */
-  private setFieldValue(field: FormField, value: FieldValue): void {
+  private async setFieldValue(field: FormField, value: FieldValue): Promise<void> {
     switch (field.type) {
       case "text":
         if (typeof value !== "string") {
@@ -1204,18 +1207,18 @@ export class PDFForm {
           );
         }
 
-        (field as TextField).setValue(value);
+        await (field as TextField).setValue(value);
         break;
 
       case "checkbox":
         if (typeof value === "boolean") {
           if (value) {
-            (field as CheckboxField).check();
+            await (field as CheckboxField).check();
           } else {
-            (field as CheckboxField).uncheck();
+            await (field as CheckboxField).uncheck();
           }
         } else if (typeof value === "string") {
-          (field as CheckboxField).setValue(value);
+          await (field as CheckboxField).setValue(value);
         } else {
           throw new TypeError(`Checkbox "${field.name}" requires boolean or string value`);
         }
@@ -1226,7 +1229,7 @@ export class PDFForm {
           throw new TypeError(`Radio field "${field.name}" requires string or null value`);
         }
 
-        (field as RadioField).setValue(value);
+        await (field as RadioField).setValue(value);
         break;
 
       case "dropdown":
@@ -1234,7 +1237,7 @@ export class PDFForm {
           throw new TypeError(`Dropdown "${field.name}" requires string value`);
         }
 
-        (field as DropdownField).setValue(value);
+        await (field as DropdownField).setValue(value);
         break;
 
       case "listbox":
@@ -1242,7 +1245,7 @@ export class PDFForm {
           throw new TypeError(`Listbox "${field.name}" requires string[] value`);
         }
 
-        (field as ListBoxField).setValue(value);
+        await (field as ListBoxField).setValue(value);
         break;
 
       case "signature":

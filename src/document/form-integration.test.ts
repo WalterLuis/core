@@ -789,7 +789,7 @@ describe("Form Integration: Edge Cases", () => {
     console.log(`  Read-only fields: ${readOnlyFields.length}`);
 
     // Attempt to fill - should skip read-only
-    const result = form!.fill({
+    const result = await form!.fill({
       STATE: "CA",
       CITY: "Los Angeles",
     });

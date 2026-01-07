@@ -175,7 +175,7 @@ describe("PDFForm", () => {
       const pdf = await PDF.load(bytes);
       const form = await pdf.getForm();
 
-      const result = form!.fill({
+      const result = await form!.fill({
         STATE: "NY",
         "TRADE CERTIFICATE": true,
       });
@@ -193,7 +193,7 @@ describe("PDFForm", () => {
       const pdf = await PDF.load(bytes);
       const form = await pdf.getForm();
 
-      const result = form!.fill({
+      const result = await form!.fill({
         STATE: "CA",
         nonexistent: "ignored",
         alsoMissing: "skipped",
@@ -209,11 +209,11 @@ describe("PDFForm", () => {
       const pdf = await PDF.load(bytes);
       const form = await pdf.getForm();
 
-      expect(() =>
+      await expect(
         form!.fill({
           STATE: true, // Should be string
         }),
-      ).toThrow(TypeError);
+      ).rejects.toThrow(TypeError);
     });
   });
 
@@ -223,15 +223,22 @@ describe("PDFForm", () => {
       const pdf = await PDF.load(bytes);
       const form = await pdf.getForm();
 
-      form!.fill({
+      // Fill with some values
+      await form!.fill({
         STATE: "CA",
         "TRADE CERTIFICATE": true,
       });
 
-      form!.resetAll();
+      // Verify the values were set
+      expect(form!.getTextField("STATE")?.getValue()).toBe("CA");
+      expect(form!.getCheckbox("TRADE CERTIFICATE")?.isChecked()).toBe(true);
 
+      // Reset all fields
+      await form!.resetAll();
+
+      // After reset, appearances are regenerated so needsAppearanceUpdate is false
       const fields = form!.getFields() as TerminalField[];
-      expect(fields.every(f => f.needsAppearanceUpdate)).toBe(true);
+      expect(fields.every(f => !f.needsAppearanceUpdate)).toBe(true);
     });
   });
 

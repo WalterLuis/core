@@ -360,16 +360,17 @@ describe("PDF", () => {
       const sourceCount = source.getPageCount();
       expect(sourceCount).toBeGreaterThan(0);
 
-      const [copiedRef] = await dest.copyPagesFrom(source, [0]);
+      const [copiedPage] = await dest.copyPagesFrom(source, [0]);
 
       // Page is automatically inserted at the end
       expect(dest.getPageCount()).toBe(destOriginalCount + 1);
-      expect((await dest.getPage(destOriginalCount))?.ref).toBe(copiedRef);
+      expect((await dest.getPage(destOriginalCount))?.ref).toEqual(copiedPage.ref);
 
-      // Verify it's a valid page
-      const copiedPage = await dest.getObject(copiedRef);
-      expect(copiedPage).toBeInstanceOf(PdfDict);
-      expect((copiedPage as PdfDict).getName("Type")?.value).toBe("Page");
+      // Verify it's a valid page with accessible properties
+      expect(copiedPage.dict).toBeInstanceOf(PdfDict);
+      expect(copiedPage.dict.getName("Type")?.value).toBe("Page");
+      expect(copiedPage.width).toBeGreaterThan(0);
+      expect(copiedPage.height).toBeGreaterThan(0);
     });
 
     it("copies multiple pages and appends them in order", async () => {
@@ -385,14 +386,14 @@ describe("PDF", () => {
       }
 
       const destOriginalCount = dest.getPageCount();
-      const copiedRefs = await dest.copyPagesFrom(source, [0, 1]);
+      const copiedPages = await dest.copyPagesFrom(source, [0, 1]);
 
-      expect(copiedRefs.length).toBe(2);
+      expect(copiedPages.length).toBe(2);
       expect(dest.getPageCount()).toBe(destOriginalCount + 2);
 
       // Pages inserted in order
-      expect(dest.getPage(destOriginalCount)).toBe(copiedRefs[0]);
-      expect(dest.getPage(destOriginalCount + 1)).toBe(copiedRefs[1]);
+      expect((await dest.getPage(destOriginalCount))?.ref).toEqual(copiedPages[0].ref);
+      expect((await dest.getPage(destOriginalCount + 1))?.ref).toEqual(copiedPages[1].ref);
     });
 
     it("inserts at specified position with insertAt option", async () => {
@@ -404,12 +405,12 @@ describe("PDF", () => {
 
       const originalFirstPage = await dest.getPage(0);
 
-      const [copiedRef] = await dest.copyPagesFrom(source, [0], { insertAt: 0 });
+      const [copiedPage] = await dest.copyPagesFrom(source, [0], { insertAt: 0 });
 
       // Copied page is now first
-      expect((await dest.getPage(0))?.ref).toBe(copiedRef);
+      expect((await dest.getPage(0))?.ref).toEqual(copiedPage.ref);
       // Original first page is now second
-      expect((await dest.getPage(1))?.ref).toBe(originalFirstPage?.ref);
+      expect((await dest.getPage(1))?.ref).toEqual(originalFirstPage?.ref);
     });
 
     it("duplicates a page within the same document", async () => {
@@ -419,14 +420,14 @@ describe("PDF", () => {
       const originalFirstPage = await pdf.getPage(0);
 
       // Duplicate page 0 and insert after it
-      const [duplicatedRef] = await pdf.copyPagesFrom(pdf, [0], { insertAt: 1 });
+      const [duplicatedPage] = await pdf.copyPagesFrom(pdf, [0], { insertAt: 1 });
 
       expect(pdf.getPageCount()).toBe(originalCount + 1);
-      expect((await pdf.getPage(0))?.ref).toBe(originalFirstPage?.ref);
-      expect((await pdf.getPage(1))?.ref).toBe(duplicatedRef);
+      expect((await pdf.getPage(0))?.ref).toEqual(originalFirstPage?.ref);
+      expect((await pdf.getPage(1))?.ref).toEqual(duplicatedPage.ref);
 
       // Refs should be different
-      expect(duplicatedRef).not.toBe(originalFirstPage?.ref);
+      expect(duplicatedPage.ref).not.toEqual(originalFirstPage?.ref);
     });
 
     it("throws RangeError for out of bounds index", async () => {
@@ -473,12 +474,11 @@ describe("PDF", () => {
       const destBytes = await loadFixture("basic", "sample.pdf");
       const dest = await PDF.load(destBytes);
 
-      const [copiedRef] = await dest.copyPagesFrom(source, [0], {
+      const [copiedPage] = await dest.copyPagesFrom(source, [0], {
         includeAnnotations: false,
       });
 
-      const copiedPage = (await dest.getObject(copiedRef)) as PdfDict;
-      expect(copiedPage.has("Annots")).toBe(false);
+      expect(copiedPage.dict.has("Annots")).toBe(false);
     });
   });
 
