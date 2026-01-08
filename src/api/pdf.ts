@@ -12,6 +12,7 @@ import { isLinearizationDict } from "#src/document/linearization";
 import { ObjectCopier } from "#src/document/object-copier";
 import { ObjectRegistry } from "#src/document/object-registry";
 import type { EmbeddedFont, EmbedFontOptions } from "#src/fonts/embedded-font";
+import { formatPdfDate, parsePdfDate } from "#src/helpers/format";
 import { resolvePageSize } from "#src/helpers/page-size";
 import { checkIncrementalSaveBlocker, type IncrementalSaveBlocker } from "#src/helpers/save-utils";
 import { isJpeg, parseJpegHeader } from "#src/images/jpeg";
@@ -119,6 +120,55 @@ export interface MergeOptions extends LoadOptions {
 export interface ExtractPagesOptions {
   /** Include annotations (default: true) */
   includeAnnotations?: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Metadata Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Trapped status indicating whether trapping has been applied.
+ * - "True": Document has been trapped
+ * - "False": Document has not been trapped
+ * - "Unknown": Unknown trapping status
+ */
+export type TrappedStatus = "True" | "False" | "Unknown";
+
+/**
+ * Options for setTitle().
+ */
+export interface SetTitleOptions {
+  /**
+   * If true, PDF viewers should display the title in the window's title bar
+   * instead of the filename. Sets ViewerPreferences.DisplayDocTitle.
+   */
+  showInWindowTitleBar?: boolean;
+}
+
+/**
+ * Document metadata that can be read or written in bulk.
+ */
+export interface DocumentMetadata {
+  /** Document title */
+  title?: string;
+  /** Name of the person who created the document content */
+  author?: string;
+  /** Subject/description of the document */
+  subject?: string;
+  /** Keywords associated with the document */
+  keywords?: string[];
+  /** Application that created the original content */
+  creator?: string;
+  /** Application that produced the PDF */
+  producer?: string;
+  /** Date the document was created */
+  creationDate?: Date;
+  /** Date the document was last modified */
+  modificationDate?: Date;
+  /** Whether the document has been trapped for printing */
+  trapped?: TrappedStatus;
+  /** RFC 3066 language tag (e.g., "en-US", "de-DE") */
+  language?: string;
 }
 
 /**
@@ -278,6 +328,13 @@ export class PDF {
       ? await PDFPageTree.load(pagesRef, parsed.getObject.bind(parsed))
       : PDFPageTree.empty();
 
+    // Load Info dictionary if present (for metadata access)
+    const infoRef = parsed.trailer.getRef("Info");
+
+    if (infoRef) {
+      await registry.resolve(infoRef);
+    }
+
     // Extract document info from parsed document
     const info: DocumentInfo = {
       version: parsed.version,
@@ -415,11 +472,23 @@ export class PDF {
 
     const ctx = new PDFContext(registry, pdfCatalog, pages, info);
 
-    return new PDF(ctx, new Uint8Array(0), 0, {
+    const pdf = new PDF(ctx, new Uint8Array(0), 0, {
       recoveredViaBruteForce: false,
       isLinearized: false,
       usesXRefStreams: false,
     });
+
+    // Set default metadata for new documents
+    pdf.setMetadata({
+      title: "Untitled",
+      author: "Unknown",
+      creator: "@libpdf/core",
+      producer: "@libpdf/core",
+      creationDate: new Date(),
+      modificationDate: new Date(),
+    });
+
+    return pdf;
   }
 
   /**
@@ -480,6 +549,550 @@ export class PDF {
   /** Whether authentication succeeded (for encrypted docs) */
   get isAuthenticated(): boolean {
     return this.ctx.info.isAuthenticated;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Metadata
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /** Cached Info dictionary */
+  private _infoDict: PdfDict | null = null;
+
+  /**
+   * Get or create the Info dictionary.
+   * Creates a new Info dictionary if one doesn't exist.
+   */
+  private getInfoDict(): PdfDict {
+    if (this._infoDict) {
+      return this._infoDict;
+    }
+
+    const infoRef = this.ctx.info.trailer.getRef("Info");
+
+    if (infoRef) {
+      const existing = this.ctx.registry.getObject(infoRef);
+
+      if (existing instanceof PdfDict) {
+        this._infoDict = existing;
+
+        return this._infoDict;
+      }
+    }
+
+    // Create new Info dictionary
+    const infoDict = new PdfDict([
+      ["Title", PdfString.fromString("Untitled")],
+      ["Author", PdfString.fromString("Unknown")],
+      ["Creator", PdfString.fromString("@libpdf/core")],
+      ["Producer", PdfString.fromString("@libpdf/core")],
+      ["CreationDate", PdfString.fromString(formatPdfDate(new Date()))],
+      ["ModDate", PdfString.fromString(formatPdfDate(new Date()))],
+    ]);
+
+    const newRef = this.ctx.registry.register(infoDict);
+    this.ctx.info.trailer.set("Info", newRef);
+    this._infoDict = infoDict;
+
+    return this._infoDict;
+  }
+
+  /**
+   * Get the document title.
+   *
+   * @returns The title, or undefined if not set
+   *
+   * @example
+   * ```typescript
+   * const title = pdf.getTitle();
+   * if (title) {
+   *   console.log(`Document: ${title}`);
+   * }
+   * ```
+   */
+  getTitle(): string | undefined {
+    const infoRef = this.ctx.info.trailer.getRef("Info");
+
+    if (!infoRef) {
+      return undefined;
+    }
+
+    const info = this.ctx.registry.getObject(infoRef);
+
+    if (!(info instanceof PdfDict)) {
+      return undefined;
+    }
+
+    return info.getString("Title")?.asString();
+  }
+
+  /**
+   * Set the document title.
+   *
+   * @param title - The document title
+   * @param options - Additional options (e.g., showInWindowTitleBar)
+   *
+   * @example
+   * ```typescript
+   * pdf.setTitle("Quarterly Report Q4 2024");
+   *
+   * // Show title in viewer's title bar instead of filename
+   * pdf.setTitle("My Document", { showInWindowTitleBar: true });
+   * ```
+   */
+  setTitle(title: string, options?: SetTitleOptions): void {
+    this.getInfoDict().set("Title", PdfString.fromString(title));
+
+    if (options?.showInWindowTitleBar) {
+      this.getOrCreateViewerPreferences().set("DisplayDocTitle", PdfBool.of(true));
+    }
+  }
+
+  /**
+   * Get the document author.
+   *
+   * @returns The author, or undefined if not set
+   */
+  getAuthor(): string | undefined {
+    const infoRef = this.ctx.info.trailer.getRef("Info");
+
+    if (!infoRef) {
+      return undefined;
+    }
+
+    const info = this.ctx.registry.getObject(infoRef);
+
+    if (!(info instanceof PdfDict)) {
+      return undefined;
+    }
+
+    return info.getString("Author")?.asString();
+  }
+
+  /**
+   * Set the document author.
+   *
+   * @param author - The person who created the document content
+   *
+   * @example
+   * ```typescript
+   * pdf.setAuthor("Jane Smith");
+   * ```
+   */
+  setAuthor(author: string): void {
+    this.getInfoDict().set("Author", PdfString.fromString(author));
+  }
+
+  /**
+   * Get the document subject.
+   *
+   * @returns The subject, or undefined if not set
+   */
+  getSubject(): string | undefined {
+    const infoRef = this.ctx.info.trailer.getRef("Info");
+
+    if (!infoRef) {
+      return undefined;
+    }
+
+    const info = this.ctx.registry.getObject(infoRef);
+
+    if (!(info instanceof PdfDict)) {
+      return undefined;
+    }
+
+    return info.getString("Subject")?.asString();
+  }
+
+  /**
+   * Set the document subject.
+   *
+   * @param subject - The subject or description of the document
+   *
+   * @example
+   * ```typescript
+   * pdf.setSubject("Financial summary for Q4");
+   * ```
+   */
+  setSubject(subject: string): void {
+    this.getInfoDict().set("Subject", PdfString.fromString(subject));
+  }
+
+  /**
+   * Get the document keywords.
+   *
+   * @returns Array of keywords, or undefined if not set
+   */
+  getKeywords(): string[] | undefined {
+    const infoRef = this.ctx.info.trailer.getRef("Info");
+
+    if (!infoRef) {
+      return undefined;
+    }
+
+    const info = this.ctx.registry.getObject(infoRef);
+
+    if (!(info instanceof PdfDict)) {
+      return undefined;
+    }
+
+    const keywordsStr = info.getString("Keywords");
+
+    if (!keywordsStr) {
+      return undefined;
+    }
+
+    const keywords = keywordsStr.asString();
+
+    // Split on whitespace, filter empty strings
+    // Returns empty array for empty string (which is valid - explicitly set to no keywords)
+    return keywords.split(/\s+/).filter(k => k.length > 0);
+  }
+
+  /**
+   * Set the document keywords.
+   *
+   * @param keywords - Array of keywords associated with the document
+   *
+   * @example
+   * ```typescript
+   * pdf.setKeywords(["finance", "quarterly", "2024", "Q4"]);
+   * ```
+   */
+  setKeywords(keywords: string[]): void {
+    this.getInfoDict().set("Keywords", PdfString.fromString(keywords.join(" ")));
+  }
+
+  /**
+   * Get the creator application.
+   *
+   * @returns The creator application, or undefined if not set
+   */
+  getCreator(): string | undefined {
+    const infoRef = this.ctx.info.trailer.getRef("Info");
+
+    if (!infoRef) {
+      return undefined;
+    }
+
+    const info = this.ctx.registry.getObject(infoRef);
+
+    if (!(info instanceof PdfDict)) {
+      return undefined;
+    }
+
+    return info.getString("Creator")?.asString();
+  }
+
+  /**
+   * Set the creator application.
+   *
+   * @param creator - The application that created the original content
+   *
+   * @example
+   * ```typescript
+   * pdf.setCreator("Report Generator v2.0");
+   * ```
+   */
+  setCreator(creator: string): void {
+    this.getInfoDict().set("Creator", PdfString.fromString(creator));
+  }
+
+  /**
+   * Get the producer application.
+   *
+   * @returns The producer application, or undefined if not set
+   */
+  getProducer(): string | undefined {
+    const infoRef = this.ctx.info.trailer.getRef("Info");
+
+    if (!infoRef) {
+      return undefined;
+    }
+
+    const info = this.ctx.registry.getObject(infoRef);
+
+    if (!(info instanceof PdfDict)) {
+      return undefined;
+    }
+
+    return info.getString("Producer")?.asString();
+  }
+
+  /**
+   * Set the producer application.
+   *
+   * @param producer - The application that produced the PDF
+   *
+   * @example
+   * ```typescript
+   * pdf.setProducer("@libpdf/core");
+   * ```
+   */
+  setProducer(producer: string): void {
+    this.getInfoDict().set("Producer", PdfString.fromString(producer));
+  }
+
+  /**
+   * Get the document creation date.
+   *
+   * @returns The creation date, or undefined if not set or invalid
+   */
+  getCreationDate(): Date | undefined {
+    const infoRef = this.ctx.info.trailer.getRef("Info");
+
+    if (!infoRef) {
+      return undefined;
+    }
+
+    const info = this.ctx.registry.getObject(infoRef);
+
+    if (!(info instanceof PdfDict)) {
+      return undefined;
+    }
+
+    const dateStr = info.getString("CreationDate")?.asString();
+
+    if (!dateStr) {
+      return undefined;
+    }
+
+    return parsePdfDate(dateStr);
+  }
+
+  /**
+   * Set the document creation date.
+   *
+   * @param date - The date the document was created
+   *
+   * @example
+   * ```typescript
+   * pdf.setCreationDate(new Date());
+   * ```
+   */
+  setCreationDate(date: Date): void {
+    this.getInfoDict().set("CreationDate", PdfString.fromString(formatPdfDate(date)));
+  }
+
+  /**
+   * Get the document modification date.
+   *
+   * @returns The modification date, or undefined if not set or invalid
+   */
+  getModificationDate(): Date | undefined {
+    const infoRef = this.ctx.info.trailer.getRef("Info");
+
+    if (!infoRef) {
+      return undefined;
+    }
+
+    const info = this.ctx.registry.getObject(infoRef);
+
+    if (!(info instanceof PdfDict)) {
+      return undefined;
+    }
+
+    const dateStr = info.getString("ModDate")?.asString();
+
+    if (!dateStr) {
+      return undefined;
+    }
+
+    return parsePdfDate(dateStr);
+  }
+
+  /**
+   * Set the document modification date.
+   *
+   * @param date - The date the document was last modified
+   *
+   * @example
+   * ```typescript
+   * pdf.setModificationDate(new Date());
+   * ```
+   */
+  setModificationDate(date: Date): void {
+    this.getInfoDict().set("ModDate", PdfString.fromString(formatPdfDate(date)));
+  }
+
+  /**
+   * Get the document trapped status.
+   *
+   * @returns The trapped status, or undefined if not set
+   */
+  getTrapped(): TrappedStatus | undefined {
+    const infoRef = this.ctx.info.trailer.getRef("Info");
+
+    if (!infoRef) {
+      return undefined;
+    }
+
+    const info = this.ctx.registry.getObject(infoRef);
+
+    if (!(info instanceof PdfDict)) {
+      return undefined;
+    }
+
+    const trapped = info.getName("Trapped")?.value;
+
+    if (trapped === "True" || trapped === "False" || trapped === "Unknown") {
+      return trapped;
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Set the document trapped status.
+   *
+   * Trapping is a prepress technique to prevent gaps between colors.
+   *
+   * @param trapped - The trapped status
+   *
+   * @example
+   * ```typescript
+   * pdf.setTrapped("True");
+   * ```
+   */
+  setTrapped(trapped: TrappedStatus): void {
+    this.getInfoDict().set("Trapped", PdfName.of(trapped));
+  }
+
+  /**
+   * Get the document language.
+   *
+   * Note: Unlike other metadata, language is stored in the Catalog, not Info.
+   *
+   * @returns RFC 3066 language tag, or undefined if not set
+   */
+  getLanguage(): string | undefined {
+    const catalog = this.ctx.catalog.getDict();
+
+    return catalog.getString("Lang")?.asString();
+  }
+
+  /**
+   * Set the document language.
+   *
+   * Note: Unlike other metadata, language is stored in the Catalog, not Info.
+   *
+   * @param language - RFC 3066 language tag (e.g., "en-US", "de-DE")
+   *
+   * @example
+   * ```typescript
+   * pdf.setLanguage("en-US");
+   * ```
+   */
+  setLanguage(language: string): void {
+    this.ctx.catalog.getDict().set("Lang", PdfString.fromString(language));
+  }
+
+  /**
+   * Get all document metadata.
+   *
+   * @returns Object containing all metadata fields
+   *
+   * @example
+   * ```typescript
+   * const metadata = pdf.getMetadata();
+   * console.log(`Title: ${metadata.title}`);
+   * console.log(`Author: ${metadata.author}`);
+   * ```
+   */
+  getMetadata(): DocumentMetadata {
+    return {
+      title: this.getTitle(),
+      author: this.getAuthor(),
+      subject: this.getSubject(),
+      keywords: this.getKeywords(),
+      creator: this.getCreator(),
+      producer: this.getProducer(),
+      creationDate: this.getCreationDate(),
+      modificationDate: this.getModificationDate(),
+      trapped: this.getTrapped(),
+      language: this.getLanguage(),
+    };
+  }
+
+  /**
+   * Set multiple metadata fields at once.
+   *
+   * @param metadata - Object containing metadata fields to set
+   *
+   * @example
+   * ```typescript
+   * pdf.setMetadata({
+   *   title: "Quarterly Report",
+   *   author: "Jane Smith",
+   *   creationDate: new Date(),
+   * });
+   * ```
+   */
+  setMetadata(metadata: DocumentMetadata): void {
+    if (metadata.title !== undefined) {
+      this.setTitle(metadata.title);
+    }
+
+    if (metadata.author !== undefined) {
+      this.setAuthor(metadata.author);
+    }
+
+    if (metadata.subject !== undefined) {
+      this.setSubject(metadata.subject);
+    }
+
+    if (metadata.keywords !== undefined) {
+      this.setKeywords(metadata.keywords);
+    }
+
+    if (metadata.creator !== undefined) {
+      this.setCreator(metadata.creator);
+    }
+
+    if (metadata.producer !== undefined) {
+      this.setProducer(metadata.producer);
+    }
+
+    if (metadata.creationDate !== undefined) {
+      this.setCreationDate(metadata.creationDate);
+    }
+
+    if (metadata.modificationDate !== undefined) {
+      this.setModificationDate(metadata.modificationDate);
+    }
+
+    if (metadata.trapped !== undefined) {
+      this.setTrapped(metadata.trapped);
+    }
+
+    if (metadata.language !== undefined) {
+      this.setLanguage(metadata.language);
+    }
+  }
+
+  /**
+   * Get or create the ViewerPreferences dictionary.
+   */
+  private getOrCreateViewerPreferences(): PdfDict {
+    const catalog = this.ctx.catalog.getDict();
+    const existing = catalog.get("ViewerPreferences");
+
+    if (existing instanceof PdfDict) {
+      return existing;
+    }
+
+    if (existing instanceof PdfRef) {
+      const resolved = this.ctx.registry.getObject(existing);
+
+      if (resolved instanceof PdfDict) {
+        return resolved;
+      }
+    }
+
+    // Create new ViewerPreferences
+    const prefs = new PdfDict();
+    catalog.set("ViewerPreferences", prefs);
+
+    return prefs;
   }
 
   // ─────────────────────────────────────────────────────────────────────────────

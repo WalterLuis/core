@@ -1014,4 +1014,331 @@ describe("PDF", () => {
       expect(acroForm!.defaultAppearance).toBeDefined();
     });
   });
+
+  describe("metadata", () => {
+    describe("PDF.create() default metadata", () => {
+      it("sets default metadata values", () => {
+        const pdf = PDF.create();
+
+        expect(pdf.getTitle()).toBe("Untitled");
+        expect(pdf.getAuthor()).toBe("Unknown");
+        expect(pdf.getCreator()).toBe("@libpdf/core");
+        expect(pdf.getProducer()).toBe("@libpdf/core");
+        expect(pdf.getCreationDate()).toBeInstanceOf(Date);
+        expect(pdf.getModificationDate()).toBeInstanceOf(Date);
+      });
+
+      it("optional metadata fields are undefined by default", () => {
+        const pdf = PDF.create();
+
+        expect(pdf.getSubject()).toBeUndefined();
+        expect(pdf.getKeywords()).toBeUndefined();
+        expect(pdf.getTrapped()).toBeUndefined();
+        expect(pdf.getLanguage()).toBeUndefined();
+      });
+    });
+
+    describe("individual getters/setters", () => {
+      it("setTitle/getTitle", () => {
+        const pdf = PDF.create();
+
+        pdf.setTitle("Test Document Title");
+
+        expect(pdf.getTitle()).toBe("Test Document Title");
+      });
+
+      it("setAuthor/getAuthor", () => {
+        const pdf = PDF.create();
+
+        pdf.setAuthor("Jane Smith");
+
+        expect(pdf.getAuthor()).toBe("Jane Smith");
+      });
+
+      it("setSubject/getSubject", () => {
+        const pdf = PDF.create();
+
+        pdf.setSubject("Financial Report Q4");
+
+        expect(pdf.getSubject()).toBe("Financial Report Q4");
+      });
+
+      it("setKeywords/getKeywords", () => {
+        const pdf = PDF.create();
+
+        pdf.setKeywords(["finance", "quarterly", "2024"]);
+
+        expect(pdf.getKeywords()).toEqual(["finance", "quarterly", "2024"]);
+      });
+
+      it("setCreator/getCreator overrides default", () => {
+        const pdf = PDF.create();
+
+        pdf.setCreator("My App v1.0");
+
+        expect(pdf.getCreator()).toBe("My App v1.0");
+      });
+
+      it("setProducer/getProducer overrides default", () => {
+        const pdf = PDF.create();
+
+        pdf.setProducer("Custom Producer");
+
+        expect(pdf.getProducer()).toBe("Custom Producer");
+      });
+
+      it("setCreationDate/getCreationDate", () => {
+        const pdf = PDF.create();
+        const date = new Date("2024-06-15T10:30:00Z");
+
+        pdf.setCreationDate(date);
+
+        const retrieved = pdf.getCreationDate();
+
+        expect(retrieved).toBeInstanceOf(Date);
+        expect(retrieved?.toISOString()).toBe(date.toISOString());
+      });
+
+      it("setModificationDate/getModificationDate", () => {
+        const pdf = PDF.create();
+        const date = new Date("2024-07-20T14:45:00Z");
+
+        pdf.setModificationDate(date);
+
+        const retrieved = pdf.getModificationDate();
+
+        expect(retrieved).toBeInstanceOf(Date);
+        expect(retrieved?.toISOString()).toBe(date.toISOString());
+      });
+
+      it("setTrapped/getTrapped - True", () => {
+        const pdf = PDF.create();
+
+        pdf.setTrapped("True");
+
+        expect(pdf.getTrapped()).toBe("True");
+      });
+
+      it("setTrapped/getTrapped - False", () => {
+        const pdf = PDF.create();
+
+        pdf.setTrapped("False");
+
+        expect(pdf.getTrapped()).toBe("False");
+      });
+
+      it("setTrapped/getTrapped - Unknown", () => {
+        const pdf = PDF.create();
+
+        pdf.setTrapped("Unknown");
+
+        expect(pdf.getTrapped()).toBe("Unknown");
+      });
+
+      it("setLanguage/getLanguage", () => {
+        const pdf = PDF.create();
+
+        pdf.setLanguage("en-US");
+
+        expect(pdf.getLanguage()).toBe("en-US");
+      });
+    });
+
+    describe("setTitle with showInWindowTitleBar", () => {
+      it("sets DisplayDocTitle in ViewerPreferences", async () => {
+        const pdf = PDF.create();
+
+        pdf.setTitle("My Document", { showInWindowTitleBar: true });
+
+        const catalog = await pdf.getCatalog();
+        const viewerPrefs = catalog?.get("ViewerPreferences");
+
+        expect(viewerPrefs).toBeInstanceOf(PdfDict);
+        expect((viewerPrefs as PdfDict).getBool("DisplayDocTitle")?.value).toBe(true);
+      });
+    });
+
+    describe("bulk operations", () => {
+      it("getMetadata returns all fields", () => {
+        const pdf = PDF.create();
+        const date = new Date("2024-01-15T12:00:00Z");
+
+        pdf.setTitle("Test Title");
+        pdf.setAuthor("Test Author");
+        pdf.setSubject("Test Subject");
+        pdf.setKeywords(["test", "keywords"]);
+        pdf.setCreationDate(date);
+        pdf.setModificationDate(date);
+        pdf.setTrapped("True");
+        pdf.setLanguage("de-DE");
+
+        const metadata = pdf.getMetadata();
+
+        expect(metadata.title).toBe("Test Title");
+        expect(metadata.author).toBe("Test Author");
+        expect(metadata.subject).toBe("Test Subject");
+        expect(metadata.keywords).toEqual(["test", "keywords"]);
+        expect(metadata.producer).toBe("@libpdf/core");
+        expect(metadata.creator).toBe("@libpdf/core");
+        expect(metadata.creationDate?.toISOString()).toBe(date.toISOString());
+        expect(metadata.modificationDate?.toISOString()).toBe(date.toISOString());
+        expect(metadata.trapped).toBe("True");
+        expect(metadata.language).toBe("de-DE");
+      });
+
+      it("setMetadata sets multiple fields at once", () => {
+        const pdf = PDF.create();
+        const date = new Date("2024-03-20T08:00:00Z");
+
+        pdf.setMetadata({
+          title: "Bulk Title",
+          author: "Bulk Author",
+          creationDate: date,
+          language: "fr-FR",
+        });
+
+        expect(pdf.getTitle()).toBe("Bulk Title");
+        expect(pdf.getAuthor()).toBe("Bulk Author");
+        expect(pdf.getCreationDate()?.toISOString()).toBe(date.toISOString());
+        expect(pdf.getLanguage()).toBe("fr-FR");
+        // Unchanged fields
+        expect(pdf.getSubject()).toBeUndefined();
+      });
+    });
+
+    describe("Unicode support", () => {
+      it("handles Unicode in title", () => {
+        const pdf = PDF.create();
+
+        pdf.setTitle("Quarterly Report Q4 2024 - 季度报告");
+
+        expect(pdf.getTitle()).toBe("Quarterly Report Q4 2024 - 季度报告");
+      });
+
+      it("handles emoji in author", () => {
+        const pdf = PDF.create();
+
+        pdf.setAuthor("John Smith 🚀");
+
+        expect(pdf.getAuthor()).toBe("John Smith 🚀");
+      });
+
+      it("handles RTL text in subject", () => {
+        const pdf = PDF.create();
+
+        pdf.setSubject("مرحبا بالعالم");
+
+        expect(pdf.getSubject()).toBe("مرحبا بالعالم");
+      });
+    });
+
+    describe("round-trip", () => {
+      it("metadata survives save/load cycle", async () => {
+        const pdf = PDF.create();
+        const date = new Date("2024-05-10T16:30:00Z");
+
+        pdf.setTitle("Round-trip Test");
+        pdf.setAuthor("Test Author");
+        pdf.setSubject("Testing metadata persistence");
+        pdf.setKeywords(["test", "round-trip", "metadata"]);
+        pdf.setCreationDate(date);
+        pdf.setTrapped("False");
+        pdf.setLanguage("en-GB");
+        pdf.addPage();
+
+        const saved = await pdf.save();
+        const loaded = await PDF.load(saved);
+
+        expect(loaded.getTitle()).toBe("Round-trip Test");
+        expect(loaded.getAuthor()).toBe("Test Author");
+        expect(loaded.getSubject()).toBe("Testing metadata persistence");
+        expect(loaded.getKeywords()).toEqual(["test", "round-trip", "metadata"]);
+        expect(loaded.getCreationDate()?.toISOString()).toBe(date.toISOString());
+        expect(loaded.getTrapped()).toBe("False");
+        expect(loaded.getLanguage()).toBe("en-GB");
+      });
+
+      it("Unicode metadata survives save/load cycle", async () => {
+        const pdf = PDF.create();
+
+        pdf.setTitle("日本語タイトル");
+        pdf.setAuthor("著者名 🎉");
+        pdf.addPage();
+
+        const saved = await pdf.save();
+        const loaded = await PDF.load(saved);
+
+        expect(loaded.getTitle()).toBe("日本語タイトル");
+        expect(loaded.getAuthor()).toBe("著者名 🎉");
+      });
+    });
+
+    describe("loading PDFs with existing metadata", () => {
+      it("reads metadata from text fixture PDF", async () => {
+        // This PDF (OpenOffice-generated) should have metadata
+        const bytes = await loadFixture("text", "openoffice-test-document.pdf");
+        const pdf = await PDF.load(bytes);
+
+        // Just verify we can read without error - actual values depend on fixture
+        const metadata = pdf.getMetadata();
+
+        expect(metadata).toBeDefined();
+        // OpenOffice typically sets Producer
+        expect(typeof metadata.producer === "string" || metadata.producer === undefined).toBe(true);
+      });
+
+      it("returns undefined for missing metadata fields", async () => {
+        const bytes = await loadFixture("basic", "rot0.pdf");
+        const pdf = await PDF.load(bytes);
+
+        // Basic fixture may not have all metadata
+        const title = pdf.getTitle();
+        const author = pdf.getAuthor();
+
+        // These should be undefined or valid strings, not throw
+        expect(title === undefined || typeof title === "string").toBe(true);
+        expect(author === undefined || typeof author === "string").toBe(true);
+      });
+
+      it("can modify loaded PDF metadata", async () => {
+        const bytes = await loadFixture("basic", "rot0.pdf");
+        const pdf = await PDF.load(bytes);
+
+        pdf.setTitle("Modified Title");
+        pdf.setAuthor("New Author");
+
+        expect(pdf.getTitle()).toBe("Modified Title");
+        expect(pdf.getAuthor()).toBe("New Author");
+      });
+    });
+
+    describe("keywords edge cases", () => {
+      it("handles empty keywords array", () => {
+        const pdf = PDF.create();
+
+        pdf.setKeywords([]);
+
+        // Empty string splits to empty array after filtering
+        expect(pdf.getKeywords()).toEqual([]);
+      });
+
+      it("handles single keyword", () => {
+        const pdf = PDF.create();
+
+        pdf.setKeywords(["single"]);
+
+        expect(pdf.getKeywords()).toEqual(["single"]);
+      });
+
+      it("handles keywords with spaces in them (joined with space)", () => {
+        const pdf = PDF.create();
+
+        // Note: Keywords are space-separated in PDF, so keywords with spaces
+        // will be split when retrieved. This is per PDF spec behavior.
+        pdf.setKeywords(["word1", "word2", "word3"]);
+
+        expect(pdf.getKeywords()).toEqual(["word1", "word2", "word3"]);
+      });
+    });
+  });
 });

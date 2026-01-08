@@ -12,11 +12,14 @@ export { version } from "../package.json";
 
 export {
   type CopyPagesOptions,
+  type DocumentMetadata,
   type ExtractPagesOptions,
   type LoadOptions,
   type MergeOptions,
   PDF,
   type SaveOptions,
+  type SetTitleOptions,
+  type TrappedStatus,
 } from "./api/pdf";
 export { PDFEmbeddedPage } from "./api/pdf-embedded-page";
 export {
