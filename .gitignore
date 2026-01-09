@@ -39,5 +39,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Test output for manual inspection
 test-output/
 
+# Examples output
+examples/output/
+
 # Review
 .agents/review
