@@ -1,6 +1,6 @@
 {
   "name": "@libpdf/core",
-  "version": "0.0.1-beta.0",
+  "version": "0.0.1-beta.1",
   "description": "A modern PDF library for TypeScript - parsing and generation",
   "author": "Lucas Smith",
   "license": "MIT",
