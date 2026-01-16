@@ -37,7 +37,7 @@ export {
   extractOcspResponderCerts,
 } from "./revocation";
 // Signers
-export { CryptoKeySigner, P12Signer, type P12SignerOptions } from "./signers";
+export { CryptoKeySigner, GoogleKmsSigner, P12Signer, type P12SignerOptions } from "./signers";
 // Timestamp
 export { HttpTimestampAuthority, type HttpTimestampAuthorityOptions } from "./timestamp";
 // Types
@@ -58,6 +58,7 @@ export type {
 // Errors
 export {
   CertificateChainError,
+  KmsSignerError,
   PlaceholderError,
   RevocationError,
   SignatureError,

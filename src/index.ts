@@ -118,7 +118,9 @@ export type {
 export {
   CertificateChainError,
   CryptoKeySigner,
+  GoogleKmsSigner,
   HttpTimestampAuthority,
+  KmsSignerError,
   P12Signer,
   PlaceholderError,
   RevocationError,

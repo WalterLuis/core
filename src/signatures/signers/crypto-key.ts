@@ -61,15 +61,15 @@ export class CryptoKeySigner implements Signer {
   }
 
   /**
-   * Sign a digest.
+   * Sign data using the private key.
    *
-   * @param digest - The hash to sign
-   * @param algorithm - The digest algorithm used
+   * The data is hashed internally using the specified algorithm.
+   *
+   * @param data - The data to sign
+   * @param algorithm - The digest algorithm to use
    * @returns Raw signature bytes
    */
-  async sign(digest: Uint8Array, algorithm: DigestAlgorithm): Promise<Uint8Array> {
-    const hashName = algorithm.replace("-", "");
-
+  async sign(data: Uint8Array, algorithm: DigestAlgorithm): Promise<Uint8Array> {
     let signAlgorithm: { name: string; saltLength?: number; hash?: { name: string } };
 
     switch (this.signatureAlgorithm) {
@@ -77,19 +77,31 @@ export class CryptoKeySigner implements Signer {
         signAlgorithm = { name: "RSASSA-PKCS1-v1_5" };
         break;
       case "RSA-PSS":
-        signAlgorithm = { name: "RSA-PSS", saltLength: digest.length };
+        // For PSS, saltLength should be the hash output length
+        signAlgorithm = { name: "RSA-PSS", saltLength: this.getHashLength(algorithm) };
         break;
       case "ECDSA":
-        signAlgorithm = { name: "ECDSA", hash: { name: hashName } };
+        // WebCrypto expects the hash algorithm name with hyphen (e.g., "SHA-256")
+        signAlgorithm = { name: "ECDSA", hash: { name: algorithm } };
         break;
     }
 
-    const signature = await cryptoEngine.sign(
-      signAlgorithm,
-      this.privateKey,
-      new Uint8Array(digest),
-    );
+    const signature = await cryptoEngine.sign(signAlgorithm, this.privateKey, new Uint8Array(data));
 
     return new Uint8Array(signature);
+  }
+
+  /**
+   * Get the hash output length in bytes for a given algorithm.
+   */
+  private getHashLength(algorithm: DigestAlgorithm): number {
+    switch (algorithm) {
+      case "SHA-256":
+        return 32;
+      case "SHA-384":
+        return 48;
+      case "SHA-512":
+        return 64;
+    }
   }
 }

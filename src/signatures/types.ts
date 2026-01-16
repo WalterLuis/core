@@ -394,3 +394,17 @@ export class PlaceholderError extends SignatureError {
     this.availableSize = availableSize;
   }
 }
+
+/**
+ * Error with KMS signer (e.g., key issues, permission denied, unsupported algorithm).
+ */
+export class KmsSignerError extends SignerError {
+  /** The original error that caused this error (if any) */
+  override readonly cause?: Error;
+
+  constructor(message: string, cause?: Error) {
+    super(`KMS: ${message}`);
+    this.name = "KmsSignerError";
+    this.cause = cause;
+  }
+}
