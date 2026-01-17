@@ -1147,5 +1147,75 @@ describe("Form Writing", () => {
       const fieldsAfter = form!.getFields();
       expect(fieldsAfter.length).toBe(0);
     });
+
+    it("preserves signature fields when skipSignatures is true", async () => {
+      const bytes = await loadFixture("forms", "sample_form.pdf");
+      const pdf = await PDF.load(bytes);
+      const form = pdf.getForm()?.acroForm();
+
+      // Verify there's at least one signature field
+      const sigFieldsBefore = form!.getFieldsOfType("signature");
+      expect(sigFieldsBefore.length).toBeGreaterThan(0);
+
+      // Get total field count before flattening
+      const totalFieldsBefore = form!.getFields().length;
+      expect(totalFieldsBefore).toBeGreaterThan(sigFieldsBefore.length);
+
+      // Flatten with skipSignatures
+      form!.flatten({ skipSignatures: true });
+
+      // Only signature fields should remain
+      const fieldsAfter = form!.getFields();
+      expect(fieldsAfter.length).toBe(sigFieldsBefore.length);
+
+      // All remaining fields should be signature fields
+      for (const field of fieldsAfter) {
+        expect(field.type).toBe("signature");
+      }
+    });
+
+    it("persists signature fields through save/load when skipSignatures is true", async () => {
+      const bytes = await loadFixture("forms", "sample_form.pdf");
+      const pdf = await PDF.load(bytes);
+      const form = pdf.getForm()?.acroForm();
+
+      // Set some values before flattening
+      const stateField = form!.getField("STATE") as TextField;
+      stateField.setValue("CA");
+
+      // Flatten with skipSignatures
+      form!.flatten({ skipSignatures: true });
+
+      // Save and reload
+      const saved = await pdf.save();
+      const pdf2 = await PDF.load(saved);
+      const form2 = pdf2.getForm()?.acroForm();
+
+      // Form should still have signature field(s)
+      expect(form2).not.toBeNull();
+      const sigFields = form2!.getFieldsOfType("signature");
+      expect(sigFields.length).toBeGreaterThan(0);
+
+      // Text field should be gone (flattened)
+      const stateField2 = form2!.getField("STATE");
+      expect(stateField2).toBeNull();
+    });
+
+    it("flattens all fields including signatures when skipSignatures is false", async () => {
+      const bytes = await loadFixture("forms", "sample_form.pdf");
+      const pdf = await PDF.load(bytes);
+      const form = pdf.getForm()?.acroForm();
+
+      // Verify there's at least one signature field
+      const sigFieldsBefore = form!.getFieldsOfType("signature");
+      expect(sigFieldsBefore.length).toBeGreaterThan(0);
+
+      // Flatten without skipSignatures (default behavior)
+      form!.flatten({ skipSignatures: false });
+
+      // All fields including signatures should be gone
+      const fieldsAfter = form!.getFields();
+      expect(fieldsAfter.length).toBe(0);
+    });
   });
 });

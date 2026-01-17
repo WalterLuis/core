@@ -31,7 +31,7 @@ import { PdfRef } from "#src/objects/pdf-ref";
 import { PdfStream } from "#src/objects/pdf-stream";
 
 import type { ObjectRegistry } from "../object-registry";
-import type { TerminalField } from "./fields";
+import { SignatureField, type TerminalField } from "./fields";
 import type { FormFont } from "./form-font";
 import type { WidgetAnnotation } from "./widget-annotation";
 
@@ -58,6 +58,17 @@ export interface FlattenOptions {
 
   /** Font size to use (0 = auto) */
   fontSize?: number;
+
+  /**
+   * Skip signature fields during flattening.
+   *
+   * When true, signature fields are preserved as interactive fields while
+   * all other fields are flattened. This is useful when you want to flatten
+   * filled form data but keep signature fields available for signing.
+   *
+   * @default false
+   */
+  skipSignatures?: boolean;
 }
 
 /**
@@ -95,11 +106,21 @@ export class FormFlattener {
    * Flatten all form fields into static page content.
    */
   flatten(options: FlattenOptions = {}): void {
-    // Apply font/size options if provided
-    if (options.font || options.fontSize !== undefined) {
-      const fields = this.form.getFields();
+    const allFields = this.form.getFields();
+    const skipSignatures = options.skipSignatures ?? false;
 
-      for (const field of fields) {
+    const signatureFields = skipSignatures
+      ? allFields.filter(f => f instanceof SignatureField)
+      : [];
+
+    // Separate signature fields if we're skipping them
+    const fieldsToFlatten = skipSignatures
+      ? allFields.filter(f => !(f instanceof SignatureField))
+      : allFields;
+
+    // Apply font/size options if provided (only to fields being flattened)
+    if (options.font || options.fontSize !== undefined) {
+      for (const field of fieldsToFlatten) {
         // Skip read-only fields - they keep their existing appearance
         if (field.isReadOnly()) {
           continue;
@@ -122,17 +143,28 @@ export class FormFlattener {
       });
     }
 
-    // Collect widgets grouped by page
-    const pageWidgets = this.collectWidgetsByPage();
+    // Collect widgets grouped by page (only from fields being flattened)
+    const pageWidgets = this.collectWidgetsByPage(fieldsToFlatten);
 
     // Process each page
     for (const { pageRef, widgets } of pageWidgets.values()) {
       this.flattenWidgetsOnPage(pageRef, widgets);
     }
 
-    // Clear form structure
+    // Update form structure
     const dict = this.form.getDict();
-    dict.set("Fields", new PdfArray([]));
+
+    if (signatureFields.length > 0) {
+      // Keep signature field refs in /Fields array
+      const sigRefs = signatureFields
+        .map(f => f.getRef())
+        .filter((ref): ref is PdfRef => ref !== null);
+      dict.set("Fields", PdfArray.of(...sigRefs));
+    } else {
+      // Clear form structure completely
+      dict.set("Fields", new PdfArray([]));
+    }
+
     dict.delete("NeedAppearances");
 
     // Remove XFA for hybrid forms (per PDFBox)
@@ -142,19 +174,23 @@ export class FormFlattener {
 
     // Remove SigFlags if no signatures remain (per PDFBox)
     // After flattening, signature fields are gone, so the flags are meaningless
-    if (!this.form.hasSignatures) {
+    if (!this.form.hasSignatures && signatureFields.length === 0) {
       dict.delete("SigFlags");
     }
   }
 
   /**
    * Collect all widgets grouped by their containing page.
+   *
+   * @param fields Optional list of fields to collect from. If not provided, uses all form fields.
    */
-  private collectWidgetsByPage(): Map<string, { pageRef: PdfRef; widgets: WidgetAnnotation[] }> {
+  private collectWidgetsByPage(
+    fields?: TerminalField[],
+  ): Map<string, { pageRef: PdfRef; widgets: WidgetAnnotation[] }> {
     const result = new Map<string, { pageRef: PdfRef; widgets: WidgetAnnotation[] }>();
-    const fields = this.form.getFields();
+    const fieldsToProcess = fields ?? this.form.getFields();
 
-    for (const field of fields) {
+    for (const field of fieldsToProcess) {
       // Widgets are pre-resolved during field creation (resolveWidgets)
       for (const widget of field.getWidgets()) {
         let pageRef = widget.pageRef;

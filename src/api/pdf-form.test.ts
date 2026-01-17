@@ -272,6 +272,58 @@ describe("PDFForm", () => {
         expect(form2.getFields()).toHaveLength(0);
       }
     });
+
+    it("preserves signature fields when skipSignatures is true", async () => {
+      const bytes = await loadFixture("forms", "sample_form.pdf");
+      const pdf = await PDF.load(bytes);
+      const form = pdf.getForm();
+
+      // Verify there's at least one signature field
+      const sigFieldsBefore = form!.getSignatureFields();
+      expect(sigFieldsBefore.length).toBeGreaterThan(0);
+
+      // Get counts before flattening
+      const totalBefore = form!.getFields().length;
+      expect(totalBefore).toBeGreaterThan(sigFieldsBefore.length);
+
+      // Fill a text field
+      form!.getTextField("STATE")?.setValue("CA");
+
+      // Flatten with skipSignatures
+      form!.flatten({ skipSignatures: true });
+
+      // Only signature fields should remain
+      const fieldsAfter = form!.getFields();
+      expect(fieldsAfter.length).toBe(sigFieldsBefore.length);
+
+      // All remaining should be signature fields
+      for (const field of fieldsAfter) {
+        expect(field.type).toBe("signature");
+      }
+    });
+
+    it("preserves signature fields through save/load with skipSignatures", async () => {
+      const bytes = await loadFixture("forms", "sample_form.pdf");
+      const pdf = await PDF.load(bytes);
+      const form = pdf.getForm();
+
+      // Fill and flatten with skipSignatures
+      form!.getTextField("STATE")?.setValue("NY");
+      form!.flatten({ skipSignatures: true });
+
+      // Save and reload
+      const saved = await pdf.save();
+      const pdf2 = await PDF.load(saved);
+      const form2 = pdf2.getForm();
+
+      // Form should still exist with signature field(s)
+      expect(form2).not.toBeNull();
+      const sigFields = form2!.getSignatureFields();
+      expect(sigFields.length).toBeGreaterThan(0);
+
+      // Text field should be gone (flattened)
+      expect(form2!.getTextField("STATE")).toBeUndefined();
+    });
   });
 
   describe("reloadFields", () => {

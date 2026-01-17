@@ -1331,9 +1331,26 @@ export class PDFForm {
    * await pdf.form.flatten();
    * const bytes = await pdf.save();
    * ```
+   *
+   * @example Flatten while preserving signature fields
+   * ```typescript
+   * await pdf.form.fill({ name: "John Doe" });
+   * await pdf.form.flatten({ skipSignatures: true });
+   * // Signature fields remain interactive for signing
+   * ```
    */
   flatten(options: FlattenOptions = {}): void {
     this._acroForm.flatten(options);
+
+    if (options.skipSignatures) {
+      // Keep only signature fields in cache
+      const sigFields = this.allFields.filter(f => f instanceof SignatureField);
+
+      this.allFields = sigFields;
+      this.fieldsByName = new Map(sigFields.map(f => [f.name, f]));
+
+      return;
+    }
 
     // Remove AcroForm from catalog to fully eliminate form interactivity
     this._ctx.catalog.removeAcroForm();
