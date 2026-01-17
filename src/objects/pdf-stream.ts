@@ -105,7 +105,7 @@ export class PdfStream extends PdfDict {
    * @returns Decoded data
    * @throws {Error} if a filter fails or is unknown
    */
-  async getDecodedData(): Promise<Uint8Array> {
+  getDecodedData(): Uint8Array {
     const filterEntry = this.get("Filter");
 
     // No filter - return raw data
@@ -139,7 +139,7 @@ export class PdfStream extends PdfDict {
    *
    * @returns Encoded data (compressed if filters are specified)
    */
-  async getEncodedData(): Promise<Uint8Array> {
+  getEncodedData(): Uint8Array {
     const filterEntry = this.get("Filter");
 
     if (!filterEntry) {

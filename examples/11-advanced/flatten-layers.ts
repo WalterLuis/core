@@ -24,7 +24,7 @@ async function main() {
   // Create a simple PDF (without layers)
   const pdf = PDF.create();
   pdf.addPage({ size: "letter" });
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (page) {
     page.drawText("Layer Flattening Example", {
       x: 150,
@@ -45,11 +45,11 @@ async function main() {
 
   console.log("=== Checking for Layers ===\n");
 
-  const hasLayers = await loaded.hasLayers();
+  const hasLayers = loaded.hasLayers();
   console.log(`Document has layers: ${hasLayers}`);
 
   if (hasLayers) {
-    const layers = await loaded.getLayers();
+    const layers = loaded.getLayers();
     console.log(`Number of layers: ${layers.length}`);
     console.log("\nLayer details:");
     for (const layer of layers) {
@@ -81,12 +81,12 @@ async function main() {
 
   if (hasLayers) {
     // Flatten the layers
-    const result = await loaded.flattenLayers();
+    const result = loaded.flattenLayers();
     console.log(`Flattened ${result.layerCount} layers`);
     console.log(`Flattened: ${result.flattened}`);
 
     // Verify layers are gone
-    const afterHasLayers = await loaded.hasLayers();
+    const afterHasLayers = loaded.hasLayers();
     console.log(`Has layers after flattening: ${afterHasLayers}`);
 
     // Save the flattened document
@@ -99,7 +99,7 @@ async function main() {
     console.log("Demonstrating the API anyway...\n");
 
     // Even without layers, flattenLayers is safe to call
-    const result = await loaded.flattenLayers();
+    const result = loaded.flattenLayers();
     console.log(`flattenLayers() returned:`);
     console.log(`  layerCount: ${result.layerCount}`);
     console.log(`  flattened: ${result.flattened}`);

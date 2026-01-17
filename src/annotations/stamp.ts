@@ -74,7 +74,7 @@ export class PDFStampAnnotation extends PDFMarkupAnnotation {
   /**
    * Set the stamp name.
    */
-  setStampName(name: StampName | string): void {
+  setStampName(name: StampName | (string & {})): void {
     this.dict.set("Name", PdfName.of(name));
     this.markModified();
   }
@@ -83,6 +83,7 @@ export class PDFStampAnnotation extends PDFMarkupAnnotation {
    * Check if this is a standard stamp.
    */
   isStandardStamp(): boolean {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return STANDARD_STAMPS.includes(this.stampName as StampName);
   }
 }

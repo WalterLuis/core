@@ -27,7 +27,7 @@ import {
   PDFStrikeOutAnnotation,
   PDFUnderlineAnnotation,
 } from "./text-markup";
-import type { AnnotationSubtype } from "./types";
+import { isAnnotationSubtype, type AnnotationSubtype } from "./types";
 
 /**
  * Unknown annotation - fallback for unsupported types.
@@ -47,7 +47,9 @@ export function createAnnotation(
   ref: PdfRef | null,
   registry: ObjectRegistry,
 ): PDFAnnotation {
-  const subtype = dict.getName("Subtype")?.value as AnnotationSubtype | undefined;
+  const subtypeName = dict.getName("Subtype")?.value;
+
+  const subtype = isAnnotationSubtype(subtypeName) ? subtypeName : "Text";
 
   switch (subtype) {
     case "Text":

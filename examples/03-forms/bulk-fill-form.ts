@@ -18,7 +18,7 @@ async function main() {
   const pdf = await PDF.load(bytes);
 
   // Get the form
-  const form = await pdf.getForm();
+  const form = pdf.getForm();
   if (!form) {
     console.log("This PDF does not contain a form.");
     return;
@@ -97,7 +97,7 @@ async function main() {
 
   // Use the fill() method for bulk filling
   // This is lenient - it will skip fields that don't exist or have wrong types
-  await form.fill(formData);
+  form.fill(formData);
 
   console.log("Fill operation completed.");
 

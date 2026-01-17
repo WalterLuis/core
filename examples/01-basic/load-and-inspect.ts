@@ -35,7 +35,7 @@ async function main() {
 
   // Iterate through pages and show dimensions
   console.log("\n=== Page Information ===");
-  const pages = await pdf.getPages();
+  const pages = pdf.getPages();
 
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i];
@@ -55,24 +55,24 @@ async function main() {
     const mediaBox = page.getMediaBox();
     const cropBox = page.getCropBox();
 
-    const mediaWidth = mediaBox.x2 - mediaBox.x1;
-    const mediaHeight = mediaBox.y2 - mediaBox.y1;
+    const mediaX2 = mediaBox.x + mediaBox.width;
+    const mediaY2 = mediaBox.y + mediaBox.height;
 
     console.log(
-      `  Media Box: [${mediaBox.x1}, ${mediaBox.y1}, ${mediaBox.x2}, ${mediaBox.y2}] (${mediaWidth} x ${mediaHeight})`,
+      `  Media Box: [${mediaBox.x}, ${mediaBox.y}, ${mediaX2}, ${mediaY2}] (${mediaBox.width} x ${mediaBox.height})`,
     );
 
     // Show crop box if different from media box
     if (
-      cropBox.x1 !== mediaBox.x1 ||
-      cropBox.y1 !== mediaBox.y1 ||
-      cropBox.x2 !== mediaBox.x2 ||
-      cropBox.y2 !== mediaBox.y2
+      cropBox.x !== mediaBox.x ||
+      cropBox.y !== mediaBox.y ||
+      cropBox.width !== mediaBox.width ||
+      cropBox.height !== mediaBox.height
     ) {
-      const cropWidth = cropBox.x2 - cropBox.x1;
-      const cropHeight = cropBox.y2 - cropBox.y1;
+      const cropX2 = cropBox.x + cropBox.width;
+      const cropY2 = cropBox.y + cropBox.height;
       console.log(
-        `  Crop Box: [${cropBox.x1}, ${cropBox.y1}, ${cropBox.x2}, ${cropBox.y2}] (${cropWidth} x ${cropHeight})`,
+        `  Crop Box: [${cropBox.x}, ${cropBox.y}, ${cropX2}, ${cropY2}] (${cropBox.width} x ${cropBox.height})`,
       );
     }
   }

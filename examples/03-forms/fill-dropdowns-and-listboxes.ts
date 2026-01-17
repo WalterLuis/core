@@ -18,7 +18,7 @@ async function main() {
   const pdf = await PDF.load(bytes);
 
   // Get the form
-  const form = await pdf.getForm();
+  const form = pdf.getForm();
   if (!form) {
     console.log("This PDF does not contain a form.");
     return;
@@ -60,7 +60,7 @@ async function main() {
         const newValue = optionValues.find(v => v !== currentValue) ?? optionValues[0];
 
         try {
-          await dropdown.setValue(newValue ?? "");
+          dropdown.setValue(newValue ?? "");
           console.log(`  -> Selected: "${newValue}"`);
         } catch (error) {
           console.log(`  Error: ${error instanceof Error ? error.message : String(error)}`);
@@ -105,12 +105,12 @@ async function main() {
           if (listbox.isMultiSelect && optionValues.length >= 2) {
             // Select multiple options
             const newValues = optionValues.slice(0, 2);
-            await listbox.setValue(newValues);
+            listbox.setValue(newValues);
             console.log(`  -> Selected multiple: ${JSON.stringify(newValues)}`);
           } else {
             // Select single option
             const newValue = optionValues.find(v => !currentValues.includes(v)) ?? optionValues[0];
-            await listbox.setValue([newValue ?? ""]);
+            listbox.setValue([newValue ?? ""]);
             console.log(`  -> Selected: "${newValue}"`);
           }
         } catch (error) {
@@ -131,7 +131,7 @@ async function main() {
   // Verify changes
   console.log("\n=== Verification ===");
   const verifyPdf = await PDF.load(savedBytes);
-  const verifyForm = await verifyPdf.getForm();
+  const verifyForm = verifyPdf.getForm();
 
   if (verifyForm) {
     console.log("\nDropdown values:");

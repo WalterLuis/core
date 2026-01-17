@@ -256,7 +256,7 @@ function tryAutoDetectFontFile3(data: Uint8Array): FontProgram | null {
  */
 function getStreamSubtype(stream: unknown): string | undefined {
   if (stream && stream instanceof PdfStream) {
-    const subtype = stream.get("Subtype") as PdfName | undefined;
+    const subtype = stream.getName("Subtype");
 
     return subtype?.value;
   }

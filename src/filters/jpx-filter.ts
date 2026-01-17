@@ -22,7 +22,7 @@ import type { Filter } from "./filter";
 export class JPXFilter implements Filter {
   readonly name = "JPXDecode";
 
-  async decode(data: Uint8Array, _params?: PdfDict): Promise<Uint8Array> {
+  decode(data: Uint8Array, _params?: PdfDict): Uint8Array {
     // Check JPEG 2000 signature
     const isValidJP2 = this.isJPEG2000(data);
 
@@ -33,7 +33,7 @@ export class JPXFilter implements Filter {
     );
   }
 
-  async encode(_data: Uint8Array, _params?: PdfDict): Promise<Uint8Array> {
+  encode(_data: Uint8Array, _params?: PdfDict): Uint8Array {
     throw new Error("JPXDecode: Encoding not implemented");
   }
 

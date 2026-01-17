@@ -23,7 +23,7 @@ import type { Filter } from "./filter";
 export class JBIG2Filter implements Filter {
   readonly name = "JBIG2Decode";
 
-  async decode(data: Uint8Array, params?: PdfDict): Promise<Uint8Array> {
+  decode(data: Uint8Array, params?: PdfDict): Uint8Array {
     // Check for global data reference
     const globals = params?.get("JBIG2Globals");
 
@@ -42,7 +42,7 @@ export class JBIG2Filter implements Filter {
     );
   }
 
-  async encode(_data: Uint8Array, _params?: PdfDict): Promise<Uint8Array> {
+  encode(_data: Uint8Array, _params?: PdfDict): Uint8Array {
     throw new Error("JBIG2Decode: Encoding not implemented");
   }
 

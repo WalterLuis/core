@@ -74,7 +74,7 @@ describe("PDF font embedding", () => {
     font.encodeText("ABC");
 
     // Prepare fonts (normally done during save)
-    await pdf.fonts.prepare();
+    pdf.fonts.prepare();
 
     // Should have a 6-letter subset tag
     expect(font.subsetTag).toMatch(/^[A-Z]{6}$/);

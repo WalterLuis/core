@@ -36,7 +36,7 @@ abstract class PDFShapeAnnotation extends PDFMarkupAnnotation {
    */
   setInteriorColor(color: Color): void {
     const components = colorToArray(color);
-    this.dict.set("IC", new PdfArray(components.map(PdfNumber.of)));
+    this.dict.set("IC", new PdfArray(components.map(n => PdfNumber.of(n))));
     this.markModified();
   }
 
@@ -51,12 +51,9 @@ abstract class PDFShapeAnnotation extends PDFMarkupAnnotation {
       return null;
     }
 
-    return [
-      (rd.at(0) as PdfNumber | null)?.value ?? 0,
-      (rd.at(1) as PdfNumber | null)?.value ?? 0,
-      (rd.at(2) as PdfNumber | null)?.value ?? 0,
-      (rd.at(3) as PdfNumber | null)?.value ?? 0,
-    ];
+    const [x1, y1, x2, y2] = rd.toArray().map(item => (item instanceof PdfNumber ? item.value : 0));
+
+    return [x1 ?? 0, y1 ?? 0, x2 ?? 0, y2 ?? 0];
   }
 
   /**
@@ -104,7 +101,7 @@ export class PDFSquareAnnotation extends PDFShapeAnnotation {
       Type: PdfName.of("Annot"),
       Subtype: PdfName.of("Square"),
       Rect: new PdfArray(rectToArray(rect)),
-      C: new PdfArray(colorComponents.map(PdfNumber.of)),
+      C: new PdfArray(colorComponents.map(n => PdfNumber.of(n))),
       F: PdfNumber.of(4), // Print flag
     });
 
@@ -119,7 +116,7 @@ export class PDFSquareAnnotation extends PDFShapeAnnotation {
     // Interior color (fill)
     if (options.fillColor) {
       const icComponents = colorToArray(options.fillColor);
-      annotDict.set("IC", new PdfArray(icComponents.map(PdfNumber.of)));
+      annotDict.set("IC", new PdfArray(icComponents.map(n => PdfNumber.of(n))));
     }
 
     if (options.contents) {
@@ -146,7 +143,7 @@ export class PDFCircleAnnotation extends PDFShapeAnnotation {
       Type: PdfName.of("Annot"),
       Subtype: PdfName.of("Circle"),
       Rect: new PdfArray(rectToArray(rect)),
-      C: new PdfArray(colorComponents.map(PdfNumber.of)),
+      C: new PdfArray(colorComponents.map(n => PdfNumber.of(n))),
       F: PdfNumber.of(4), // Print flag
     });
 
@@ -161,7 +158,7 @@ export class PDFCircleAnnotation extends PDFShapeAnnotation {
     // Interior color (fill)
     if (options.fillColor) {
       const icComponents = colorToArray(options.fillColor);
-      annotDict.set("IC", new PdfArray(icComponents.map(PdfNumber.of)));
+      annotDict.set("IC", new PdfArray(icComponents.map(n => PdfNumber.of(n))));
     }
 
     if (options.contents) {

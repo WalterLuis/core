@@ -46,7 +46,7 @@ interface DataWithRef {
  * ```typescript
  * const dssBuilder = await DSSBuilder.fromCatalog(catalog, registry);
  * await dssBuilder.addLtvData(ltvData);
- * const dssRef = await dssBuilder.build();
+ * const dssRef = dssBuilder.build();
  * catalog.set("DSS", dssRef);
  * ```
  */
@@ -116,7 +116,7 @@ export class DSSBuilder {
     if (dssVal instanceof PdfDict) {
       dss = dssVal;
     } else if (dssVal instanceof PdfRef) {
-      const resolved = await registry.resolve(dssVal);
+      const resolved = registry.resolve(dssVal);
 
       if (!(resolved instanceof PdfDict)) {
         return builder;
@@ -142,7 +142,7 @@ export class DSSBuilder {
       if (vriVal instanceof PdfDict) {
         vri = vriVal;
       } else if (vriVal instanceof PdfRef) {
-        const resolved = await registry.resolve(vriVal);
+        const resolved = registry.resolve(vriVal);
 
         if (!(resolved instanceof PdfDict)) {
           return builder;
@@ -163,7 +163,7 @@ export class DSSBuilder {
           if (entryVal instanceof PdfDict) {
             entry = entryVal;
           } else if (entryVal instanceof PdfRef) {
-            const resolved = await registry.resolve(entryVal);
+            const resolved = registry.resolve(entryVal);
 
             if (!(resolved instanceof PdfDict)) {
               continue;
@@ -279,14 +279,14 @@ export class DSSBuilder {
    *
    * Merges with any existing data loaded via fromCatalog().
    */
-  async build(): Promise<PdfRef> {
+  build(): PdfRef {
     const dss = new PdfDict();
     dss.set("Type", PdfName.of("DSS"));
 
     // Create streams for new data and collect all refs
-    const certRefs = await this.buildStreamRefs(this.certMap, this.existingCertRefs);
-    const ocspRefs = await this.buildStreamRefs(this.ocspMap, this.existingOcspRefs);
-    const crlRefs = await this.buildStreamRefs(this.crlMap, this.existingCrlRefs);
+    const certRefs = this.buildStreamRefs(this.certMap, this.existingCertRefs);
+    const ocspRefs = this.buildStreamRefs(this.ocspMap, this.existingOcspRefs);
+    const crlRefs = this.buildStreamRefs(this.crlMap, this.existingCrlRefs);
 
     if (certRefs.length > 0) {
       dss.set("Certs", new PdfArray(certRefs));
@@ -361,7 +361,7 @@ export class DSSBuilder {
     let array: PdfArray | undefined;
 
     if (arrayVal instanceof PdfRef) {
-      arrayVal = (await this.registry.resolve(arrayVal)) ?? undefined;
+      arrayVal = this.registry.resolve(arrayVal) ?? undefined;
     }
 
     if (arrayVal instanceof PdfArray) {
@@ -374,10 +374,10 @@ export class DSSBuilder {
 
     for (const item of array) {
       if (item instanceof PdfRef) {
-        const stream = await this.registry.resolve(item);
+        const stream = this.registry.resolve(item);
 
         if (stream instanceof PdfStream) {
-          const data = await stream.getDecodedData();
+          const data = stream.getDecodedData();
           const hash = await computeSha1Hex(data);
 
           // Store data and existing ref
@@ -405,7 +405,7 @@ export class DSSBuilder {
     }
 
     if (arrayVal instanceof PdfRef) {
-      arrayVal = (await this.registry.resolve(arrayVal)) ?? undefined;
+      arrayVal = this.registry.resolve(arrayVal) ?? undefined;
     }
 
     const array = arrayVal instanceof PdfArray ? arrayVal : null;
@@ -416,10 +416,10 @@ export class DSSBuilder {
 
     for (const item of array) {
       if (item instanceof PdfRef) {
-        const stream = await this.registry.resolve(item);
+        const stream = this.registry.resolve(item);
 
         if (stream instanceof PdfStream) {
-          const data = await stream.getDecodedData();
+          const data = stream.getDecodedData();
           const hash = await computeSha1Hex(data);
           hashes.push(hash);
 
@@ -437,10 +437,10 @@ export class DSSBuilder {
   /**
    * Build stream refs, reusing existing refs where possible.
    */
-  private async buildStreamRefs(
+  private buildStreamRefs(
     dataMap: Map<string, DataWithRef>,
     existingRefs: Map<string, PdfRef>,
-  ): Promise<PdfRef[]> {
+  ): PdfRef[] {
     const refs: PdfRef[] = [];
 
     for (const [hash, entry] of dataMap) {

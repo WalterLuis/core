@@ -22,14 +22,14 @@ async function main() {
   const bytes = await loadFixture("text", "proposal.pdf");
   const pdf = await PDF.load(bytes);
 
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (!page) {
     throw new Error("Failed to get page");
   }
 
   // Simple string search
   console.log("\n2. Searching for 'Lorem ipsum'...");
-  const loremMatches = await page.findText("Lorem ipsum");
+  const loremMatches = page.findText("Lorem ipsum");
 
   console.log(`   Found ${loremMatches.length} match(es):`);
   for (const match of loremMatches) {
@@ -38,7 +38,7 @@ async function main() {
 
   // Case-insensitive search
   console.log("\n3. Case-insensitive search for 'LOREM'...");
-  const caseInsensitiveMatches = await page.findText("lorem", { caseSensitive: false });
+  const caseInsensitiveMatches = page.findText("lorem", { caseSensitive: false });
 
   console.log(`   Found ${caseInsensitiveMatches.length} match(es):`);
   for (const match of caseInsensitiveMatches.slice(0, 5)) {
@@ -50,7 +50,7 @@ async function main() {
 
   // Regex search - find template tags
   console.log("\n4. Regex search for template tags ({{ ... }})...");
-  const tagMatches = await page.findText(/\{\{\s*\w+[^}]*\}\}/g);
+  const tagMatches = page.findText(/\{\{\s*\w+[^}]*\}\}/g);
 
   console.log(`   Found ${tagMatches.length} template tag(s):`);
   for (const match of tagMatches) {
@@ -61,7 +61,7 @@ async function main() {
 
   // Regex search - find words starting with capital letters
   console.log("\n5. Regex search for capitalized words...");
-  const capitalizedMatches = await page.findText(/\b[A-Z][a-z]+\b/g);
+  const capitalizedMatches = page.findText(/\b[A-Z][a-z]+\b/g);
 
   console.log(`   Found ${capitalizedMatches.length} capitalized word(s):`);
   const uniqueWords = [...new Set(capitalizedMatches.map(m => m.text))];
@@ -71,7 +71,7 @@ async function main() {
 
   // Document-wide search
   console.log("\n6. Document-wide search for 'volutpat'...");
-  const docMatches = await pdf.findText("volutpat");
+  const docMatches = pdf.findText("volutpat");
 
   console.log(`   Found ${docMatches.length} match(es) across all pages:`);
   for (const match of docMatches) {
@@ -82,8 +82,8 @@ async function main() {
 
   // Whole word matching
   console.log("\n7. Whole word search for 'et'...");
-  const wholeWordMatches = await page.findText("et", { wholeWord: true });
-  const partialMatches = await page.findText("et", { wholeWord: false });
+  const wholeWordMatches = page.findText("et", { wholeWord: true });
+  const partialMatches = page.findText("et", { wholeWord: false });
 
   console.log(`   Whole word matches: ${wholeWordMatches.length}`);
   console.log(

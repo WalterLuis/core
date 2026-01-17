@@ -16,7 +16,7 @@ describe("PDF attachments", () => {
       const bytes = await loadFixture("attachments", "null_PDComplexFileSpecification.pdf");
       const pdf = await PDF.load(bytes);
 
-      const attachments = await pdf.getAttachments();
+      const attachments = pdf.getAttachments();
 
       // The PDF has 2 entries in EmbeddedFiles but one is null:
       // - "My first attachment" → 8 0 R (actual FileSpec)
@@ -34,13 +34,13 @@ describe("PDF attachments", () => {
       const bytes = await loadFixture("attachments", "testPDF_multiFormatEmbFiles.pdf");
       const pdf = await PDF.load(bytes);
 
-      const attachments = await pdf.getAttachments();
+      const attachments = pdf.getAttachments();
 
       // Should have at least one attachment
       expect(attachments.size).toBeGreaterThan(0);
 
       // Get the first attachment
-      const data = await pdf.getAttachment("My first attachment");
+      const data = pdf.getAttachment("My first attachment");
       expect(data).not.toBeNull();
 
       // PDFBox test verifies content contains "non os specific"
@@ -52,7 +52,7 @@ describe("PDF attachments", () => {
       const bytes = await loadFixture("basic", "rot0.pdf");
       const pdf = await PDF.load(bytes);
 
-      const attachments = await pdf.getAttachments();
+      const attachments = pdf.getAttachments();
       expect(attachments.size).toBe(0);
     });
 
@@ -60,15 +60,15 @@ describe("PDF attachments", () => {
       const bytes = await loadFixture("attachments", "null_PDComplexFileSpecification.pdf");
       const pdf = await PDF.load(bytes);
 
-      expect(await pdf.hasAttachment("My first attachment")).toBe(true);
-      expect(await pdf.hasAttachment("nonexistent")).toBe(false);
+      expect(pdf.hasAttachment("My first attachment")).toBe(true);
+      expect(pdf.hasAttachment("nonexistent")).toBe(false);
     });
 
     it("getAttachment() returns null for missing attachment", async () => {
       const bytes = await loadFixture("attachments", "null_PDComplexFileSpecification.pdf");
       const pdf = await PDF.load(bytes);
 
-      const data = await pdf.getAttachment("nonexistent");
+      const data = pdf.getAttachment("nonexistent");
       expect(data).toBeNull();
     });
   });
@@ -80,15 +80,15 @@ describe("PDF attachments", () => {
 
       const testData = new TextEncoder().encode("Hello, World!");
 
-      await pdf.addAttachment("test.txt", testData, {
+      pdf.addAttachment("test.txt", testData, {
         description: "A test file",
         mimeType: "text/plain",
       });
 
       // Verify attachment was added
-      expect(await pdf.hasAttachment("test.txt")).toBe(true);
+      expect(pdf.hasAttachment("test.txt")).toBe(true);
 
-      const attachments = await pdf.getAttachments();
+      const attachments = pdf.getAttachments();
       expect(attachments.size).toBe(1);
       expect(attachments.get("test.txt")?.filename).toBe("test.txt");
       expect(attachments.get("test.txt")?.description).toBe("A test file");
@@ -100,9 +100,9 @@ describe("PDF attachments", () => {
       const bytes = await loadFixture("basic", "rot0.pdf");
       const pdf = await PDF.load(bytes);
 
-      await pdf.addAttachment("test.txt", new Uint8Array([1, 2, 3]));
+      pdf.addAttachment("test.txt", new Uint8Array([1, 2, 3]));
 
-      await expect(pdf.addAttachment("test.txt", new Uint8Array([4, 5, 6]))).rejects.toThrow(
+      expect(() => pdf.addAttachment("test.txt", new Uint8Array([4, 5, 6]))).toThrow(
         'Attachment "test.txt" already exists',
       );
     });
@@ -111,12 +111,12 @@ describe("PDF attachments", () => {
       const bytes = await loadFixture("basic", "rot0.pdf");
       const pdf = await PDF.load(bytes);
 
-      await pdf.addAttachment("test.txt", new Uint8Array([1, 2, 3]));
-      await pdf.addAttachment("test.txt", new Uint8Array([4, 5, 6, 7, 8]), {
+      pdf.addAttachment("test.txt", new Uint8Array([1, 2, 3]));
+      pdf.addAttachment("test.txt", new Uint8Array([4, 5, 6, 7, 8]), {
         overwrite: true,
       });
 
-      const data = await pdf.getAttachment("test.txt");
+      const data = pdf.getAttachment("test.txt");
       expect(data).toEqual(new Uint8Array([4, 5, 6, 7, 8]));
     });
 
@@ -124,24 +124,24 @@ describe("PDF attachments", () => {
       const bytes = await loadFixture("basic", "rot0.pdf");
       const pdf = await PDF.load(bytes);
 
-      await pdf.addAttachment("test1.txt", new Uint8Array([1]));
-      await pdf.addAttachment("test2.txt", new Uint8Array([2]));
+      pdf.addAttachment("test1.txt", new Uint8Array([1]));
+      pdf.addAttachment("test2.txt", new Uint8Array([2]));
 
-      expect(await pdf.hasAttachment("test1.txt")).toBe(true);
-      expect(await pdf.hasAttachment("test2.txt")).toBe(true);
+      expect(pdf.hasAttachment("test1.txt")).toBe(true);
+      expect(pdf.hasAttachment("test2.txt")).toBe(true);
 
-      const removed = await pdf.removeAttachment("test1.txt");
+      const removed = pdf.removeAttachment("test1.txt");
       expect(removed).toBe(true);
 
-      expect(await pdf.hasAttachment("test1.txt")).toBe(false);
-      expect(await pdf.hasAttachment("test2.txt")).toBe(true);
+      expect(pdf.hasAttachment("test1.txt")).toBe(false);
+      expect(pdf.hasAttachment("test2.txt")).toBe(true);
     });
 
     it("removeAttachment() returns false for nonexistent attachment", async () => {
       const bytes = await loadFixture("basic", "rot0.pdf");
       const pdf = await PDF.load(bytes);
 
-      const removed = await pdf.removeAttachment("nonexistent");
+      const removed = pdf.removeAttachment("nonexistent");
       expect(removed).toBe(false);
     });
 
@@ -149,11 +149,11 @@ describe("PDF attachments", () => {
       const bytes = await loadFixture("basic", "rot0.pdf");
       const pdf = await PDF.load(bytes);
 
-      await pdf.addAttachment("image.png", new Uint8Array([1, 2, 3]));
-      await pdf.addAttachment("doc.pdf", new Uint8Array([4, 5, 6]));
-      await pdf.addAttachment("unknown.xyz", new Uint8Array([7, 8, 9]));
+      pdf.addAttachment("image.png", new Uint8Array([1, 2, 3]));
+      pdf.addAttachment("doc.pdf", new Uint8Array([4, 5, 6]));
+      pdf.addAttachment("unknown.xyz", new Uint8Array([7, 8, 9]));
 
-      const attachments = await pdf.getAttachments();
+      const attachments = pdf.getAttachments();
 
       expect(attachments.get("image.png")?.mimeType).toBe("image/png");
       expect(attachments.get("doc.pdf")?.mimeType).toBe("application/pdf");
@@ -168,7 +168,7 @@ describe("PDF attachments", () => {
 
       const testData = new TextEncoder().encode("Test content for round-trip");
 
-      await pdf.addAttachment("roundtrip.txt", testData, {
+      pdf.addAttachment("roundtrip.txt", testData, {
         description: "Round-trip test",
       });
 
@@ -178,13 +178,13 @@ describe("PDF attachments", () => {
       // Reload and verify
       const pdf2 = await PDF.load(savedBytes);
 
-      expect(await pdf2.hasAttachment("roundtrip.txt")).toBe(true);
+      expect(pdf2.hasAttachment("roundtrip.txt")).toBe(true);
 
-      const attachments = await pdf2.getAttachments();
+      const attachments = pdf2.getAttachments();
       expect(attachments.get("roundtrip.txt")?.description).toBe("Round-trip test");
       expect(attachments.get("roundtrip.txt")?.size).toBe(testData.length);
 
-      const retrievedData = await pdf2.getAttachment("roundtrip.txt");
+      const retrievedData = pdf2.getAttachment("roundtrip.txt");
       expect(retrievedData).toEqual(testData);
     });
 
@@ -193,17 +193,17 @@ describe("PDF attachments", () => {
       const pdf = await PDF.load(bytes);
 
       // Get original attachment count
-      const originalAttachments = await pdf.getAttachments();
+      const originalAttachments = pdf.getAttachments();
       const originalCount = originalAttachments.size;
 
       // Add a new attachment
-      await pdf.addAttachment("new.txt", new TextEncoder().encode("New content"));
+      pdf.addAttachment("new.txt", new TextEncoder().encode("New content"));
 
       // Save and reload
       const savedBytes = await pdf.save();
       const pdf2 = await PDF.load(savedBytes);
 
-      const attachments = await pdf2.getAttachments();
+      const attachments = pdf2.getAttachments();
 
       // Should have original + 1 new
       expect(attachments.size).toBe(originalCount + 1);
@@ -216,25 +216,25 @@ describe("PDF attachments", () => {
       const pdf = await PDF.load(bytes);
 
       // Add several attachments
-      await pdf.addAttachment("file1.txt", new TextEncoder().encode("Content 1"));
-      await pdf.addAttachment("file2.json", new TextEncoder().encode('{"key": "value"}'));
-      await pdf.addAttachment("file3.bin", new Uint8Array([0x00, 0xff, 0x42, 0x13]));
+      pdf.addAttachment("file1.txt", new TextEncoder().encode("Content 1"));
+      pdf.addAttachment("file2.json", new TextEncoder().encode('{"key": "value"}'));
+      pdf.addAttachment("file3.bin", new Uint8Array([0x00, 0xff, 0x42, 0x13]));
 
       // Save and reload
       const savedBytes = await pdf.save();
       const pdf2 = await PDF.load(savedBytes);
 
-      const attachments = await pdf2.getAttachments();
+      const attachments = pdf2.getAttachments();
       expect(attachments.size).toBe(3);
 
       // Verify content
-      const data1 = await pdf2.getAttachment("file1.txt");
+      const data1 = pdf2.getAttachment("file1.txt");
       expect(new TextDecoder().decode(data1!)).toBe("Content 1");
 
-      const data2 = await pdf2.getAttachment("file2.json");
+      const data2 = pdf2.getAttachment("file2.json");
       expect(new TextDecoder().decode(data2!)).toBe('{"key": "value"}');
 
-      const data3 = await pdf2.getAttachment("file3.bin");
+      const data3 = pdf2.getAttachment("file3.bin");
       expect(data3).toEqual(new Uint8Array([0x00, 0xff, 0x42, 0x13]));
     });
   });

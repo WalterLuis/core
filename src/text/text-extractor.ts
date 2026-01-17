@@ -6,11 +6,10 @@
  */
 
 import { ContentStreamParser } from "#src/content/parsing/content-stream-parser";
-import type {
-  AnyOperation,
-  ContentToken,
-  NumberToken,
-  StringToken,
+import {
+  isInlineImageOperation,
+  type AnyOperation,
+  type ContentToken,
 } from "#src/content/parsing/types";
 import type { PdfFont } from "#src/fonts/pdf-font";
 
@@ -63,11 +62,11 @@ export class TextExtractor {
    */
   private processOperation(op: AnyOperation): void {
     // Handle inline images separately
-    if (op.operator === "BI") {
+    if (isInlineImageOperation(op)) {
       return; // Skip inline images
     }
 
-    const { operator, operands } = op as { operator: string; operands: ContentToken[] };
+    const { operator, operands } = op;
 
     switch (operator) {
       // Graphics state operators
@@ -212,7 +211,7 @@ export class TextExtractor {
       return;
     }
 
-    this.showString((stringToken as StringToken).value);
+    this.showString(stringToken.value);
   }
 
   /**
@@ -227,10 +226,10 @@ export class TextExtractor {
 
     for (const item of array.items) {
       if (item.type === "string") {
-        this.showString((item as StringToken).value);
+        this.showString(item.value);
       } else if (item.type === "number") {
         // Position adjustment
-        this.state.applyTjAdjustment((item as NumberToken).value);
+        this.state.applyTjAdjustment(item.value);
       }
     }
   }
@@ -324,7 +323,7 @@ export class TextExtractor {
    */
   private getNumber(token: ContentToken | undefined): number {
     if (token?.type === "number") {
-      return (token as NumberToken).value;
+      return token.value;
     }
 
     return 0;

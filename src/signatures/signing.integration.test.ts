@@ -406,8 +406,8 @@ describe("signing integration", () => {
       const { bytes } = await pdf.sign({ signer });
 
       const signedPdf = await PDF.load(bytes);
-      const page = await signedPdf.getPage(0);
-      const originalPage = await pdf.getPage(0);
+      const page = signedPdf.getPage(0);
+      const originalPage = pdf.getPage(0);
 
       // Page should have same dimensions
       expect(page?.width).toBe(originalPage?.width);

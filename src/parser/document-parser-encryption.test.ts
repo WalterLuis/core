@@ -19,7 +19,7 @@ describe("DocumentParser encryption", () => {
       const scanner = new Scanner(bytes);
       const parser = new DocumentParser(scanner);
 
-      const doc = await parser.parse();
+      const doc = parser.parse();
 
       expect(doc.isEncrypted).toBe(true);
       expect(doc.encryption).not.toBeNull();
@@ -34,7 +34,7 @@ describe("DocumentParser encryption", () => {
       const scanner = new Scanner(bytes);
       const parser = new DocumentParser(scanner);
 
-      const doc = await parser.parse();
+      const doc = parser.parse();
 
       expect(doc.isEncrypted).toBe(true);
       expect(doc.encryption).not.toBeNull();
@@ -49,7 +49,7 @@ describe("DocumentParser encryption", () => {
       const scanner = new Scanner(bytes);
       const parser = new DocumentParser(scanner);
 
-      const doc = await parser.parse();
+      const doc = parser.parse();
 
       // Debug: check warnings if encryption fails
       if (doc.encryption === null && doc.isEncrypted) {
@@ -70,7 +70,7 @@ describe("DocumentParser encryption", () => {
       const scanner = new Scanner(bytes);
       const parser = new DocumentParser(scanner, { credentials: "user" });
 
-      const doc = await parser.parse();
+      const doc = parser.parse();
 
       expect(doc.isEncrypted).toBe(true);
       expect(doc.isAuthenticated).toBe(true);
@@ -82,7 +82,7 @@ describe("DocumentParser encryption", () => {
       const scanner = new Scanner(bytes);
       const parser = new DocumentParser(scanner, { credentials: "owner" });
 
-      const doc = await parser.parse();
+      const doc = parser.parse();
 
       expect(doc.isEncrypted).toBe(true);
       expect(doc.isAuthenticated).toBe(true);
@@ -93,7 +93,7 @@ describe("DocumentParser encryption", () => {
       const scanner = new Scanner(bytes);
       const parser = new DocumentParser(scanner, { credentials: "user" });
 
-      const doc = await parser.parse();
+      const doc = parser.parse();
 
       expect(doc.isEncrypted).toBe(true);
       expect(doc.isAuthenticated).toBe(true);
@@ -104,7 +104,7 @@ describe("DocumentParser encryption", () => {
       const scanner = new Scanner(bytes);
       const parser = new DocumentParser(scanner, { credentials: "user" });
 
-      const doc = await parser.parse();
+      const doc = parser.parse();
 
       expect(doc.isEncrypted).toBe(true);
       expect(doc.isAuthenticated).toBe(true);
@@ -115,7 +115,7 @@ describe("DocumentParser encryption", () => {
       const scanner = new Scanner(bytes);
       const parser = new DocumentParser(scanner, { credentials: "wrongpassword" });
 
-      const doc = await parser.parse();
+      const doc = parser.parse();
 
       expect(doc.isEncrypted).toBe(true);
       expect(doc.isAuthenticated).toBe(false);
@@ -126,7 +126,7 @@ describe("DocumentParser encryption", () => {
       const scanner = new Scanner(bytes);
       const parser = new DocumentParser(scanner, { credentials: "wrong" });
 
-      const doc = await parser.parse();
+      const doc = parser.parse();
       expect(doc.isAuthenticated).toBe(false);
 
       // Re-authenticate with correct password
@@ -141,7 +141,7 @@ describe("DocumentParser encryption", () => {
       const scanner = new Scanner(bytes);
       const parser = new DocumentParser(scanner, { credentials: "user" });
 
-      const doc = await parser.parse();
+      const doc = parser.parse();
 
       expect(doc.permissions).not.toBeNull();
       // PasswordSample files have restricted permissions for user password
@@ -157,8 +157,8 @@ describe("DocumentParser encryption", () => {
       const scanner = new Scanner(bytes);
       const parser = new DocumentParser(scanner, { credentials: "user" });
 
-      const doc = await parser.parse();
-      const catalog = await doc.getCatalog();
+      const doc = parser.parse();
+      const catalog = doc.getCatalog();
 
       expect(catalog).not.toBeNull();
       expect(catalog?.getName("Type")?.value).toBe("Catalog");
@@ -169,8 +169,8 @@ describe("DocumentParser encryption", () => {
       const scanner = new Scanner(bytes);
       const parser = new DocumentParser(scanner, { credentials: "user" });
 
-      const doc = await parser.parse();
-      const catalog = await doc.getCatalog();
+      const doc = parser.parse();
+      const catalog = doc.getCatalog();
 
       expect(catalog).not.toBeNull();
       expect(catalog?.getName("Type")?.value).toBe("Catalog");
@@ -181,8 +181,8 @@ describe("DocumentParser encryption", () => {
       const scanner = new Scanner(bytes);
       const parser = new DocumentParser(scanner, { credentials: "user" });
 
-      const doc = await parser.parse();
-      const catalog = await doc.getCatalog();
+      const doc = parser.parse();
+      const catalog = doc.getCatalog();
 
       expect(catalog).not.toBeNull();
       expect(catalog?.getName("Type")?.value).toBe("Catalog");
@@ -193,8 +193,8 @@ describe("DocumentParser encryption", () => {
       const scanner = new Scanner(bytes);
       const parser = new DocumentParser(scanner, { credentials: "user" });
 
-      const doc = await parser.parse();
-      const pageCount = await doc.getPageCount();
+      const doc = parser.parse();
+      const pageCount = doc.getPageCount();
 
       expect(pageCount).toBeGreaterThan(0);
     });
@@ -206,7 +206,7 @@ describe("DocumentParser encryption", () => {
       const scanner = new Scanner(bytes);
       const parser = new DocumentParser(scanner);
 
-      const doc = await parser.parse();
+      const doc = parser.parse();
 
       expect(doc.isEncrypted).toBe(false);
       expect(doc.encryption).toBeNull();
@@ -226,7 +226,7 @@ describe("DocumentParser encryption", () => {
         },
       });
 
-      await expect(parser.parse()).rejects.toThrow(
+      expect(() => parser.parse()).toThrow(
         "The Standard security handler only supports password credentials",
       );
     });
@@ -243,7 +243,7 @@ describe("DocumentParser encryption", () => {
       });
 
       try {
-        await parser.parse();
+        parser.parse();
         expect.fail("Should have thrown");
       } catch (error) {
         expect((error as { code: string }).code).toBe("UNSUPPORTED_CREDENTIALS");

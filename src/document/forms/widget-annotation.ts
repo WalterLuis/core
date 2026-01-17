@@ -10,8 +10,8 @@
 import type { PdfArray } from "#src/objects/pdf-array.ts";
 import { PdfDict } from "#src/objects/pdf-dict";
 import { PdfName } from "#src/objects/pdf-name";
-import type { PdfNumber } from "#src/objects/pdf-number";
-import type { PdfRef } from "#src/objects/pdf-ref";
+import { PdfNumber } from "#src/objects/pdf-number";
+import { PdfRef } from "#src/objects/pdf-ref";
 import { PdfStream } from "#src/objects/pdf-stream";
 
 import type { ObjectRegistry } from "../object-registry";
@@ -70,12 +70,11 @@ export class WidgetAnnotation {
       return [0, 0, 0, 0];
     }
 
-    return [
-      (arr.at(0) as PdfNumber | null)?.value ?? 0,
-      (arr.at(1) as PdfNumber | null)?.value ?? 0,
-      (arr.at(2) as PdfNumber | null)?.value ?? 0,
-      (arr.at(3) as PdfNumber | null)?.value ?? 0,
-    ];
+    const [x1, y1, x2, y2] = arr
+      .toArray()
+      .map(item => (item instanceof PdfNumber ? item.value : 0));
+
+    return [x1 ?? 0, y1 ?? 0, x2 ?? 0, y2 ?? 0];
   }
 
   /**
@@ -267,39 +266,44 @@ export class WidgetAnnotation {
    * Get normal appearance stream.
    * For stateful widgets (checkbox/radio), pass the state name.
    */
-  async getNormalAppearance(state?: string): Promise<PdfStream | null> {
+  getNormalAppearance(state?: string): PdfStream | null {
     const ap = this.dict.getDict("AP");
 
     if (!ap) {
       return null;
     }
 
-    const n = ap.get("N");
+    let n = ap.get("N");
 
     if (!n) {
       return null;
     }
 
-    const resolved = n.type === "ref" ? await this.registry.resolve(n) : n;
-
-    // N can be a stream directly (text fields)
-    if (resolved instanceof PdfStream) {
-      return resolved;
+    if (n instanceof PdfRef) {
+      n = this.registry.resolve(n) ?? undefined;
     }
 
-    // Or a dict of state -> stream (checkbox/radio)
-    if (resolved instanceof PdfDict) {
+    if (n instanceof PdfStream) {
+      return n;
+    }
+
+    if (n instanceof PdfDict) {
       const stateKey = state ?? this.appearanceState ?? "Off";
-      const stateEntry = resolved.get(stateKey);
+      let stateEntry = n.get(stateKey);
 
       if (!stateEntry) {
         return null;
       }
 
-      const stateStream =
-        stateEntry.type === "ref" ? await this.registry.resolve(stateEntry) : stateEntry;
+      if (stateEntry instanceof PdfRef) {
+        stateEntry = this.registry.resolve(stateEntry) ?? undefined;
+      }
 
-      return stateStream instanceof PdfStream ? stateStream : null;
+      if (stateEntry instanceof PdfStream) {
+        return stateEntry;
+      }
+
+      return null;
     }
 
     return null;
@@ -308,37 +312,44 @@ export class WidgetAnnotation {
   /**
    * Get rollover appearance stream (shown on mouse hover).
    */
-  async getRolloverAppearance(state?: string): Promise<PdfStream | null> {
+  getRolloverAppearance(state?: string): PdfStream | null {
     const ap = this.dict.getDict("AP");
 
     if (!ap) {
       return null;
     }
 
-    const r = ap.get("R");
+    let r = ap.get("R");
 
     if (!r) {
       return null;
     }
 
-    const resolved = r.type === "ref" ? await this.registry.resolve(r) : r;
-
-    if (resolved instanceof PdfStream) {
-      return resolved;
+    if (r instanceof PdfRef) {
+      r = this.registry.resolve(r) ?? undefined;
     }
 
-    if (resolved instanceof PdfDict) {
+    if (r instanceof PdfStream) {
+      return r;
+    }
+
+    if (r instanceof PdfDict) {
       const stateKey = state ?? this.appearanceState ?? "Off";
-      const stateEntry = resolved.get(stateKey);
+      let stateEntry = r.get(stateKey);
 
       if (!stateEntry) {
         return null;
       }
 
-      const stateStream =
-        stateEntry.type === "ref" ? await this.registry.resolve(stateEntry) : stateEntry;
+      if (stateEntry instanceof PdfRef) {
+        stateEntry = this.registry.resolve(stateEntry) ?? undefined;
+      }
 
-      return stateStream instanceof PdfStream ? stateStream : null;
+      if (stateEntry instanceof PdfStream) {
+        return stateEntry;
+      }
+
+      return null;
     }
 
     return null;
@@ -347,37 +358,44 @@ export class WidgetAnnotation {
   /**
    * Get down appearance stream (shown when clicked).
    */
-  async getDownAppearance(state?: string): Promise<PdfStream | null> {
+  getDownAppearance(state?: string): PdfStream | null {
     const ap = this.dict.getDict("AP");
 
     if (!ap) {
       return null;
     }
 
-    const d = ap.get("D");
+    let d = ap.get("D");
 
     if (!d) {
       return null;
     }
 
-    const resolved = d.type === "ref" ? await this.registry.resolve(d) : d;
-
-    if (resolved instanceof PdfStream) {
-      return resolved;
+    if (d instanceof PdfRef) {
+      d = this.registry.resolve(d) ?? undefined;
     }
 
-    if (resolved instanceof PdfDict) {
+    if (d instanceof PdfStream) {
+      return d;
+    }
+
+    if (d instanceof PdfDict) {
       const stateKey = state ?? this.appearanceState ?? "Off";
-      const stateEntry = resolved.get(stateKey);
+      let stateEntry = d.get(stateKey);
 
       if (!stateEntry) {
         return null;
       }
 
-      const stateStream =
-        stateEntry.type === "ref" ? await this.registry.resolve(stateEntry) : stateEntry;
+      if (stateEntry instanceof PdfRef) {
+        stateEntry = this.registry.resolve(stateEntry) ?? undefined;
+      }
 
-      return stateStream instanceof PdfStream ? stateStream : null;
+      if (stateEntry instanceof PdfStream) {
+        return stateEntry;
+      }
+
+      return null;
     }
 
     return null;

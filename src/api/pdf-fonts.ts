@@ -146,7 +146,7 @@ export class PDFFonts {
    *
    * @param subsetFonts - Whether to subset fonts (only include used glyphs)
    */
-  async finalize(subsetFonts: boolean): Promise<void> {
+  finalize(subsetFonts: boolean): void {
     if (this.finalized) {
       return;
     }
@@ -156,9 +156,7 @@ export class PDFFonts {
       const shouldSubset = subsetFonts && font.canSubset();
 
       // Create PDF objects for the font
-      const result = shouldSubset
-        ? await createFontObjects(font)
-        : await createFontObjectsFull(font);
+      const result = shouldSubset ? createFontObjects(font) : createFontObjectsFull(font);
 
       // Register all objects and link to the pre-allocated ref
       registerFontObjects(
@@ -175,7 +173,7 @@ export class PDFFonts {
   /**
    * @deprecated Use `finalize()` instead. This method exists for backwards compatibility.
    */
-  async prepare(): Promise<void> {
-    return this.finalize(true);
+  prepare(): void {
+    this.finalize(true);
   }
 }

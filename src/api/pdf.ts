@@ -293,11 +293,12 @@ export class PDF {
    * @throws {Error} If the document has no catalog (missing /Root in trailer)
    * @throws {Error} If parsing fails and lenient mode is disabled
    */
+  // oxlint-disable-next-line typescript/require-await
   static async load(bytes: Uint8Array, options?: LoadOptions): Promise<PDF> {
     const scanner = new Scanner(bytes);
     const parser = new DocumentParser(scanner, options);
 
-    const parsed = await parser.parse();
+    const parsed = parser.parse();
 
     // Create registry from xref
     const registry = new ObjectRegistry(parsed.xref);
@@ -310,7 +311,7 @@ export class PDF {
       const firstObjNum = Math.min(...parsed.xref.keys());
 
       if (firstObjNum > 0) {
-        const firstObj = await parsed.getObject(PdfRef.of(firstObjNum, 0));
+        const firstObj = parsed.getObject(PdfRef.of(firstObjNum, 0));
 
         if (firstObj instanceof PdfDict && isLinearizationDict(firstObj)) {
           isLinearized = true;
@@ -343,7 +344,7 @@ export class PDF {
       throw new Error("Document has no catalog (missing /Root in trailer)");
     }
 
-    const catalogDict = await registry.resolve(rootRef);
+    const catalogDict = registry.resolve(rootRef);
 
     if (!catalogDict || !(catalogDict instanceof PdfDict)) {
       throw new Error("Document has no catalog");
@@ -352,14 +353,14 @@ export class PDF {
     const pdfCatalog = new PDFCatalog(catalogDict, registry);
     const pagesRef = catalogDict.getRef("Pages");
     const pages = pagesRef
-      ? await PDFPageTree.load(pagesRef, parsed.getObject.bind(parsed))
+      ? PDFPageTree.load(pagesRef, parsed.getObject.bind(parsed))
       : PDFPageTree.empty();
 
     // Load Info dictionary if present (for metadata access)
     const infoRef = parsed.trailer.getRef("Info");
 
     if (infoRef) {
-      await registry.resolve(infoRef);
+      registry.resolve(infoRef);
     }
 
     // Extract document info from parsed document
@@ -390,11 +391,12 @@ export class PDF {
    * @param bytes - The new PDF bytes to reload from
    * @throws {Error} If the document has no catalog
    */
+  // oxlint-disable-next-line typescript/require-await
   async reload(bytes: Uint8Array): Promise<void> {
     const scanner = new Scanner(bytes);
     const parser = new DocumentParser(scanner);
 
-    const parsed = await parser.parse();
+    const parsed = parser.parse();
 
     // Create new registry from xref
     const registry = new ObjectRegistry(parsed.xref);
@@ -417,7 +419,7 @@ export class PDF {
       throw new Error("Document has no catalog");
     }
 
-    const catalogDict = await registry.resolve(rootRef);
+    const catalogDict = registry.resolve(rootRef);
 
     if (!(catalogDict instanceof PdfDict)) {
       throw new Error("Document has no catalog");
@@ -426,7 +428,7 @@ export class PDF {
     const pdfCatalog = new PDFCatalog(catalogDict, registry);
     const pagesRef = catalogDict.getRef("Pages");
     const pages = pagesRef
-      ? await PDFPageTree.load(pagesRef, parsed.getObject.bind(parsed))
+      ? PDFPageTree.load(pagesRef, parsed.getObject.bind(parsed))
       : PDFPageTree.empty();
 
     const info: DocumentInfo = {
@@ -488,14 +490,19 @@ export class PDF {
     });
 
     // Set resolver (returns from registry)
-    registry.setResolver(async (ref: PdfRef) => registry.getObject(ref));
+    registry.setResolver((ref: PdfRef) => registry.getObject(ref));
 
     const pdfCatalog = new PDFCatalog(catalogDict, registry);
-    const pages = PDFPageTree.fromRoot(
-      pagesRef,
-      pagesDict,
-      ref => registry.getObject(ref) as PdfDict | null,
-    );
+
+    const pages = PDFPageTree.fromRoot(pagesRef, pagesDict, ref => {
+      const obj = registry.getObject(ref);
+
+      if (obj instanceof PdfDict) {
+        return obj;
+      }
+
+      return null;
+    });
 
     // Create document info for a new document
     const info: DocumentInfo = {
@@ -1376,7 +1383,7 @@ export class PDF {
    *
    * Objects are cached and tracked for modifications.
    */
-  async getObject(ref: PdfRef): Promise<PdfObject | null> {
+  getObject(ref: PdfRef): PdfObject | null {
     return this.ctx.resolve(ref);
   }
 
@@ -1386,20 +1393,20 @@ export class PDF {
    * Note: For internal use, prefer accessing the catalog via context which
    * provides higher-level methods for working with catalog structures.
    */
-  async getCatalog(): Promise<PdfDict | null> {
+  getCatalog(): PdfDict {
     return this.ctx.catalog.getDict();
   }
 
   /**
    * Get all pages in document order.
    */
-  async getPages(): Promise<PDFPage[]> {
+  getPages(): PDFPage[] {
     const refs = this.ctx.pages.getPages();
     const pages: PDFPage[] = [];
 
     for (let i = 0; i < refs.length; i++) {
       const ref = refs[i];
-      const dict = await this.ctx.resolve(ref);
+      const dict = this.ctx.resolve(ref);
 
       if (!(dict instanceof PdfDict)) {
         throw new Error(`Page ${i} is not a dictionary`);
@@ -1422,20 +1429,43 @@ export class PDF {
    * Get a single page by index (0-based).
    * Returns null if index out of bounds.
    */
-  async getPage(index: number): Promise<PDFPage | null> {
+  getPage(index: number): PDFPage | null {
     const ref = this.ctx.pages.getPage(index);
 
     if (!ref) {
       return null;
     }
 
-    const dict = await this.ctx.resolve(ref);
+    const dict = this.ctx.resolve(ref);
 
     if (!(dict instanceof PdfDict)) {
       return null;
     }
 
+    // Pre-resolve Resources if it's a reference so sync getResources() works
+    this.ensurePageResourcesResolved(dict);
+
     return new PDFPage(ref, dict, index, this.ctx);
+  }
+
+  /**
+   * Ensure page resources are resolved (not a reference).
+   *
+   * Pages may have Resources as a PdfRef pointing to a shared resources dict.
+   * The sync getResources() method on PDFPage needs the actual dict, not a ref.
+   * This resolves the reference and replaces it in the page dict.
+   */
+  private ensurePageResourcesResolved(pageDict: PdfDict): void {
+    const resources = pageDict.get("Resources");
+
+    if (resources instanceof PdfRef) {
+      const resolved = this.ctx.resolve(resources);
+
+      if (resolved instanceof PdfDict) {
+        // Clone the dict so we don't modify shared resources
+        pageDict.set("Resources", resolved.clone());
+      }
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -1589,7 +1619,7 @@ export class PDF {
     const copiedRefs: PdfRef[] = [];
 
     for (const index of indices) {
-      const srcPage = await source.getPage(index);
+      const srcPage = source.getPage(index);
 
       if (!srcPage) {
         throw new Error(`Source page ${index} not found`);
@@ -1603,7 +1633,7 @@ export class PDF {
     let insertIndex = options.insertAt ?? this.getPageCount();
 
     for (const copiedRef of copiedRefs) {
-      const copiedDict = await this.getObject(copiedRef);
+      const copiedDict = this.getObject(copiedRef);
 
       if (!(copiedDict instanceof PdfDict)) {
         throw new Error("Copied page is not a dictionary");
@@ -1691,31 +1721,35 @@ export class PDF {
    * ```
    */
   async embedPage(source: PDF, pageIndex: number): Promise<PDFEmbeddedPage> {
-    const srcPage = await source.getPage(pageIndex);
+    const srcPage = source.getPage(pageIndex);
 
     if (!srcPage) {
       throw new RangeError(`Page index ${pageIndex} out of bounds`);
     }
 
     // Get page content streams and concatenate
-    const contentData = await this.getPageContentData(source, srcPage);
+    const contentData = this.getPageContentData(source, srcPage);
 
     // Copy resources from source to dest
     const copier = new ObjectCopier(source, this, { includeAnnotations: false });
-    const srcResources = srcPage.dict.get("Resources");
-    let resources: PdfDict;
+
+    let srcResources = srcPage.dict.get("Resources");
+    let resources: PdfDict | undefined = undefined;
+
+    if (srcResources instanceof PdfRef) {
+      srcResources = source.getObject(srcResources) ?? undefined;
+    }
 
     if (srcResources instanceof PdfDict) {
-      resources = (await copier.copyObject(srcResources)) as PdfDict;
-    } else if (srcResources instanceof PdfRef) {
-      const resolved = await source.getObject(srcResources);
+      const copied = await copier.copyObject(srcResources);
 
-      if (resolved instanceof PdfDict) {
-        resources = (await copier.copyObject(resolved)) as PdfDict;
-      } else {
-        resources = new PdfDict();
+      // This is guaranteed by our checks above
+      if (copied instanceof PdfDict) {
+        resources = copied;
       }
-    } else {
+    }
+
+    if (!resources) {
       resources = new PdfDict();
     }
 
@@ -1747,7 +1781,7 @@ export class PDF {
   /**
    * Get the concatenated content stream data from a page.
    */
-  private async getPageContentData(source: PDF, page: PDFPage): Promise<Uint8Array> {
+  private getPageContentData(source: PDF, page: PDFPage): Uint8Array {
     const contents = page.dict.get("Contents");
 
     if (!contents) {
@@ -1756,10 +1790,10 @@ export class PDF {
 
     // Single stream
     if (contents instanceof PdfRef) {
-      const stream = await source.getObject(contents);
+      const stream = source.getObject(contents);
 
       if (stream instanceof PdfStream) {
-        return await stream.getDecodedData();
+        return stream.getDecodedData();
       }
 
       return new Uint8Array(0);
@@ -1773,7 +1807,7 @@ export class PDF {
         const ref = contents.at(i);
 
         if (ref instanceof PdfRef) {
-          const stream = await source.getObject(ref);
+          const stream = source.getObject(ref);
 
           if (stream instanceof PdfStream) {
             if (chunks.length > 0) {
@@ -1781,7 +1815,7 @@ export class PDF {
               chunks.push(new Uint8Array([0x0a]));
             }
 
-            chunks.push(await stream.getDecodedData());
+            chunks.push(stream.getDecodedData());
           }
         }
       }
@@ -1801,7 +1835,7 @@ export class PDF {
 
     // Direct stream (unusual but possible)
     if (contents instanceof PdfStream) {
-      return await contents.getDecodedData();
+      return contents.getDecodedData();
     }
 
     return new Uint8Array(0);
@@ -1941,7 +1975,7 @@ export class PDF {
    * page.drawImage(image, { x: 50, y: 500 });
    * ```
    */
-  async embedImage(bytes: Uint8Array): Promise<PDFImage> {
+  embedImage(bytes: Uint8Array): PDFImage {
     if (isJpeg(bytes)) {
       return this.embedJpeg(bytes);
     }
@@ -1973,7 +2007,7 @@ export class PDF {
    * });
    * ```
    */
-  async embedJpeg(bytes: Uint8Array): Promise<PDFImage> {
+  embedJpeg(bytes: Uint8Array): PDFImage {
     const info = parseJpegHeader(bytes);
 
     // Create XObject image stream with DCTDecode filter
@@ -2013,7 +2047,7 @@ export class PDF {
    * page.drawImage(logo, { x: 100, y: 700, width: 150 });
    * ```
    */
-  async embedPng(bytes: Uint8Array): Promise<PDFImage> {
+  embedPng(bytes: Uint8Array): PDFImage {
     const data = parsePng(bytes);
     const { info, pixels, alpha } = data;
 
@@ -2097,7 +2131,7 @@ export class PDF {
    *
    * @returns Map of attachment name to attachment info
    */
-  async getAttachments(): Promise<Map<string, AttachmentInfo>> {
+  getAttachments(): Map<string, AttachmentInfo> {
     return this.attachments.list();
   }
 
@@ -2109,7 +2143,7 @@ export class PDF {
    * @param name The attachment name (key in the EmbeddedFiles tree)
    * @returns The attachment bytes, or null if not found
    */
-  async getAttachment(name: string): Promise<Uint8Array | null> {
+  getAttachment(name: string): Uint8Array | null {
     return this.attachments.get(name);
   }
 
@@ -2121,7 +2155,7 @@ export class PDF {
    * @param name The attachment name
    * @returns True if the attachment exists
    */
-  async hasAttachment(name: string): Promise<boolean> {
+  hasAttachment(name: string): boolean {
     return this.attachments.has(name);
   }
 
@@ -2135,11 +2169,7 @@ export class PDF {
    * @param options - Attachment options (description, MIME type, dates)
    * @throws {Error} If name already exists and overwrite !== true
    */
-  async addAttachment(
-    name: string,
-    data: Uint8Array,
-    options: AddAttachmentOptions = {},
-  ): Promise<void> {
+  addAttachment(name: string, data: Uint8Array, options: AddAttachmentOptions = {}): void {
     return this.attachments.add(name, data, options);
   }
 
@@ -2151,7 +2181,7 @@ export class PDF {
    * @param name The attachment name
    * @returns True if the attachment was removed, false if not found
    */
-  async removeAttachment(name: string): Promise<boolean> {
+  removeAttachment(name: string): boolean {
     return this.attachments.remove(name);
   }
 
@@ -2210,9 +2240,9 @@ export class PDF {
    * await pdf.save({ incremental: true });
    * ```
    */
-  async getForm(): Promise<PDFForm | null> {
+  getForm(): PDFForm | null {
     if (this._form === undefined) {
-      this._form = await PDFForm.load(this.ctx);
+      this._form = PDFForm.load(this.ctx);
     }
 
     return this._form;
@@ -2233,8 +2263,8 @@ export class PDF {
    * const nameField = form.createTextField("name", { fontSize: 12 });
    * ```
    */
-  async getOrCreateForm(): Promise<PDFForm> {
-    const existing = await this.getForm();
+  getOrCreateForm(): PDFForm {
+    const existing = this.getForm();
 
     if (existing) {
       return existing;
@@ -2276,14 +2306,11 @@ export class PDF {
     const acroFormRef = this.ctx.registry.register(acroFormDict);
 
     // Add to catalog
-    const catalog = await this.getCatalog();
-
-    if (catalog) {
-      catalog.set("AcroForm", acroFormRef);
-    }
+    const catalog = this.getCatalog();
+    catalog.set("AcroForm", acroFormRef);
 
     // Reload form cache
-    this._form = await PDFForm.load(this.ctx);
+    this._form = PDFForm.load(this.ctx);
 
     if (!this._form) {
       throw new Error("Failed to create form");
@@ -2354,7 +2381,7 @@ export class PDF {
    * }
    * ```
    */
-  async hasLayers(): Promise<boolean> {
+  hasLayers(): boolean {
     return LayerUtils.hasLayers(this.ctx);
   }
 
@@ -2374,7 +2401,7 @@ export class PDF {
    * }
    * ```
    */
-  async getLayers(): Promise<LayerInfo[]> {
+  getLayers(): LayerInfo[] {
     return LayerUtils.getLayers(this.ctx);
   }
 
@@ -2407,7 +2434,7 @@ export class PDF {
    * await pdf.sign({ signer });
    * ```
    */
-  async flattenLayers(): Promise<FlattenLayersResult> {
+  flattenLayers(): FlattenLayersResult {
     return LayerUtils.flattenLayers(this.ctx);
   }
 
@@ -2431,12 +2458,12 @@ export class PDF {
    * }
    * ```
    */
-  async extractText(): Promise<PageText[]> {
-    const pages = await this.getPages();
+  extractText(): PageText[] {
+    const pages = this.getPages();
     const results: PageText[] = [];
 
     for (const page of pages) {
-      results.push(await page.extractText());
+      results.push(page.extractText());
     }
 
     return results;
@@ -2464,14 +2491,16 @@ export class PDF {
    * const placeholders = await pdf.findText(/\{\{\s*\w+\s*\}\}/g);
    * ```
    */
-  async findText(query: string | RegExp, options: FindTextOptions = {}): Promise<TextMatch[]> {
-    const pages = await this.getPages();
+  findText(query: string | RegExp, options: FindTextOptions = {}): TextMatch[] {
+    const pages = this.getPages();
     const pagesToSearch = options.pages ?? Array.from({ length: pages.length }, (_, i) => i);
+
     const results: TextMatch[] = [];
 
     for (const pageIndex of pagesToSearch) {
       if (pageIndex >= 0 && pageIndex < pages.length) {
-        const matches = await pages[pageIndex].findText(query, options);
+        const matches = pages[pageIndex].findText(query, options);
+
         results.push(...matches);
       }
     }
@@ -2519,8 +2548,9 @@ export class PDF {
    * @returns The saved PDF bytes
    * @throws {Error} If document has no catalog (missing /Root in trailer)
    */
+  // oxlint-disable-next-line typescript/require-await
   async save(options: SaveOptions = {}): Promise<Uint8Array> {
-    const result = await this.saveInternal(options);
+    const result = this.saveInternal(options);
 
     return result.bytes;
   }
@@ -2529,11 +2559,9 @@ export class PDF {
    * Internal save that returns full result including xref offset.
    * Used by signing to chain incremental updates.
    */
-  private async saveInternal(
-    options: SaveOptions = {},
-  ): Promise<{ bytes: Uint8Array; xrefOffset: number }> {
+  private saveInternal(options: SaveOptions = {}): { bytes: Uint8Array; xrefOffset: number } {
     // Finalize embedded fonts (creates PDF objects, optionally subsets)
-    await this.fonts.finalize(options.subsetFonts ?? false);
+    this.fonts.finalize(options.subsetFonts ?? false);
 
     const wantsIncremental = options.incremental ?? false;
     const blocker = this.canSaveIncrementally();
@@ -2616,7 +2644,7 @@ export class PDF {
     const useXRefStream = options.useXRefStream ?? (useIncremental ? this.usesXRefStreams : false);
 
     if (useIncremental) {
-      const result = await writeIncremental(this.ctx.registry, {
+      const result = writeIncremental(this.ctx.registry, {
         originalBytes: this.originalBytes,
         originalXRefOffset: this.originalXRefOffset,
         root,
@@ -2635,10 +2663,10 @@ export class PDF {
 
     // For full save with changes, we need all referenced objects loaded
     // Walk from catalog to ensure we have everything
-    await this.ensureObjectsLoaded();
+    this.ensureObjectsLoaded();
 
     // Full save
-    const result = await writeComplete(this.ctx.registry, {
+    const result = writeComplete(this.ctx.registry, {
       version: this.ctx.info.version,
       root,
       info: infoRef ?? undefined,
@@ -2659,10 +2687,10 @@ export class PDF {
    *
    * Walks from the catalog to load all referenced objects.
    */
-  private async ensureObjectsLoaded(): Promise<void> {
+  private ensureObjectsLoaded(): void {
     const visited = new Set<string>();
 
-    const walk = async (obj: PdfObject | null): Promise<void> => {
+    const walk = (obj: PdfObject | null): void => {
       if (obj === null) {
         return;
       }
@@ -2676,16 +2704,16 @@ export class PDF {
 
         visited.add(key);
 
-        const resolved = await this.getObject(obj);
+        const resolved = this.getObject(obj);
 
-        await walk(resolved);
+        walk(resolved);
       } else if (obj instanceof PdfDict) {
         for (const [, value] of obj) {
-          await walk(value);
+          walk(value);
         }
       } else if (obj instanceof PdfArray) {
         for (const item of obj) {
-          await walk(item);
+          walk(item);
         }
       }
     };
@@ -2694,14 +2722,14 @@ export class PDF {
     const root = this.ctx.info.trailer.getRef("Root");
 
     if (root) {
-      await walk(root);
+      walk(root);
     }
 
     // Also load Info if present
     const infoRef = this.ctx.info.trailer.getRef("Info");
 
     if (infoRef) {
-      await walk(infoRef);
+      walk(infoRef);
     }
   }
 }

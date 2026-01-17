@@ -9,7 +9,7 @@
 
 import { black, PDF } from "../../src/index";
 
-async function main() {
+function main() {
   console.log("Reading PDF permission flags...\n");
 
   // PDF Permission Flags (from PDF spec Table 22)
@@ -42,7 +42,7 @@ async function main() {
   // Create a test PDF
   const pdf = PDF.create();
   pdf.addPage({ size: "letter" });
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (page) {
     page.drawText("Permission Test Document", {
       x: 150,
@@ -69,12 +69,12 @@ async function main() {
 
   console.log("For encrypted PDFs, permissions are stored in the Encrypt dictionary:");
   console.log();
-  console.log("  const catalog = await pdf.getCatalog();");
+  console.log("  const catalog = pdf.getCatalog();");
   console.log("  // Access Encrypt dict from trailer");
   console.log("  const trailer = pdf.context.info.trailer;");
   console.log("  const encryptRef = trailer.getRef('Encrypt');");
   console.log("  if (encryptRef) {");
-  console.log("    const encrypt = await pdf.getObject(encryptRef);");
+  console.log("    const encrypt = pdf.getObject(encryptRef);");
   console.log("    const P = encrypt.getNumber('P')?.value || 0;");
   console.log("    ");
   console.log("    // Check specific permissions");
@@ -120,4 +120,4 @@ async function main() {
   console.log("4. User password respects the permission flags");
 }
 
-main().catch(console.error);
+main();

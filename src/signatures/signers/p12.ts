@@ -153,6 +153,7 @@ export class P12Signer implements Signer {
       const certificates: pkijs.Certificate[] = [];
       let privateKey: CryptoKey | null = null;
 
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       const parsedValue = authenticatedSafe.parsedValue as
         | { safeContents: Array<{ value: pkijs.SafeContents }> }
         | undefined;
@@ -173,6 +174,7 @@ export class P12Signer implements Signer {
 
             // Unencrypted key bag
             if (safeBag.bagId === OID_KEY_BAG) {
+              // oxlint-disable-next-line typescript/no-unsafe-type-assertion
               const privateKeyInfo = safeBag.bagValue as pkijs.PrivateKeyInfo;
 
               privateKey = await P12Signer.importPrivateKey(privateKeyInfo);
@@ -180,6 +182,7 @@ export class P12Signer implements Signer {
 
             // Certificate bag
             if (safeBag.bagId === OID_CERT_BAG) {
+              // oxlint-disable-next-line typescript/no-unsafe-type-assertion
               const certBag = safeBag.bagValue as pkijs.CertBag;
 
               if (certBag.parsedValue instanceof pkijs.Certificate) {
@@ -248,6 +251,7 @@ export class P12Signer implements Signer {
     password: string,
     passwordBuffer: ArrayBuffer,
   ): Promise<CryptoKey> {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const keyBag = safeBag.bagValue as pkijs.PKCS8ShroudedKeyBag;
     const algorithmId = keyBag.encryptionAlgorithm.algorithmId;
 
@@ -268,12 +272,15 @@ export class P12Signer implements Signer {
         throw new SignerError("Failed to parse PBE parameters");
       }
 
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       const paramsSeq = paramsAsn1.result as { valueBlock: { value: unknown[] } };
 
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       const saltValue = paramsSeq.valueBlock.value[0] as {
         valueBlock: { valueHexView: Uint8Array };
       };
 
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       const iterValue = paramsSeq.valueBlock.value[1] as { valueBlock: { valueDec: number } };
 
       const salt = new Uint8Array(saltValue.valueBlock.valueHexView);

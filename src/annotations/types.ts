@@ -31,6 +31,29 @@ export type AnnotationSubtype =
   | "FileAttachment"
   | "Widget"; // Widget is handled separately by forms subsystem
 
+export const isAnnotationSubtype = (subtype: unknown): subtype is AnnotationSubtype => {
+  return (
+    subtype === "Text" ||
+    subtype === "Link" ||
+    subtype === "FreeText" ||
+    subtype === "Line" ||
+    subtype === "Square" ||
+    subtype === "Circle" ||
+    subtype === "Polygon" ||
+    subtype === "PolyLine" ||
+    subtype === "Highlight" ||
+    subtype === "Underline" ||
+    subtype === "Squiggly" ||
+    subtype === "StrikeOut" ||
+    subtype === "Stamp" ||
+    subtype === "Caret" ||
+    subtype === "Ink" ||
+    subtype === "Popup" ||
+    subtype === "FileAttachment" ||
+    subtype === "Widget"
+  );
+};
+
 /**
  * Annotation flags (PDF spec Table 165).
  */
@@ -119,6 +142,18 @@ export type TextAnnotationIcon =
   | "Paragraph"
   | "Insert";
 
+export const isTextAnnotationIcon = (icon: unknown): icon is TextAnnotationIcon => {
+  return (
+    icon === "Comment" ||
+    icon === "Key" ||
+    icon === "Note" ||
+    icon === "Help" ||
+    icon === "NewParagraph" ||
+    icon === "Paragraph" ||
+    icon === "Insert"
+  );
+};
+
 /**
  * Stamp annotation standard names (PDF spec Table 181).
  */
@@ -138,10 +173,33 @@ export type StampName =
   | "Draft"
   | "ForPublicRelease";
 
+export const isStampName = (name: unknown): name is StampName => {
+  return (
+    name === "Approved" ||
+    name === "Experimental" ||
+    name === "NotApproved" ||
+    name === "AsIs" ||
+    name === "Expired" ||
+    name === "NotForPublicRelease" ||
+    name === "Confidential" ||
+    name === "Final" ||
+    name === "Sold" ||
+    name === "Departmental" ||
+    name === "ForComment" ||
+    name === "TopSecret" ||
+    name === "Draft" ||
+    name === "ForPublicRelease"
+  );
+};
+
 /**
  * File attachment icon names.
  */
 export type FileAttachmentIcon = "Graph" | "Paperclip" | "PushPin" | "Tag";
+
+export const isFileAttachmentIcon = (icon: unknown): icon is FileAttachmentIcon => {
+  return icon === "Graph" || icon === "Paperclip" || icon === "PushPin" || icon === "Tag";
+};
 
 /**
  * Options for creating a Text annotation (sticky note).
@@ -185,6 +243,19 @@ export interface TextMarkupAnnotationOptions {
  * Destination types for links.
  */
 export type DestinationType = "Fit" | "FitH" | "FitV" | "FitB" | "FitBH" | "FitBV" | "XYZ" | "FitR";
+
+export const isDestinationType = (type: unknown): type is DestinationType => {
+  return (
+    type === "Fit" ||
+    type === "FitH" ||
+    type === "FitV" ||
+    type === "FitB" ||
+    type === "FitBH" ||
+    type === "FitBV" ||
+    type === "XYZ" ||
+    type === "FitR"
+  );
+};
 
 /**
  * A link destination.
@@ -357,8 +428,8 @@ export interface PolylineAnnotationOptions {
 export interface StampAnnotationOptions {
   /** Annotation rectangle */
   rect: Rect;
-  /** Standard stamp name */
-  name?: StampName | string;
+  /** Stamp name (use StampName constants for standard stamps, or any string for custom) */
+  name?: StampName | (string & {});
   /** Text content/comment */
   contents?: string;
 }

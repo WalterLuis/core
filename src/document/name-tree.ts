@@ -23,8 +23,10 @@ import { PdfString } from "#src/objects/pdf-string";
 
 /**
  * Function to resolve a reference to its object.
+ *
+ * Synchronous because all PDF data is loaded into memory at parse time.
  */
-export type Resolver = (ref: PdfRef) => Promise<PdfObject | null>;
+export type Resolver = (ref: PdfRef) => PdfObject | null;
 
 /**
  * Maximum depth for tree traversal (prevents infinite loops on malformed PDFs).
@@ -78,7 +80,7 @@ export class NameTree {
    *
    * @returns The value if found, null otherwise
    */
-  async get(key: string): Promise<PdfObject | null> {
+  get(key: string): PdfObject | null {
     let node = this.root;
     let depth = 0;
 
@@ -111,7 +113,7 @@ export class NameTree {
           continue;
         }
 
-        const kid = await this.resolver(kidRef);
+        const kid = this.resolver(kidRef);
 
         if (!(kid instanceof PdfDict)) {
           lo = mid + 1;
@@ -218,8 +220,8 @@ export class NameTree {
   /**
    * Check if a key exists in the tree.
    */
-  async has(key: string): Promise<boolean> {
-    const value = await this.get(key);
+  has(key: string): boolean {
+    const value = this.get(key);
 
     return value !== null;
   }
@@ -228,7 +230,7 @@ export class NameTree {
    * Iterate all entries (lazy, yields [key, value] pairs).
    * Uses BFS traversal with cycle detection.
    */
-  async *entries(): AsyncGenerator<[string, PdfObject]> {
+  *entries(): Generator<[string, PdfObject]> {
     const visited = new Set<string>();
     const queue: Array<{ node: PdfDict; depth: number }> = [{ node: this.root, depth: 0 }];
 
@@ -261,7 +263,7 @@ export class NameTree {
 
             visited.add(refKey);
 
-            const kid = await this.resolver(kidRef);
+            const kid = this.resolver(kidRef);
 
             if (kid instanceof PdfDict) {
               queue.push({ node: kid, depth: depth + 1 });
@@ -280,10 +282,10 @@ export class NameTree {
               continue;
             }
 
-            let value = names.at(i + 1) ?? null;
+            let value: PdfObject | null | undefined = names.at(i + 1) ?? null;
 
             if (value instanceof PdfRef) {
-              value = await this.resolver(value);
+              value = this.resolver(value);
             }
 
             if (value !== null && value !== undefined) {
@@ -298,14 +300,14 @@ export class NameTree {
   /**
    * Load all entries into a Map (cached after first call).
    */
-  async getAll(): Promise<ReadonlyMap<string, PdfObject>> {
+  getAll(): ReadonlyMap<string, PdfObject> {
     if (this.cache) {
       return this.cache;
     }
 
     const result = new Map<string, PdfObject>();
 
-    for await (const [key, value] of this.entries()) {
+    for (const [key, value] of this.entries()) {
       result.set(key, value);
     }
 

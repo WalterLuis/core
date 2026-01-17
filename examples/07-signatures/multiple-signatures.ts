@@ -17,7 +17,7 @@ async function main() {
   const pdf = PDF.create();
   pdf.addPage({ size: "letter" });
 
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
 
   if (page) {
     page.drawText("Multi-Party Agreement", {
@@ -124,7 +124,7 @@ async function main() {
   // Verify both signatures exist
   console.log("\n=== Verification ===");
   const finalPdf = await PDF.load(afterSecondSig);
-  const form = await finalPdf.getForm();
+  const form = finalPdf.getForm();
 
   const sigFields = form?.getSignatureFields() ?? [];
   console.log(`Total signature fields: ${sigFields.length}`);

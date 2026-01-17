@@ -68,7 +68,7 @@ export class PDFInkAnnotation extends PDFMarkupAnnotation {
         PdfNumber.of(maxY),
       ]),
       InkList: inkList,
-      C: new PdfArray(colorComponents.map(PdfNumber.of)),
+      C: new PdfArray(colorComponents.map(n => PdfNumber.of(n))),
       F: PdfNumber.of(4), // Print flag
     });
 
@@ -103,8 +103,8 @@ export class PDFInkAnnotation extends PDFMarkupAnnotation {
     for (let i = 0; i < inkList.length; i++) {
       const pathEntry = inkList.at(i);
 
-      if (pathEntry && (pathEntry as { type: string }).type === "array") {
-        const pathArr = pathEntry as PdfArray;
+      if (pathEntry && pathEntry instanceof PdfArray) {
+        const pathArr = pathEntry;
         const points: Point[] = [];
 
         for (let j = 0; j < pathArr.length; j += 2) {

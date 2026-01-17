@@ -49,13 +49,11 @@ export class PDFCatalog {
   /**
    * Get the /Names dictionary.
    */
-  async getNames(): Promise<PdfDict | null> {
-    const namesEntry = this.dict.get("Names");
+  getNames(): PdfDict | null {
+    let namesEntry = this.dict.get("Names");
 
     if (namesEntry instanceof PdfRef) {
-      const resolved = await this.registry.resolve(namesEntry);
-
-      return resolved instanceof PdfDict ? resolved : null;
+      namesEntry = this.registry.resolve(namesEntry) ?? undefined;
     }
 
     return namesEntry instanceof PdfDict ? namesEntry : null;
@@ -64,8 +62,8 @@ export class PDFCatalog {
   /**
    * Get or create the /Names dictionary.
    */
-  async getOrCreateNames(): Promise<PdfDict> {
-    let names = await this.getNames();
+  getOrCreateNames(): PdfDict {
+    let names = this.getNames();
 
     if (!names) {
       names = new PdfDict();
@@ -80,12 +78,12 @@ export class PDFCatalog {
    * Get the EmbeddedFiles name tree.
    * Caches the result for repeated access.
    */
-  async getEmbeddedFilesTree(): Promise<NameTree | null> {
+  getEmbeddedFilesTree(): NameTree | null {
     if (this._embeddedFilesTree !== undefined) {
       return this._embeddedFilesTree;
     }
 
-    const names = await this.getNames();
+    const names = this.getNames();
 
     if (!names) {
       this._embeddedFilesTree = null;
@@ -97,7 +95,7 @@ export class PDFCatalog {
     let embeddedFiles: PdfDict | null = null;
 
     if (embeddedFilesEntry instanceof PdfRef) {
-      const resolved = await this.registry.resolve(embeddedFilesEntry);
+      const resolved = this.registry.resolve(embeddedFilesEntry);
 
       if (resolved instanceof PdfDict) {
         embeddedFiles = resolved;
@@ -120,8 +118,8 @@ export class PDFCatalog {
   /**
    * Set the EmbeddedFiles name tree.
    */
-  async setEmbeddedFilesTree(treeDict: PdfDict): Promise<void> {
-    const names = await this.getOrCreateNames();
+  setEmbeddedFilesTree(treeDict: PdfDict): void {
+    const names = this.getOrCreateNames();
     const treeRef = this.registry.register(treeDict);
 
     names.set("EmbeddedFiles", treeRef);
@@ -133,8 +131,8 @@ export class PDFCatalog {
   /**
    * Remove the EmbeddedFiles entry from /Names.
    */
-  async removeEmbeddedFilesTree(): Promise<void> {
-    const names = await this.getNames();
+  removeEmbeddedFilesTree(): void {
+    const names = this.getNames();
 
     if (names) {
       names.delete("EmbeddedFiles");

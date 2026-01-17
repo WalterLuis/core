@@ -19,7 +19,7 @@ async function main() {
   const contentPdf = PDF.create();
   for (let i = 1; i <= 5; i++) {
     contentPdf.addPage({ size: "letter" });
-    const page = await contentPdf.getPage(i - 1);
+    const page = contentPdf.getPage(i - 1);
     if (page) {
       page.drawText(`Content Page ${i}`, {
         x: 200,
@@ -46,7 +46,7 @@ async function main() {
 
   const coverPdf = PDF.create();
   coverPdf.addPage({ size: "letter" });
-  const coverPage = await coverPdf.getPage(0);
+  const coverPage = coverPdf.getPage(0);
   if (coverPage) {
     // Draw a colored background rectangle
     coverPage.drawRectangle({
@@ -125,7 +125,7 @@ async function main() {
   // Create back cover
   const backCoverPdf = PDF.create();
   backCoverPdf.addPage({ size: "letter" });
-  const backCoverPage = await backCoverPdf.getPage(0);
+  const backCoverPage = backCoverPdf.getPage(0);
   if (backCoverPage) {
     backCoverPage.drawRectangle({
       x: 0,

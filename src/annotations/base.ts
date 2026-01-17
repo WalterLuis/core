@@ -13,12 +13,13 @@ import { PdfArray } from "#src/objects/pdf-array";
 import { PdfDict } from "#src/objects/pdf-dict";
 import { PdfName } from "#src/objects/pdf-name";
 import { PdfNumber } from "#src/objects/pdf-number";
-import type { PdfRef } from "#src/objects/pdf-ref";
+import { PdfRef } from "#src/objects/pdf-ref";
 import { PdfStream } from "#src/objects/pdf-stream";
 import { PdfString } from "#src/objects/pdf-string";
 
 import {
   AnnotationFlags,
+  isAnnotationSubtype,
   type AnnotationSubtype,
   type BorderStyle,
   type BorderStyleType,
@@ -77,9 +78,9 @@ export class PDFAnnotation {
    * Annotation subtype (e.g., "Text", "Highlight", "Link").
    */
   get type(): AnnotationSubtype {
-    const subtype = this.dict.getName("Subtype");
+    const subtype = this.dict.getName("Subtype")?.value;
 
-    return (subtype?.value as AnnotationSubtype) ?? "Text";
+    return isAnnotationSubtype(subtype) ? subtype : "Text";
   }
 
   /**
@@ -92,16 +93,15 @@ export class PDFAnnotation {
       return { x: 0, y: 0, width: 0, height: 0 };
     }
 
-    const x1 = (arr.at(0) as PdfNumber | null)?.value ?? 0;
-    const y1 = (arr.at(1) as PdfNumber | null)?.value ?? 0;
-    const x2 = (arr.at(2) as PdfNumber | null)?.value ?? 0;
-    const y2 = (arr.at(3) as PdfNumber | null)?.value ?? 0;
+    const [x1, y1, x2, y2] = arr
+      .toArray()
+      .map(item => (item instanceof PdfNumber ? item.value : 0));
 
     return {
-      x: Math.min(x1, x2),
-      y: Math.min(y1, y2),
-      width: Math.abs(x2 - x1),
-      height: Math.abs(y2 - y1),
+      x: Math.min(x1 ?? 0, x2 ?? 0),
+      y: Math.min(y1 ?? 0, y2 ?? 0),
+      width: Math.abs((x2 ?? 0) - (x1 ?? 0)),
+      height: Math.abs((y2 ?? 0) - (y1 ?? 0)),
     };
   }
 
@@ -254,7 +254,7 @@ export class PDFAnnotation {
    */
   setColor(color: Color): void {
     const components = colorToArray(color);
-    this.dict.set("C", new PdfArray(components.map(PdfNumber.of)));
+    this.dict.set("C", new PdfArray(components.map(n => PdfNumber.of(n))));
     this.markModified();
   }
 
@@ -304,7 +304,7 @@ export class PDFAnnotation {
     bs.set("S", PdfName.of(BORDER_STYLE_REVERSE_MAP[style.style ?? "solid"]));
 
     if (style.dashArray && style.dashArray.length > 0) {
-      bs.set("D", new PdfArray(style.dashArray.map(PdfNumber.of)));
+      bs.set("D", new PdfArray(style.dashArray.map(n => PdfNumber.of(n))));
     }
 
     this.dict.set("BS", bs);
@@ -331,21 +331,21 @@ export class PDFAnnotation {
   /**
    * Get the normal appearance stream.
    */
-  async getNormalAppearance(): Promise<PdfStream | null> {
+  getNormalAppearance(): PdfStream | null {
     return this.getAppearance("N");
   }
 
   /**
    * Get the rollover appearance stream.
    */
-  async getRolloverAppearance(): Promise<PdfStream | null> {
+  getRolloverAppearance(): PdfStream | null {
     return this.getAppearance("R");
   }
 
   /**
    * Get the down appearance stream.
    */
-  async getDownAppearance(): Promise<PdfStream | null> {
+  getDownAppearance(): PdfStream | null {
     return this.getAppearance("D");
   }
 
@@ -373,24 +373,26 @@ export class PDFAnnotation {
   /**
    * Get an appearance stream by type.
    */
-  private async getAppearance(type: "N" | "R" | "D"): Promise<PdfStream | null> {
+  private getAppearance(type: "N" | "R" | "D"): PdfStream | null {
     const ap = this.dict.getDict("AP");
 
     if (!ap) {
       return null;
     }
 
-    const entry = ap.get(type);
+    let entry = ap.get(type);
 
     if (!entry) {
       return null;
     }
 
     // Resolve if it's a reference
-    const resolved = entry.type === "ref" ? await this.registry.resolve(entry) : entry;
+    if (entry instanceof PdfRef) {
+      entry = this.registry.resolve(entry) ?? undefined;
+    }
 
-    if (resolved instanceof PdfStream) {
-      return resolved;
+    if (entry instanceof PdfStream) {
+      return entry;
     }
 
     // It could be a dict of appearance states (for Widget annotations)

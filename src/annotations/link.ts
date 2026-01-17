@@ -21,7 +21,7 @@ import { PdfRef } from "#src/objects/pdf-ref";
 import { PdfString } from "#src/objects/pdf-string";
 
 import { PDFAnnotation, rectToArray } from "./base";
-import type { DestinationType, LinkAnnotationOptions, LinkDestination } from "./types";
+import { isDestinationType, type LinkAnnotationOptions, type LinkDestination } from "./types";
 
 function destinationPageToRef(page: unknown): PdfRef {
   if (page instanceof PdfRef) {
@@ -76,7 +76,7 @@ export class PDFLinkAnnotation extends PDFAnnotation {
 
     if (options.borderColor) {
       const components = colorToArray(options.borderColor);
-      annotDict.set("C", new PdfArray(components.map(PdfNumber.of)));
+      annotDict.set("C", new PdfArray(components.map(n => PdfNumber.of(n))));
     }
 
     // Set action or destination
@@ -168,19 +168,25 @@ export class PDFLinkAnnotation extends PDFAnnotation {
   /**
    * Get the parsed link action.
    */
-  async getAction(): Promise<LinkAction> {
+  getAction(): LinkAction {
     // Check URI
     const uri = this.uri;
 
     if (uri) {
-      return { type: "uri", uri };
+      return {
+        type: "uri",
+        uri,
+      };
     }
 
     // Check internal destination
     const dest = this.destination;
 
     if (dest) {
-      return { type: "goto", destination: dest };
+      return {
+        type: "goto",
+        destination: dest,
+      };
     }
 
     // Check for remote GoTo
@@ -234,8 +240,8 @@ export class PDFLinkAnnotation extends PDFAnnotation {
    */
   private parseDestination(dest: unknown): LinkDestination | null {
     // Can be an array [page, type, ...params] or a name (named destination)
-    if (Array.isArray(dest) || (dest && (dest as { type: string }).type === "array")) {
-      const arr = dest as PdfArray;
+    if (Array.isArray(dest) || dest instanceof PdfArray) {
+      const arr = dest instanceof PdfArray ? dest : new PdfArray(dest);
 
       if (arr.length < 2) {
         return null;
@@ -243,6 +249,7 @@ export class PDFLinkAnnotation extends PDFAnnotation {
 
       // First element is page reference or number
       const pageEntry = arr.at(0);
+
       let pageNum = 0;
       let pageRef: PdfRef | undefined;
 
@@ -260,7 +267,7 @@ export class PDFLinkAnnotation extends PDFAnnotation {
 
       const result: LinkDestination = {
         page,
-        type: typeName as DestinationType,
+        type: isDestinationType(typeName) ? typeName : "Fit",
       };
 
       // Parse additional parameters based on type

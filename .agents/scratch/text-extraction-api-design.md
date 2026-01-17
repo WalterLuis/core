@@ -1,3 +1,6 @@
+```typescript
+/* oxlint-disable */
+
 /**
  * Text Extraction API Design for @libpdf/core
  *
@@ -475,3 +478,4 @@ function groupCharsIntoLines(chars: ExtractedChar[]): TextLine[] {
   // Implementation omitted for brevity
   return [];
 }
+```

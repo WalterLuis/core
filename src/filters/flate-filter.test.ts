@@ -11,7 +11,7 @@ describe("FlateFilter", () => {
       const original = new TextEncoder().encode("Hello, World!");
       const compressed = pako.deflate(original);
 
-      const result = await filter.decode(compressed);
+      const result = filter.decode(compressed);
 
       expect(new TextDecoder().decode(result)).toBe("Hello, World!");
     });
@@ -20,7 +20,7 @@ describe("FlateFilter", () => {
       const original = new TextEncoder().encode("AAAA".repeat(1000));
       const compressed = pako.deflate(original);
 
-      const result = await filter.decode(compressed);
+      const result = filter.decode(compressed);
 
       expect(result).toEqual(original);
       expect(compressed.length).toBeLessThan(original.length / 10);
@@ -30,7 +30,7 @@ describe("FlateFilter", () => {
       const original = new Uint8Array([0, 1, 127, 128, 254, 255]);
       const compressed = pako.deflate(original);
 
-      const result = await filter.decode(compressed);
+      const result = filter.decode(compressed);
 
       expect(result).toEqual(original);
     });
@@ -39,7 +39,7 @@ describe("FlateFilter", () => {
       const original = new Uint8Array(0);
       const compressed = pako.deflate(original);
 
-      const result = await filter.decode(compressed);
+      const result = filter.decode(compressed);
 
       expect(result.length).toBe(0);
     });
@@ -52,7 +52,7 @@ describe("FlateFilter", () => {
       }
       const compressed = pako.deflate(original);
 
-      const result = await filter.decode(compressed);
+      const result = filter.decode(compressed);
 
       expect(result).toEqual(original);
     }, 30000); // 30 second timeout for large data
@@ -62,7 +62,7 @@ describe("FlateFilter", () => {
     it("encodes simple data", async () => {
       const original = new TextEncoder().encode("Hello, World!");
 
-      const encoded = await filter.encode(original);
+      const encoded = filter.encode(original);
 
       // Verify it's valid zlib by decoding
       const decoded = pako.inflate(encoded);
@@ -72,7 +72,7 @@ describe("FlateFilter", () => {
     it("achieves compression on repeated data", async () => {
       const original = new TextEncoder().encode("AAAA".repeat(1000));
 
-      const encoded = await filter.encode(original);
+      const encoded = filter.encode(original);
 
       expect(encoded.length).toBeLessThan(original.length);
     });
@@ -82,8 +82,8 @@ describe("FlateFilter", () => {
     it("preserves text data", async () => {
       const original = new TextEncoder().encode("Hello, World! This is a test.");
 
-      const encoded = await filter.encode(original);
-      const decoded = await filter.decode(encoded);
+      const encoded = filter.encode(original);
+      const decoded = filter.decode(encoded);
 
       expect(decoded).toEqual(original);
     });
@@ -94,8 +94,8 @@ describe("FlateFilter", () => {
         original[i] = i;
       }
 
-      const encoded = await filter.encode(original);
-      const decoded = await filter.decode(encoded);
+      const encoded = filter.encode(original);
+      const decoded = filter.decode(encoded);
 
       expect(decoded).toEqual(original);
     });
@@ -106,8 +106,8 @@ describe("FlateFilter", () => {
         original[i] = Math.floor(Math.random() * 256);
       }
 
-      const encoded = await filter.encode(original);
-      const decoded = await filter.decode(encoded);
+      const encoded = filter.encode(original);
+      const decoded = filter.decode(encoded);
 
       expect(decoded).toEqual(original);
     });
@@ -122,7 +122,7 @@ describe("FlateFilter", () => {
 
       // Empty params dict (would come from PDF)
       // For testing, we pass undefined
-      const result = await filter.decode(compressed, undefined);
+      const result = filter.decode(compressed, undefined);
 
       expect(new TextDecoder().decode(result)).toBe("Test");
     });

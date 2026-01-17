@@ -46,17 +46,13 @@ export class PDFPageTree {
 
   /**
    * Load and build the page tree by walking from the root.
-   * This is the only async operation.
    */
-  static async load(
-    pagesRef: PdfRef,
-    getObject: (ref: PdfRef) => Promise<PdfObject | null>,
-  ): Promise<PDFPageTree> {
+  static load(pagesRef: PdfRef, getObject: (ref: PdfRef) => PdfObject | null): PDFPageTree {
     const pages: PdfRef[] = [];
     const visited = new Set<string>();
     const loadedPages = new Map<string, PdfDict>();
 
-    const walk = async (ref: PdfRef): Promise<void> => {
+    const walk = (ref: PdfRef): void => {
       const key = `${ref.objectNumber} ${ref.generation}`;
 
       if (visited.has(key)) {
@@ -66,7 +62,7 @@ export class PDFPageTree {
 
       visited.add(key);
 
-      const node = await getObject(ref);
+      const node = getObject(ref);
 
       if (!(node instanceof PdfDict)) {
         return;
@@ -85,7 +81,7 @@ export class PDFPageTree {
             const kid = kids.at(i);
 
             if (kid instanceof PdfRef) {
-              await walk(kid);
+              walk(kid);
             }
           }
         }
@@ -93,10 +89,10 @@ export class PDFPageTree {
       // If no /Type or unknown type, skip silently (lenient parsing)
     };
 
-    await walk(pagesRef);
+    walk(pagesRef);
 
     // Load the root Pages dict
-    const root = await getObject(pagesRef);
+    const root = getObject(pagesRef);
 
     if (!(root instanceof PdfDict)) {
       throw new Error("Root Pages object is not a dictionary");

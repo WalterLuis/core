@@ -44,6 +44,12 @@ import type { ToUnicodeMap } from "./to-unicode";
 
 export type SimpleFontSubtype = "TrueType" | "Type1" | "Type3" | "MMType1";
 
+const isSimpleFontSubtype = (subtype: unknown): subtype is SimpleFontSubtype => {
+  return (
+    subtype === "TrueType" || subtype === "Type1" || subtype === "Type3" || subtype === "MMType1"
+  );
+};
+
 /**
  * SimpleFont handles single-byte encoded fonts (TrueType, Type1, Type3).
  */
@@ -266,7 +272,7 @@ export function parseSimpleFont(
   } = {},
 ): SimpleFont {
   const subtypeName = dict.getName("Subtype");
-  const subtype = (subtypeName?.value ?? "TrueType") as SimpleFontSubtype;
+  const subtype = isSimpleFontSubtype(subtypeName?.value) ? subtypeName.value : "TrueType";
   const baseFontName = dict.getName("BaseFont")?.value ?? "Unknown";
   const firstChar = dict.getNumber("FirstChar")?.value ?? 0;
   const lastChar = dict.getNumber("LastChar")?.value ?? 255;
@@ -311,7 +317,7 @@ export function parseSimpleFont(
     const descriptorDict = options.resolveRef(descriptorRef);
 
     if (descriptorDict && "getString" in descriptorDict) {
-      descriptor = FontDescriptor.parse(descriptorDict as PdfDict);
+      descriptor = FontDescriptor.parse(descriptorDict);
 
       // Try to parse embedded font program from FontDescriptor
       if (options.decodeStream) {
@@ -320,7 +326,7 @@ export function parseSimpleFont(
           resolveRef: options.resolveRef as ((ref: unknown) => unknown) | undefined,
         };
 
-        embeddedProgram = parseEmbeddedProgram(descriptorDict as PdfDict, parserOptions);
+        embeddedProgram = parseEmbeddedProgram(descriptorDict, parserOptions);
       }
     }
   }

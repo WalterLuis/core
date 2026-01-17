@@ -28,6 +28,10 @@ import type { FontProgram } from "./font-program/index.ts";
 
 export type CIDFontSubtype = "CIDFontType0" | "CIDFontType2";
 
+const isCIDFontSubtype = (subtype: unknown): subtype is CIDFontSubtype => {
+  return subtype === "CIDFontType0" || subtype === "CIDFontType2";
+};
+
 /**
  * CID System Info describes the character collection.
  */
@@ -228,7 +232,7 @@ export function parseCIDWidths(wArray: PdfArray): CIDWidthMap {
 
     if (second.type === "array") {
       // Individual widths: cid [w1 w2 w3 ...]
-      const widthArray = second as PdfArray;
+      const widthArray = second;
 
       for (let j = 0; j < widthArray.length; j++) {
         const widthItem = widthArray.at(j);
@@ -268,7 +272,7 @@ export function parseCIDFont(
   } = {},
 ): CIDFont {
   const subtypeName = dict.getName("Subtype");
-  const subtype = (subtypeName?.value ?? "CIDFontType2") as CIDFontSubtype;
+  const subtype = isCIDFontSubtype(subtypeName?.value) ? subtypeName.value : "CIDFontType2";
   const baseFontName = dict.getName("BaseFont")?.value ?? "Unknown";
 
   // Parse CIDSystemInfo
@@ -320,7 +324,7 @@ export function parseCIDFont(
     const descriptorDict = options.resolveRef(descriptorRef);
 
     if (descriptorDict && descriptorDict.type === "dict") {
-      descriptor = FontDescriptor.parse(descriptorDict as PdfDict);
+      descriptor = FontDescriptor.parse(descriptorDict);
 
       // Try to parse embedded font program from FontDescriptor
       if (options.decodeStream) {
@@ -329,7 +333,7 @@ export function parseCIDFont(
           resolveRef: options.resolveRef as ((ref: unknown) => unknown) | undefined,
         };
 
-        embeddedProgram = parseEmbeddedProgram(descriptorDict as PdfDict, parserOptions);
+        embeddedProgram = parseEmbeddedProgram(descriptorDict, parserOptions);
       }
     }
   }

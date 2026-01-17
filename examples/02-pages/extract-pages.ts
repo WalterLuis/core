@@ -22,7 +22,7 @@ async function main() {
   }
 
   // Label each page
-  const pages = await sourcePdf.getPages();
+  const pages = sourcePdf.getPages();
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i];
     if (page) {

@@ -158,7 +158,7 @@ export class TTFSubsetter {
   /**
    * Write the subset font to a byte array.
    */
-  async write(): Promise<Uint8Array> {
+  write(): Uint8Array {
     if (this.glyphIds.size === 0 && this.uniToGID.size === 0) {
       console.warn("Font subset is empty");
     }

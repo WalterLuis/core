@@ -18,7 +18,7 @@ async function main() {
   const pdf = await PDF.load(bytes);
 
   // Get the form
-  const form = await pdf.getForm();
+  const form = pdf.getForm();
   if (!form) {
     console.log("This PDF does not contain a form.");
     return;
@@ -80,7 +80,7 @@ async function main() {
     }
 
     try {
-      await textField.setValue(value);
+      textField.setValue(value);
       console.log(`Set "${field.name}" = "${value}"`);
     } catch (error) {
       console.log(
@@ -100,7 +100,7 @@ async function main() {
   // Verify the values were saved
   console.log("\n=== Verification ===");
   const verifyPdf = await PDF.load(savedBytes);
-  const verifyForm = await verifyPdf.getForm();
+  const verifyForm = verifyPdf.getForm();
 
   if (verifyForm) {
     for (const field of verifyForm.getTextFields()) {

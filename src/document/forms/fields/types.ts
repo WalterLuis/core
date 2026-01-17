@@ -12,7 +12,7 @@ import type { TerminalField } from "./base";
  */
 export interface AcroFormLike {
   defaultQuadding: number;
-  updateFieldAppearance?(field: TerminalField): Promise<void>;
+  updateFieldAppearance?(field: TerminalField): void;
 }
 
 /**

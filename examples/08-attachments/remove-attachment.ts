@@ -16,7 +16,7 @@ async function main() {
   const pdf = PDF.create();
   pdf.addPage({ size: "letter" });
 
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (page) {
     page.drawText("Attachment Removal Demo", {
       x: 180,
@@ -36,13 +36,13 @@ async function main() {
   console.log("=== Adding Attachments ===");
   for (const att of attachmentsToAdd) {
     const data = new TextEncoder().encode(att.content);
-    await pdf.addAttachment(att.name, data);
+    pdf.addAttachment(att.name, data);
     console.log(`Added: ${att.name}`);
   }
 
   // List attachments before removal
   console.log("\n=== Before Removal ===");
-  let attachments = await pdf.getAttachments();
+  let attachments = pdf.getAttachments();
   console.log(`Attachment count: ${attachments.size}`);
   for (const [name] of attachments) {
     console.log(`  - ${name}`);
@@ -50,23 +50,23 @@ async function main() {
 
   // Check if attachment exists
   const nameToRemove = "delete-me.txt";
-  const exists = await pdf.hasAttachment(nameToRemove);
+  const exists = pdf.hasAttachment(nameToRemove);
   console.log(`\nHas "${nameToRemove}": ${exists}`);
 
   // Remove the attachment
   console.log(`\nRemoving: ${nameToRemove}`);
-  await pdf.removeAttachment(nameToRemove);
+  pdf.removeAttachment(nameToRemove);
 
   // List attachments after removal
   console.log("\n=== After Removal ===");
-  attachments = await pdf.getAttachments();
+  attachments = pdf.getAttachments();
   console.log(`Attachment count: ${attachments.size}`);
   for (const [name] of attachments) {
     console.log(`  - ${name}`);
   }
 
   // Verify removal
-  const stillExists = await pdf.hasAttachment(nameToRemove);
+  const stillExists = pdf.hasAttachment(nameToRemove);
   console.log(`\nHas "${nameToRemove}": ${stillExists}`);
 
   // Save
@@ -80,7 +80,7 @@ async function main() {
   // Try to remove non-existent attachment
   console.log("\n=== Removing Non-existent Attachment ===");
   try {
-    await pdf.removeAttachment("does-not-exist.txt");
+    pdf.removeAttachment("does-not-exist.txt");
     console.log("Unexpected success");
   } catch (error) {
     console.log(`Expected error: ${error instanceof Error ? error.message : String(error)}`);

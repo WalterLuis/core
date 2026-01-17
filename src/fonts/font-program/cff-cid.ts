@@ -119,3 +119,6 @@ export class CFFCIDFontProgram implements FontProgram {
     return this.data;
   }
 }
+
+export const isCFFCIDFontProgram = (program: FontProgram): program is CFFCIDFontProgram =>
+  program.type === "cff-cid";

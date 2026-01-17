@@ -21,7 +21,7 @@ async function main() {
   console.log(`Page count: ${pdf.getPageCount()}`);
 
   // Get attachments (returns a Map<name, info>)
-  const attachments = await pdf.getAttachments();
+  const attachments = pdf.getAttachments();
   const attachmentCount = attachments.size;
 
   console.log(`\n=== Attachments (${attachmentCount}) ===`);
@@ -56,7 +56,7 @@ async function main() {
   try {
     const bytes2 = await loadFixture("attachments", "embedded_zip.pdf");
     const pdf2 = await PDF.load(bytes2);
-    const attachments2 = await pdf2.getAttachments();
+    const attachments2 = pdf2.getAttachments();
 
     console.log(`Found ${attachments2.size} attachment(s) in embedded_zip.pdf`);
     for (const [name, info] of attachments2) {

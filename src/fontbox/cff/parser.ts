@@ -552,7 +552,7 @@ class CFFParser {
 
     if (isCIDFont) {
       // biome-ignore lint/style/noNonNullAssertion: checked in above condition
-      return this.parseCIDFont(baseFont, topDict, rosOperands!);
+      return this.parseCIDFont(baseFont, topDict, rosOperands);
     } else {
       return this.parseType1Font(baseFont, topDict);
     }

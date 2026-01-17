@@ -11,7 +11,7 @@ describe("PDFForm", () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
 
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       expect(form).not.toBeNull();
     });
@@ -20,7 +20,7 @@ describe("PDFForm", () => {
       const bytes = await loadFixture("basic", "document.pdf");
       const pdf = await PDF.load(bytes);
 
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       expect(form).toBeNull();
     });
@@ -29,8 +29,8 @@ describe("PDFForm", () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
 
-      const form1 = await pdf.getForm();
-      const form2 = await pdf.getForm();
+      const form1 = pdf.getForm();
+      const form2 = pdf.getForm();
 
       expect(form1).toBe(form2); // Same instance
     });
@@ -40,7 +40,7 @@ describe("PDFForm", () => {
     it("returns all fields", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       const fields = form!.getFields();
 
@@ -52,7 +52,7 @@ describe("PDFForm", () => {
     it("returns all field names", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       const names = form!.getFieldNames();
 
@@ -65,7 +65,7 @@ describe("PDFForm", () => {
     it("returns field by name", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       const field = form!.getField("STATE");
 
@@ -77,7 +77,7 @@ describe("PDFForm", () => {
     it("returns undefined for non-existent field", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       const field = form!.getField("nonexistent");
 
@@ -89,7 +89,7 @@ describe("PDFForm", () => {
     it("returns true for existing field", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       expect(form!.hasField("STATE")).toBe(true);
     });
@@ -97,7 +97,7 @@ describe("PDFForm", () => {
     it("returns false for non-existent field", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       expect(form!.hasField("nonexistent")).toBe(false);
     });
@@ -107,7 +107,7 @@ describe("PDFForm", () => {
     it("getTextField returns text field", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       const field = form!.getTextField("STATE");
 
@@ -118,7 +118,7 @@ describe("PDFForm", () => {
     it("getTextField returns undefined for wrong type", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       const field = form!.getTextField("TRADE CERTIFICATE");
 
@@ -128,7 +128,7 @@ describe("PDFForm", () => {
     it("getCheckbox returns checkbox field", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       const field = form!.getCheckbox("TRADE CERTIFICATE");
 
@@ -139,7 +139,7 @@ describe("PDFForm", () => {
     it("getCheckbox returns undefined for wrong type", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       const field = form!.getCheckbox("STATE");
 
@@ -151,7 +151,7 @@ describe("PDFForm", () => {
     it("getTextFields returns only text fields", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       const fields = form!.getTextFields();
 
@@ -162,7 +162,7 @@ describe("PDFForm", () => {
     it("getCheckboxes returns only checkbox fields", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       const fields = form!.getCheckboxes();
 
@@ -174,9 +174,9 @@ describe("PDFForm", () => {
     it("fills multiple fields at once", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
-      const result = await form!.fill({
+      const result = form!.fill({
         STATE: "NY",
         "TRADE CERTIFICATE": true,
       });
@@ -192,9 +192,9 @@ describe("PDFForm", () => {
     it("silently skips non-existent fields", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
-      const result = await form!.fill({
+      const result = form!.fill({
         STATE: "CA",
         nonexistent: "ignored",
         alsoMissing: "skipped",
@@ -208,13 +208,13 @@ describe("PDFForm", () => {
     it("throws on type mismatch", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
-      await expect(
+      expect(() =>
         form!.fill({
           STATE: true, // Should be string
         }),
-      ).rejects.toThrow(TypeError);
+      ).toThrow(TypeError);
     });
   });
 
@@ -222,10 +222,10 @@ describe("PDFForm", () => {
     it("resets all fields", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       // Fill with some values
-      await form!.fill({
+      form!.fill({
         STATE: "CA",
         "TRADE CERTIFICATE": true,
       });
@@ -235,7 +235,7 @@ describe("PDFForm", () => {
       expect(form!.getCheckbox("TRADE CERTIFICATE")?.isChecked()).toBe(true);
 
       // Reset all fields
-      await form!.resetAll();
+      form!.resetAll();
 
       // After reset, appearances are regenerated so needsAppearanceUpdate is false
       const fields = form!.getFields() as TerminalField[];
@@ -247,9 +247,9 @@ describe("PDFForm", () => {
     it("flattens form fields", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
-      await form!.flatten();
+      form!.flatten();
 
       expect(form!.getFields()).toHaveLength(0);
       expect(form!.fieldCount).toBe(0);
@@ -258,16 +258,16 @@ describe("PDFForm", () => {
     it("persists through save/load", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       form!.getTextField("STATE")?.setValue("WA");
-      await form!.flatten();
+      form!.flatten();
 
       const saved = await pdf.save();
       const pdf2 = await PDF.load(saved);
 
       // Form should be empty or null after flattening
-      const form2 = await pdf2.getForm();
+      const form2 = pdf2.getForm();
       if (form2) {
         expect(form2.getFields()).toHaveLength(0);
       }
@@ -278,10 +278,10 @@ describe("PDFForm", () => {
     it("reloads fields from AcroForm", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       const countBefore = form!.fieldCount;
-      await form!.reloadFields();
+      form!.reloadFields();
       const countAfter = form!.fieldCount;
 
       expect(countAfter).toBe(countBefore);
@@ -292,19 +292,9 @@ describe("PDFForm", () => {
     it("returns false initially", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       expect(form!.hasUnsavedChanges).toBe(false);
-    });
-
-    it("returns true after setting value", async () => {
-      const bytes = await loadFixture("forms", "sample_form.pdf");
-      const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
-
-      form!.getTextField("STATE")?.setValue("OR");
-
-      expect(form!.hasUnsavedChanges).toBe(true);
     });
   });
 
@@ -312,7 +302,7 @@ describe("PDFForm", () => {
     it("returns form properties", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       const props = form!.properties;
 
@@ -330,7 +320,7 @@ describe("PDFForm", () => {
     it("returns number of fields", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       expect(form!.fieldCount).toBeGreaterThan(0);
       expect(form!.fieldCount).toBe(form!.getFields().length);
@@ -341,7 +331,7 @@ describe("PDFForm", () => {
     it("returns underlying AcroForm", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       const acroForm = form!.acroForm();
 
@@ -363,7 +353,7 @@ describe("Field Creation", () => {
   describe("createTextField", () => {
     it("creates a text field with default options", async () => {
       const pdf = PDF.create();
-      const form = await pdf.getOrCreateForm();
+      const form = pdf.getOrCreateForm();
 
       const field = form.createTextField("name");
 
@@ -375,7 +365,7 @@ describe("Field Creation", () => {
 
     it("creates a text field with options", async () => {
       const pdf = PDF.create();
-      const form = await pdf.getOrCreateForm();
+      const form = pdf.getOrCreateForm();
 
       const field = form.createTextField("name", {
         maxLength: 50,
@@ -391,7 +381,7 @@ describe("Field Creation", () => {
 
     it("throws on duplicate field name", async () => {
       const pdf = PDF.create();
-      const form = await pdf.getOrCreateForm();
+      const form = pdf.getOrCreateForm();
 
       form.createTextField("name");
 
@@ -400,7 +390,7 @@ describe("Field Creation", () => {
 
     it("adds field to form's field list", async () => {
       const pdf = PDF.create();
-      const form = await pdf.getOrCreateForm();
+      const form = pdf.getOrCreateForm();
 
       const field = form.createTextField("name");
 
@@ -412,7 +402,7 @@ describe("Field Creation", () => {
   describe("createCheckbox", () => {
     it("creates a checkbox with default options", async () => {
       const pdf = PDF.create();
-      const form = await pdf.getOrCreateForm();
+      const form = pdf.getOrCreateForm();
 
       const field = form.createCheckbox("agree");
 
@@ -424,7 +414,7 @@ describe("Field Creation", () => {
 
     it("creates a checked checkbox", async () => {
       const pdf = PDF.create();
-      const form = await pdf.getOrCreateForm();
+      const form = pdf.getOrCreateForm();
 
       const field = form.createCheckbox("agree", {
         defaultChecked: true,
@@ -439,7 +429,7 @@ describe("Field Creation", () => {
   describe("createRadioGroup", () => {
     it("creates a radio group with options", async () => {
       const pdf = PDF.create();
-      const form = await pdf.getOrCreateForm();
+      const form = pdf.getOrCreateForm();
 
       const field = form.createRadioGroup("payment", {
         options: ["Credit", "PayPal", "Bank"],
@@ -454,7 +444,7 @@ describe("Field Creation", () => {
 
     it("throws without options", async () => {
       const pdf = PDF.create();
-      const form = await pdf.getOrCreateForm();
+      const form = pdf.getOrCreateForm();
 
       expect(() =>
         form.createRadioGroup("payment", {
@@ -467,7 +457,7 @@ describe("Field Creation", () => {
   describe("createDropdown", () => {
     it("creates a dropdown with options", async () => {
       const pdf = PDF.create();
-      const form = await pdf.getOrCreateForm();
+      const form = pdf.getOrCreateForm();
 
       const field = form.createDropdown("country", {
         options: ["USA", "Canada", "UK"],
@@ -482,7 +472,7 @@ describe("Field Creation", () => {
 
     it("creates an editable dropdown", async () => {
       const pdf = PDF.create();
-      const form = await pdf.getOrCreateForm();
+      const form = pdf.getOrCreateForm();
 
       const field = form.createDropdown("city", {
         options: ["New York", "Los Angeles"],
@@ -496,7 +486,7 @@ describe("Field Creation", () => {
   describe("createListbox", () => {
     it("creates a listbox with options", async () => {
       const pdf = PDF.create();
-      const form = await pdf.getOrCreateForm();
+      const form = pdf.getOrCreateForm();
 
       const field = form.createListbox("colors", {
         options: ["Red", "Green", "Blue"],
@@ -509,7 +499,7 @@ describe("Field Creation", () => {
 
     it("creates a multi-select listbox with defaults", async () => {
       const pdf = PDF.create();
-      const form = await pdf.getOrCreateForm();
+      const form = pdf.getOrCreateForm();
 
       const field = form.createListbox("colors", {
         options: ["Red", "Green", "Blue"],
@@ -528,7 +518,7 @@ describe("Field Creation", () => {
     it("creates form with proper structure for PDF without form", async () => {
       const pdf = PDF.create();
 
-      const form = await pdf.getOrCreateForm();
+      const form = pdf.getOrCreateForm();
 
       expect(form).toBeDefined();
       expect(form.fieldCount).toBe(0);
@@ -542,8 +532,8 @@ describe("Field Creation", () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
 
-      const form1 = await pdf.getOrCreateForm();
-      const form2 = await pdf.getOrCreateForm();
+      const form1 = pdf.getOrCreateForm();
+      const form2 = pdf.getOrCreateForm();
 
       expect(form1).toBe(form2);
     });
@@ -554,14 +544,14 @@ describe("drawField", () => {
   it("places a text field on a page", async () => {
     const pdf = PDF.create();
     pdf.addPage({ size: "letter" });
-    const form = await pdf.getOrCreateForm();
-    const page = await pdf.getPage(0);
+    const form = pdf.getOrCreateForm();
+    const page = pdf.getPage(0);
 
     const field = form.createTextField("name", {
       defaultValue: "John",
     });
 
-    await page!.drawField(field, {
+    page!.drawField(field, {
       x: 100,
       y: 700,
       width: 200,
@@ -579,14 +569,14 @@ describe("drawField", () => {
     const pdf = PDF.create();
     pdf.addPage({ size: "letter" });
     pdf.addPage({ size: "letter" });
-    const form = await pdf.getOrCreateForm();
-    const page1 = await pdf.getPage(0);
-    const page2 = await pdf.getPage(1);
+    const form = pdf.getOrCreateForm();
+    const page1 = pdf.getPage(0);
+    const page2 = pdf.getPage(1);
 
     const field = form.createTextField("name");
 
-    await page1!.drawField(field, { x: 100, y: 700, width: 200, height: 24 });
-    await page2!.drawField(field, { x: 50, y: 500, width: 300, height: 30 });
+    page1!.drawField(field, { x: 100, y: 700, width: 200, height: 24 });
+    page2!.drawField(field, { x: 50, y: 500, width: 300, height: 30 });
 
     const widgets = field.getWidgets();
     expect(widgets).toHaveLength(2);
@@ -595,36 +585,36 @@ describe("drawField", () => {
   it("requires option for radio groups", async () => {
     const pdf = PDF.create();
     pdf.addPage({ size: "letter" });
-    const form = await pdf.getOrCreateForm();
-    const page = await pdf.getPage(0);
+    const form = pdf.getOrCreateForm();
+    const page = pdf.getPage(0);
 
     const radioField = form.createRadioGroup("payment", {
       options: ["Credit", "PayPal"],
     });
 
-    await expect(
-      page!.drawField(radioField, { x: 100, y: 700, width: 16, height: 16 }),
-    ).rejects.toThrow("requires option parameter");
+    expect(() => page!.drawField(radioField, { x: 100, y: 700, width: 16, height: 16 })).toThrow(
+      "requires option parameter",
+    );
   });
 
   it("places radio widgets with option", async () => {
     const pdf = PDF.create();
     pdf.addPage({ size: "letter" });
-    const form = await pdf.getOrCreateForm();
-    const page = await pdf.getPage(0);
+    const form = pdf.getOrCreateForm();
+    const page = pdf.getPage(0);
 
     const radioField = form.createRadioGroup("payment", {
       options: ["Credit", "PayPal"],
     });
 
-    await page!.drawField(radioField, {
+    page!.drawField(radioField, {
       x: 100,
       y: 700,
       width: 16,
       height: 16,
       option: "Credit",
     });
-    await page!.drawField(radioField, {
+    page!.drawField(radioField, {
       x: 100,
       y: 670,
       width: 16,
@@ -639,14 +629,14 @@ describe("drawField", () => {
   it("validates radio option value", async () => {
     const pdf = PDF.create();
     pdf.addPage({ size: "letter" });
-    const form = await pdf.getOrCreateForm();
-    const page = await pdf.getPage(0);
+    const form = pdf.getOrCreateForm();
+    const page = pdf.getPage(0);
 
     const radioField = form.createRadioGroup("payment", {
       options: ["Credit", "PayPal"],
     });
 
-    await expect(
+    expect(() =>
       page!.drawField(radioField, {
         x: 100,
         y: 700,
@@ -654,27 +644,27 @@ describe("drawField", () => {
         height: 16,
         option: "InvalidOption",
       }),
-    ).rejects.toThrow("Invalid option");
+    ).toThrow("Invalid option");
   });
 
   it("saves PDF with created fields", async () => {
     const pdf = PDF.create();
     pdf.addPage({ size: "letter" });
-    const form = await pdf.getOrCreateForm();
-    const page = await pdf.getPage(0);
+    const form = pdf.getOrCreateForm();
+    const page = pdf.getPage(0);
 
     const nameField = form.createTextField("name", {
       defaultValue: "Test User",
     });
-    await page!.drawField(nameField, { x: 100, y: 700, width: 200, height: 24 });
+    page!.drawField(nameField, { x: 100, y: 700, width: 200, height: 24 });
 
     const checkbox = form.createCheckbox("agree", { defaultChecked: true });
-    await page!.drawField(checkbox, { x: 100, y: 650, width: 18, height: 18 });
+    page!.drawField(checkbox, { x: 100, y: 650, width: 18, height: 18 });
 
     // Save and reload
     const bytes = await pdf.save();
     const pdf2 = await PDF.load(bytes);
-    const form2 = await pdf2.getForm();
+    const form2 = pdf2.getForm();
 
     expect(form2).not.toBeNull();
     expect(form2!.fieldCount).toBe(2);

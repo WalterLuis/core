@@ -24,7 +24,7 @@ export class ASCII85Filter implements Filter {
 
   private static readonly ZERO_SHORTCUT = 0x7a;
 
-  async decode(data: Uint8Array, _params?: PdfDict): Promise<Uint8Array> {
+  decode(data: Uint8Array, _params?: PdfDict): Uint8Array {
     const output = new ByteWriter();
 
     let buffer = 0;
@@ -101,7 +101,7 @@ export class ASCII85Filter implements Filter {
     return output.toBytes();
   }
 
-  async encode(data: Uint8Array, _params?: PdfDict): Promise<Uint8Array> {
+  encode(data: Uint8Array, _params?: PdfDict): Uint8Array {
     const output = new ByteWriter();
 
     // Process 4 bytes at a time

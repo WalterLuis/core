@@ -119,7 +119,7 @@ export class PDFMarkupAnnotation extends PDFAnnotation {
   /**
    * Get the associated popup annotation, if any.
    */
-  async getPopup(): Promise<PDFPopupAnnotation | null> {
+  getPopup(): PDFPopupAnnotation | null {
     if (this._popup !== undefined) {
       return this._popup;
     }
@@ -132,10 +132,10 @@ export class PDFMarkupAnnotation extends PDFAnnotation {
       return null;
     }
 
-    const popupDict = await this.registry.resolve(popupRef);
+    const popupDict = this.registry.resolve(popupRef);
 
-    if (popupDict && popupDict.type === "dict") {
-      this._popup = new PDFPopupAnnotation(popupDict as PdfDict, popupRef, this.registry);
+    if (popupDict instanceof PdfDict) {
+      this._popup = new PDFPopupAnnotation(popupDict, popupRef, this.registry);
 
       return this._popup;
     }

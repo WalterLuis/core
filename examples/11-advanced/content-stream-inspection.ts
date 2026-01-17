@@ -26,7 +26,7 @@ async function main() {
 
   const pdf = PDF.create();
   pdf.addPage({ size: "letter" });
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
 
   if (page) {
     // Draw various content to see in the stream
@@ -68,7 +68,7 @@ async function main() {
 
   console.log("=== Examining Page Content ===\n");
 
-  const loadedPage = await loaded.getPage(0);
+  const loadedPage = loaded.getPage(0);
   if (loadedPage) {
     const contents = loadedPage.dict.get("Contents");
 
@@ -76,9 +76,9 @@ async function main() {
 
     if (contents instanceof PdfRef) {
       // Single content stream
-      const stream = await loaded.getObject(contents);
+      const stream = loaded.getObject(contents);
       if (stream instanceof PdfStream) {
-        await inspectStream(stream, "Page content stream");
+        inspectStream(stream, "Page content stream");
       }
     } else if (contents instanceof PdfArray) {
       // Array of content streams
@@ -86,9 +86,9 @@ async function main() {
       for (let i = 0; i < contents.length; i++) {
         const ref = contents.at(i);
         if (ref instanceof PdfRef) {
-          const stream = await loaded.getObject(ref);
+          const stream = loaded.getObject(ref);
           if (stream instanceof PdfStream) {
-            await inspectStream(stream, `Content stream ${i + 1}`);
+            inspectStream(stream, `Content stream ${i + 1}`);
           }
         }
       }
@@ -153,7 +153,7 @@ async function main() {
   console.log("- Security auditing (finding hidden content)");
 }
 
-async function inspectStream(stream: PdfStream, label: string): Promise<void> {
+function inspectStream(stream: PdfStream, label: string): void {
   console.log(`${label}:`);
 
   // Get stream properties - PdfStream extends PdfDict
@@ -165,7 +165,7 @@ async function inspectStream(stream: PdfStream, label: string): Promise<void> {
 
   // Get decoded data
   try {
-    const decoded = await stream.getDecodedData();
+    const decoded = stream.getDecodedData();
     console.log(`  Decoded length: ${decoded.length} bytes`);
 
     // Show first part of content as text
@@ -180,7 +180,7 @@ async function inspectStream(stream: PdfStream, label: string): Promise<void> {
       `  Operators found: ${uniqueOps.slice(0, 15).join(", ")}${uniqueOps.length > 15 ? "..." : ""}`,
     );
   } catch (err) {
-    console.log(`  Error decoding: ${err}`);
+    console.log(`  Error decoding: ${String(err)}`);
   }
 
   console.log();

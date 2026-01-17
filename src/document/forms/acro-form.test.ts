@@ -19,7 +19,7 @@ describe("AcroForm", () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
 
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       expect(form).toBeInstanceOf(AcroForm);
     });
@@ -28,7 +28,7 @@ describe("AcroForm", () => {
       const bytes = await loadFixture("basic", "rot0.pdf");
       const pdf = await PDF.load(bytes);
 
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       expect(form).toBeNull();
     });
@@ -38,7 +38,7 @@ describe("AcroForm", () => {
     it("reads defaultAppearance", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       expect(form?.defaultAppearance).toContain("/Helv");
     });
@@ -46,7 +46,7 @@ describe("AcroForm", () => {
     it("reads defaultQuadding", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       expect(form?.defaultQuadding).toBe(0);
     });
@@ -54,7 +54,7 @@ describe("AcroForm", () => {
     it("reads needAppearances", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       expect(form?.needAppearances).toBe(false);
     });
@@ -62,7 +62,7 @@ describe("AcroForm", () => {
     it("reads signatureFlags", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       // sample_form.pdf has SigFlags: 3 (SignaturesExist + AppendOnly)
       expect(form?.signatureFlags).toBe(3);
@@ -75,8 +75,8 @@ describe("AcroForm", () => {
     it("returns all terminal fields", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const fields = await form!.getFields();
+      const form = pdf.getForm()?.acroForm();
+      const fields = form!.getFields();
 
       expect(fields.length).toBe(29);
     });
@@ -84,8 +84,8 @@ describe("AcroForm", () => {
     it("handles hierarchical field names", async () => {
       const bytes = await loadFixture("forms", "with_combed_fields.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const fields = await form!.getFields();
+      const form = pdf.getForm()?.acroForm();
+      const fields = form!.getFields();
 
       // Should have hierarchical names like "form1[0].#pageSet[0].Page1[0]..."
       const hasHierarchical = fields.some(f => f.name.includes("."));
@@ -95,10 +95,10 @@ describe("AcroForm", () => {
     it("caches field list", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
-      const fields1 = await form!.getFields();
-      const fields2 = await form!.getFields();
+      const fields1 = form!.getFields();
+      const fields2 = form!.getFields();
 
       expect(fields1).toBe(fields2); // Same array reference
     });
@@ -106,11 +106,11 @@ describe("AcroForm", () => {
     it("clears cache when requested", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
-      const fields1 = await form!.getFields();
+      const fields1 = form!.getFields();
       form!.clearCache();
-      const fields2 = await form!.getFields();
+      const fields2 = form!.getFields();
 
       expect(fields1).not.toBe(fields2); // Different array reference
       expect(fields1.length).toBe(fields2.length); // Same content
@@ -121,9 +121,9 @@ describe("AcroForm", () => {
     it("finds field by name", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
-      const field = await form!.getField("STATE");
+      const field = form!.getField("STATE");
 
       expect(field).not.toBeNull();
       expect(field?.name).toBe("STATE");
@@ -132,9 +132,9 @@ describe("AcroForm", () => {
     it("returns null for non-existent field", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
-      const field = await form!.getField("DOES_NOT_EXIST");
+      const field = form!.getField("DOES_NOT_EXIST");
 
       expect(field).toBeNull();
     });
@@ -144,10 +144,10 @@ describe("AcroForm", () => {
     it("filters fields by type", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
-      const textFields = await form!.getFieldsOfType<TextField>("text");
-      const checkboxFields = await form!.getFieldsOfType<CheckboxField>("checkbox");
+      const textFields = form!.getFieldsOfType<TextField>("text");
+      const checkboxFields = form!.getFieldsOfType<CheckboxField>("checkbox");
 
       expect(textFields.every(f => f.type === "text")).toBe(true);
       expect(checkboxFields.every(f => f.type === "checkbox")).toBe(true);
@@ -161,8 +161,8 @@ describe("FormField", () => {
     it("reads text value", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("STATE")) as TextField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE") as TextField;
 
       expect(field.type).toBe("text");
       expect(field.getValue()).toBe("WA");
@@ -171,8 +171,8 @@ describe("FormField", () => {
     it("reads maxLength", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("STATE")) as TextField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE") as TextField;
 
       expect(field.maxLength).toBe(2);
     });
@@ -180,19 +180,19 @@ describe("FormField", () => {
     it("detects multiline fields", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
-      const stateField = (await form!.getField("STATE")) as TextField;
+      const stateField = form!.getField("STATE") as TextField;
       expect(stateField.isMultiline).toBe(false);
     });
 
     it("returns empty string for missing value", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       // Find a text field without a value
-      const textFields = await form!.getFieldsOfType<TextField>("text");
+      const textFields = form!.getFieldsOfType<TextField>("text");
       const emptyField = textFields.find(f => f.getValue() === "");
 
       // If there's an empty field, verify it returns empty string
@@ -206,8 +206,8 @@ describe("FormField", () => {
     it("reads checked state", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("HIGH SCHOOL DIPLOMA")) as CheckboxField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("HIGH SCHOOL DIPLOMA") as CheckboxField;
 
       expect(field.type).toBe("checkbox");
       expect(field.isChecked()).toBe(true);
@@ -217,8 +217,8 @@ describe("FormField", () => {
     it("reads unchecked state", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("TRADE CERTIFICATE")) as CheckboxField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("TRADE CERTIFICATE") as CheckboxField;
 
       expect(field.isChecked()).toBe(false);
       expect(field.getValue()).toBe("Off");
@@ -227,8 +227,8 @@ describe("FormField", () => {
     it("gets on-value from widget", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("HIGH SCHOOL DIPLOMA")) as CheckboxField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("HIGH SCHOOL DIPLOMA") as CheckboxField;
 
       expect(field.getOnValue()).toBe("On");
     });
@@ -240,8 +240,8 @@ describe("FormField", () => {
       // sample_form.pdf has actual radio buttons
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const fields = await form!.getFields();
+      const form = pdf.getForm()?.acroForm();
+      const fields = form!.getFields();
 
       const radioFields = fields.filter(f => f.type === "radio");
       expect(radioFields.length).toBeGreaterThan(0);
@@ -252,8 +252,8 @@ describe("FormField", () => {
     it("detects push buttons", async () => {
       const bytes = await loadFixture("forms", "fancy_fields.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const fields = await form!.getFields();
+      const form = pdf.getForm()?.acroForm();
+      const fields = form!.getFields();
 
       const buttonFields = fields.filter(f => f.type === "button");
       expect(buttonFields.length).toBeGreaterThan(0);
@@ -262,8 +262,8 @@ describe("FormField", () => {
     it("returns null for value", async () => {
       const bytes = await loadFixture("forms", "fancy_fields.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const fields = await form!.getFields();
+      const form = pdf.getForm()?.acroForm();
+      const fields = form!.getFields();
 
       const buttonField = fields.find(f => f.type === "button") as ButtonField;
       expect(buttonField.getValue()).toBeNull();
@@ -276,8 +276,8 @@ describe("FormField", () => {
       // A dropdown is a combo box (COMBO flag set), while listbox has COMBO=0
       const bytes = await loadFixture("forms", "form_to_flatten.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const fields = await form!.getFields();
+      const form = pdf.getForm()?.acroForm();
+      const fields = form!.getFields();
 
       const dropdowns = fields.filter(f => f.type === "dropdown");
       expect(dropdowns.length).toBeGreaterThan(0);
@@ -288,8 +288,8 @@ describe("FormField", () => {
     it("detects listbox fields", async () => {
       const bytes = await loadFixture("forms", "fancy_fields.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const fields = await form!.getFields();
+      const form = pdf.getForm()?.acroForm();
+      const fields = form!.getFields();
 
       const listboxes = fields.filter(f => f.type === "listbox");
       expect(listboxes.length).toBeGreaterThan(0);
@@ -298,8 +298,8 @@ describe("FormField", () => {
     it("reads selected values", async () => {
       const bytes = await loadFixture("forms", "fancy_fields.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const fields = await form!.getFields();
+      const form = pdf.getForm()?.acroForm();
+      const fields = form!.getFields();
 
       const listbox = fields.find(f => f.type === "listbox") as ListBoxField;
       const values = listbox.getValue();
@@ -310,8 +310,8 @@ describe("FormField", () => {
     it("reads top index for scroll offset", async () => {
       const bytes = await loadFixture("forms", "fancy_fields.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const fields = await form!.getFields();
+      const form = pdf.getForm()?.acroForm();
+      const fields = form!.getFields();
 
       const listbox = fields.find(f => f.type === "listbox") as ListBoxField;
 
@@ -326,8 +326,8 @@ describe("FormField", () => {
     it("reads read-only flag", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const fields = await form!.getFields();
+      const form = pdf.getForm()?.acroForm();
+      const fields = form!.getFields();
 
       // All fields should have flags accessible
       for (const field of fields.slice(0, 5)) {
@@ -342,8 +342,8 @@ describe("FormField", () => {
     it("returns widget annotations", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = await form!.getField("STATE");
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE");
 
       const widgets = field!.getWidgets();
 
@@ -353,8 +353,8 @@ describe("FormField", () => {
     it("widget has rect", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = await form!.getField("STATE");
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE");
       const widget = field!.getWidgets()[0];
 
       const rect = widget.rect;
@@ -365,8 +365,8 @@ describe("FormField", () => {
     it("widget has width and height", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = await form!.getField("STATE");
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE");
       const widget = field!.getWidgets()[0];
 
       expect(widget.width).toBeGreaterThan(0);
@@ -376,8 +376,8 @@ describe("FormField", () => {
     it("checkbox widget has on-value", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("HIGH SCHOOL DIPLOMA")) as CheckboxField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("HIGH SCHOOL DIPLOMA") as CheckboxField;
       const widget = field.getWidgets()[0];
 
       const onValue = widget.getOnValue();
@@ -387,8 +387,8 @@ describe("FormField", () => {
     it("checkbox widget has appearance state", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("HIGH SCHOOL DIPLOMA")) as CheckboxField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("HIGH SCHOOL DIPLOMA") as CheckboxField;
       const widget = field.getWidgets()[0];
 
       // Checked checkbox should have appearance state matching its value
@@ -406,10 +406,10 @@ describe("Form Writing", () => {
     it("sets text value", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("STATE")) as TextField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE") as TextField;
 
-      await field.setValue("CA");
+      field.setValue("CA");
 
       expect(field.getValue()).toBe("CA");
       // Appearance is regenerated during setValue, so flag is cleared
@@ -419,11 +419,11 @@ describe("Form Writing", () => {
     it("truncates value to maxLength", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("STATE")) as TextField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE") as TextField;
 
       // STATE has maxLength of 2
-      await field.setValue("CALIFORNIA");
+      field.setValue("CALIFORNIA");
 
       expect(field.getValue()).toBe("CA");
     });
@@ -431,10 +431,10 @@ describe("Form Writing", () => {
     it("handles empty value", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("STATE")) as TextField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE") as TextField;
 
-      await field.setValue("");
+      field.setValue("");
 
       expect(field.getValue()).toBe("");
     });
@@ -442,10 +442,10 @@ describe("Form Writing", () => {
     it("handles unicode value", async () => {
       const bytes = await loadFixture("forms", "fancy_fields.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("First Name 🚀")) as TextField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("First Name 🚀") as TextField;
 
-      await field.setValue("こんにちは");
+      field.setValue("こんにちは");
 
       expect(field.getValue()).toBe("こんにちは");
     });
@@ -455,12 +455,12 @@ describe("Form Writing", () => {
     it("checks checkbox with check()", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("TRADE CERTIFICATE")) as CheckboxField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("TRADE CERTIFICATE") as CheckboxField;
 
       expect(field.isChecked()).toBe(false);
 
-      await field.check();
+      field.check();
 
       expect(field.isChecked()).toBe(true);
       // Appearance is regenerated during check(), so flag is cleared
@@ -470,12 +470,12 @@ describe("Form Writing", () => {
     it("unchecks checkbox with uncheck()", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("HIGH SCHOOL DIPLOMA")) as CheckboxField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("HIGH SCHOOL DIPLOMA") as CheckboxField;
 
       expect(field.isChecked()).toBe(true);
 
-      await field.uncheck();
+      field.uncheck();
 
       expect(field.isChecked()).toBe(false);
     });
@@ -483,22 +483,22 @@ describe("Form Writing", () => {
     it("throws on invalid value", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("HIGH SCHOOL DIPLOMA")) as CheckboxField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("HIGH SCHOOL DIPLOMA") as CheckboxField;
 
-      await expect(field.setValue("InvalidValue")).rejects.toThrow(/Invalid value/);
+      expect(() => field.setValue("InvalidValue")).toThrow(/Invalid value/);
     });
 
     it("updates widget appearance state", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("TRADE CERTIFICATE")) as CheckboxField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("TRADE CERTIFICATE") as CheckboxField;
       const widget = field.getWidgets()[0];
 
       expect(widget.appearanceState).toBe("Off");
 
-      await field.check();
+      field.check();
 
       expect(widget.appearanceState).toBe("On");
     });
@@ -508,14 +508,14 @@ describe("Form Writing", () => {
     it("selects radio option", async () => {
       const bytes = await loadFixture("forms", "fancy_fields.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const fields = await form!.getFields();
+      const form = pdf.getForm()?.acroForm();
+      const fields = form!.getFields();
       const radioField = fields.find(f => f.type === "radio") as RadioField | undefined;
 
       if (radioField) {
         const options = radioField.getOptions();
         if (options.length > 0) {
-          await radioField.setValue(options[0]);
+          radioField.setValue(options[0]);
           expect(radioField.getValue()).toBe(options[0]);
         }
       }
@@ -524,12 +524,12 @@ describe("Form Writing", () => {
     it("throws on invalid option", async () => {
       const bytes = await loadFixture("forms", "fancy_fields.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const fields = await form!.getFields();
+      const form = pdf.getForm()?.acroForm();
+      const fields = form!.getFields();
       const radioField = fields.find(f => f.type === "radio") as RadioField | undefined;
 
       if (radioField) {
-        await expect(radioField.setValue("InvalidOption")).rejects.toThrow(/Invalid option/);
+        expect(() => radioField.setValue("InvalidOption")).toThrow(/Invalid option/);
       }
     });
   });
@@ -538,18 +538,18 @@ describe("Form Writing", () => {
     it("sets dropdown value", async () => {
       const bytes = await loadFixture("forms", "fancy_fields.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const fields = await form!.getFields();
+      const form = pdf.getForm()?.acroForm();
+      const fields = form!.getFields();
       const dropdown = fields.find(f => f.type === "dropdown") as DropdownField | undefined;
 
       if (dropdown) {
         const options = dropdown.getOptions();
         if (options.length > 0) {
-          await dropdown.setValue(options[0].value);
+          dropdown.setValue(options[0].value);
           expect(dropdown.getValue()).toBe(options[0].value);
         } else if (dropdown.isEditable) {
           // Editable dropdown can have custom value
-          await dropdown.setValue("CustomValue");
+          dropdown.setValue("CustomValue");
           expect(dropdown.getValue()).toBe("CustomValue");
         }
       }
@@ -560,14 +560,14 @@ describe("Form Writing", () => {
     it("sets listbox value", async () => {
       const bytes = await loadFixture("forms", "fancy_fields.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const fields = await form!.getFields();
+      const form = pdf.getForm()?.acroForm();
+      const fields = form!.getFields();
       const listbox = fields.find(f => f.type === "listbox") as ListBoxField | undefined;
 
       if (listbox) {
         const options = listbox.getOptions();
         if (options.length > 0) {
-          await listbox.setValue([options[0].value]);
+          listbox.setValue([options[0].value]);
           expect(listbox.getValue()).toContain(options[0].value);
         }
       }
@@ -576,12 +576,12 @@ describe("Form Writing", () => {
     it("clears listbox with empty array", async () => {
       const bytes = await loadFixture("forms", "fancy_fields.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const fields = await form!.getFields();
+      const form = pdf.getForm()?.acroForm();
+      const fields = form!.getFields();
       const listbox = fields.find(f => f.type === "listbox") as ListBoxField | undefined;
 
       if (listbox) {
-        await listbox.setValue([]);
+        listbox.setValue([]);
         expect(listbox.getValue()).toEqual([]);
       }
     });
@@ -591,13 +591,13 @@ describe("Form Writing", () => {
     it("resets field to default value", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("STATE")) as TextField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE") as TextField;
 
-      await field.setValue("XX");
+      field.setValue("XX");
       expect(field.getValue()).toBe("XX");
 
-      await field.resetValue();
+      field.resetValue();
 
       // After reset, appearance is regenerated so flag is cleared
       expect(field.needsAppearanceUpdate).toBe(false);
@@ -608,8 +608,8 @@ describe("Form Writing", () => {
     it("is false initially", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("STATE")) as TextField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE") as TextField;
 
       expect(field.needsAppearanceUpdate).toBe(false);
     });
@@ -617,10 +617,10 @@ describe("Form Writing", () => {
     it("is cleared after async setValue", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("STATE")) as TextField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE") as TextField;
 
-      await field.setValue("NY");
+      field.setValue("NY");
 
       // Appearance is regenerated during setValue, so flag is cleared
       expect(field.needsAppearanceUpdate).toBe(false);
@@ -631,15 +631,15 @@ describe("Form Writing", () => {
     it("handles already-updated fields", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("STATE")) as TextField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE") as TextField;
 
-      await field.setValue("NY");
+      field.setValue("NY");
       // Appearance is already regenerated during setValue
       expect(field.needsAppearanceUpdate).toBe(false);
 
       // updateAppearances is a no-op when nothing needs update
-      await form!.updateAppearances();
+      form!.updateAppearances();
 
       expect(field.needsAppearanceUpdate).toBe(false);
     });
@@ -647,12 +647,12 @@ describe("Form Writing", () => {
     it("setValue auto-updates so updateAppearances is optional", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const fields = await form!.getFields();
+      const form = pdf.getForm()?.acroForm();
+      const fields = form!.getFields();
 
       // setValue now auto-updates appearance
       const textField = fields.find(f => f.type === "text") as TextField;
-      await textField.setValue("Test");
+      textField.setValue("Test");
 
       // No fields need update because setValue auto-regenerated
       const needsUpdate = fields.filter(f => f.needsAppearanceUpdate).length;
@@ -667,16 +667,16 @@ describe("Form Writing", () => {
     it("preserves text field value through save/load", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("STATE")) as TextField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE") as TextField;
 
-      await field.setValue("NY");
+      field.setValue("NY");
 
       // Save and reload
       const saved = await pdf.save();
       const pdf2 = await PDF.load(saved);
-      const form2 = (await pdf2.getForm())?.acroForm();
-      const field2 = (await form2!.getField("STATE")) as TextField;
+      const form2 = pdf2.getForm()?.acroForm();
+      const field2 = form2!.getField("STATE") as TextField;
 
       expect(field2.getValue()).toBe("NY");
     });
@@ -684,17 +684,17 @@ describe("Form Writing", () => {
     it("preserves checkbox state through save/load", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("TRADE CERTIFICATE")) as CheckboxField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("TRADE CERTIFICATE") as CheckboxField;
 
       expect(field.isChecked()).toBe(false);
-      await field.check();
+      field.check();
 
       // Save and reload
       const saved = await pdf.save();
       const pdf2 = await PDF.load(saved);
-      const form2 = (await pdf2.getForm())?.acroForm();
-      const field2 = (await form2!.getField("TRADE CERTIFICATE")) as CheckboxField;
+      const form2 = pdf2.getForm()?.acroForm();
+      const field2 = form2!.getField("TRADE CERTIFICATE") as CheckboxField;
 
       expect(field2.isChecked()).toBe(true);
     });
@@ -704,40 +704,40 @@ describe("Form Writing", () => {
     it("removes all form fields after flattening", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       expect(form).not.toBeNull();
-      const fieldsBefore = await form!.getFields();
+      const fieldsBefore = form!.getFields();
       expect(fieldsBefore.length).toBeGreaterThan(0);
 
       // Flatten the form
-      await form!.flatten();
+      form!.flatten();
 
       // Fields should be empty after flattening
-      const fieldsAfter = await form!.getFields();
+      const fieldsAfter = form!.getFields();
       expect(fieldsAfter.length).toBe(0);
     });
 
     it("persists flattening through save/load", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       // Set some values before flattening
-      const stateField = (await form!.getField("STATE")) as TextField;
-      await stateField.setValue("CA");
+      const stateField = form!.getField("STATE") as TextField;
+      stateField.setValue("CA");
 
       // Flatten and save
-      await form!.flatten();
+      form!.flatten();
       const saved = await pdf.save();
 
       // Reload and verify no form
       const pdf2 = await PDF.load(saved);
-      const form2 = (await pdf2.getForm())?.acroForm();
+      const form2 = pdf2.getForm()?.acroForm();
 
       // Form should have no fields (empty /Fields array)
       if (form2) {
-        const fields2 = await form2.getFields();
+        const fields2 = form2.getFields();
         expect(fields2.length).toBe(0);
       }
     });
@@ -745,32 +745,32 @@ describe("Form Writing", () => {
     it("adds flattened content to page", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       // Get first page content before flattening
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
       expect(page).not.toBeNull();
 
       // Flatten
-      await form!.flatten();
+      form!.flatten();
 
       // After flattening, page should have additional content
       // (The flatten method appends a new content stream)
-      const pageAfter = await pdf.getObject(page!.ref);
+      const pageAfter = pdf.getObject(page!.ref);
       expect(pageAfter).not.toBeNull();
     });
 
     it("handles form with no fields", async () => {
       const bytes = await loadFixture("basic", "document.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       // Document might not have a form, which is fine
       if (form) {
-        const fields = await form.getFields();
+        const fields = form.getFields();
         if (fields.length === 0) {
           // Should not throw
-          await form.flatten();
+          form.flatten();
         }
       }
     });
@@ -778,22 +778,22 @@ describe("Form Writing", () => {
     it("can flatten with skipAppearanceUpdate option", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       // Flatten without updating appearances
-      await form!.flatten({ skipAppearanceUpdate: true });
+      form!.flatten({ skipAppearanceUpdate: true });
 
-      const fieldsAfter = await form!.getFields();
+      const fieldsAfter = form!.getFields();
       expect(fieldsAfter.length).toBe(0);
     });
 
     it("removes widget annotations from page", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       // Get widget count before
-      const fields = await form!.getFields();
+      const fields = form!.getFields();
       let widgetCount = 0;
       for (const field of fields) {
         widgetCount += field.getWidgets().length;
@@ -801,16 +801,16 @@ describe("Form Writing", () => {
       expect(widgetCount).toBeGreaterThan(0);
 
       // Flatten
-      await form!.flatten();
+      form!.flatten();
 
       // Save and reload to check annotation removal
       const saved = await pdf.save();
       const pdf2 = await PDF.load(saved);
 
       // Check that form has no fields
-      const form2 = (await pdf2.getForm())?.acroForm();
+      const form2 = pdf2.getForm()?.acroForm();
       if (form2) {
-        const fields2 = await form2.getFields();
+        const fields2 = form2.getFields();
         expect(fields2.length).toBe(0);
       }
     });
@@ -818,34 +818,34 @@ describe("Form Writing", () => {
     it("handles checkbox fields correctly", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       // Check a checkbox before flattening
-      const checkbox = (await form!.getField("TRADE CERTIFICATE")) as CheckboxField;
-      await checkbox.check();
+      const checkbox = form!.getField("TRADE CERTIFICATE") as CheckboxField;
+      checkbox.check();
 
       // Flatten
-      await form!.flatten();
+      form!.flatten();
 
       // After flattening, no more checkbox field
-      const fieldsAfter = await form!.getFields();
+      const fieldsAfter = form!.getFields();
       expect(fieldsAfter.length).toBe(0);
     });
 
     it("normalizes appearance streams with missing /Subtype /Form", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       // Flatten the form
-      await form!.flatten();
+      form!.flatten();
 
       // Save and reload
       const saved = await pdf.save();
       const pdf2 = await PDF.load(saved);
 
       // Get page resources to check XObjects
-      const page = await pdf2.getPage(0);
+      const page = pdf2.getPage(0);
       const pageDict = page?.dict;
 
       if (pageDict && "getDict" in pageDict) {
@@ -865,10 +865,10 @@ describe("Form Writing", () => {
     it("wraps existing page content in q...Q", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       // Count widgets before flattening
-      const fields = await form!.getFields();
+      const fields = form!.getFields();
       let widgetCount = 0;
       for (const field of fields) {
         widgetCount += field.getWidgets().length;
@@ -876,14 +876,14 @@ describe("Form Writing", () => {
       expect(widgetCount).toBeGreaterThan(0);
 
       // Flatten the form
-      await form!.flatten();
+      form!.flatten();
 
       // Save and reload
       const saved = await pdf.save();
       const pdf2 = await PDF.load(saved);
 
       // Get first page content to verify wrapping worked
-      const page = await pdf2.getPage(0);
+      const page = pdf2.getPage(0);
       const pageDict = page?.dict;
 
       // Verify page has Contents (the flattened content)
@@ -896,9 +896,9 @@ describe("Form Writing", () => {
 
       // The file was successfully saved - the q...Q wrapping is internal
       // We just verify the save succeeded and the form is now empty
-      const form2 = (await pdf2.getForm())?.acroForm();
+      const form2 = pdf2.getForm()?.acroForm();
       if (form2) {
-        const fields2 = await form2.getFields();
+        const fields2 = form2.getFields();
         expect(fields2.length).toBe(0);
       }
     });
@@ -906,10 +906,10 @@ describe("Form Writing", () => {
     it("removes XFA dictionary after flattening", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       // Flatten the form
-      await form!.flatten();
+      form!.flatten();
 
       // Check that XFA is removed from the AcroForm dictionary
       const acroFormDict = form!.getDict();
@@ -919,10 +919,10 @@ describe("Form Writing", () => {
     it("removes SigFlags after flattening when no signatures", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       // Flatten the form
-      await form!.flatten();
+      form!.flatten();
 
       // Check that SigFlags is removed (the sample_form has no signatures)
       const acroFormDict = form!.getDict();
@@ -937,23 +937,23 @@ describe("Form Writing", () => {
     it("preserves non-widget annotations during flattening", async () => {
       const bytes = await loadFixture("forms", "fancy_fields.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       // Count fields before
-      const fieldsBefore = await form!.getFields();
+      const fieldsBefore = form!.getFields();
       expect(fieldsBefore.length).toBeGreaterThan(0);
 
       // Flatten
-      await form!.flatten();
+      form!.flatten();
 
       // Save and reload
       const saved = await pdf.save();
       const pdf2 = await PDF.load(saved);
 
       // Form should have no fields
-      const form2 = (await pdf2.getForm())?.acroForm();
+      const form2 = pdf2.getForm()?.acroForm();
       if (form2) {
-        const fieldsAfter = await form2.getFields();
+        const fieldsAfter = form2.getFields();
         expect(fieldsAfter.length).toBe(0);
       }
     });
@@ -963,7 +963,7 @@ describe("Form Writing", () => {
     it("sets and gets default font", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       const font = new ExistingFont("Helv", null, null);
       form!.setDefaultFont(font);
@@ -974,7 +974,7 @@ describe("Form Writing", () => {
     it("sets and gets default font size", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       form!.setDefaultFontSize(12);
 
@@ -984,7 +984,7 @@ describe("Form Writing", () => {
     it("throws on negative font size", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       expect(() => form!.setDefaultFontSize(-1)).toThrow();
     });
@@ -992,7 +992,7 @@ describe("Form Writing", () => {
     it("lists available fonts from default resources", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       const fonts = form!.getAvailableFonts();
 
@@ -1003,7 +1003,7 @@ describe("Form Writing", () => {
     it("gets existing font by name", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       // Try to get Helvetica which is commonly available
       const font = form!.getExistingFont("/Helv");
@@ -1018,7 +1018,7 @@ describe("Form Writing", () => {
     it("returns null for non-existent font", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       const font = form!.getExistingFont("/NonExistentFont");
 
@@ -1030,8 +1030,8 @@ describe("Form Writing", () => {
     it("sets and gets font on field", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("STATE")) as TextField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE") as TextField;
 
       const font = new ExistingFont("TiRo", null, null);
       field.setFont(font);
@@ -1042,8 +1042,8 @@ describe("Form Writing", () => {
     it("sets and gets font size on field", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("STATE")) as TextField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE") as TextField;
 
       field.setFontSize(14);
 
@@ -1053,8 +1053,8 @@ describe("Form Writing", () => {
     it("allows zero font size for auto-size", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("STATE")) as TextField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE") as TextField;
 
       field.setFontSize(0);
 
@@ -1064,8 +1064,8 @@ describe("Form Writing", () => {
     it("throws on negative font size", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("STATE")) as TextField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE") as TextField;
 
       expect(() => field.setFontSize(-5)).toThrow();
     });
@@ -1073,8 +1073,8 @@ describe("Form Writing", () => {
     it("sets and gets text color on field", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("STATE")) as TextField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE") as TextField;
 
       field.setTextColor(1, 0, 0);
 
@@ -1085,8 +1085,8 @@ describe("Form Writing", () => {
     it("throws on out-of-range color values", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("STATE")) as TextField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE") as TextField;
 
       expect(() => field.setTextColor(1.5, 0, 0)).toThrow();
       expect(() => field.setTextColor(0, -0.1, 0)).toThrow();
@@ -1095,8 +1095,8 @@ describe("Form Writing", () => {
     it("marks field for appearance update when font changes", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
-      const field = (await form!.getField("STATE")) as TextField;
+      const form = pdf.getForm()?.acroForm();
+      const field = form!.getField("STATE") as TextField;
 
       field.needsAppearanceUpdate = false;
       field.setFont(new ExistingFont("Helv", null, null));
@@ -1109,42 +1109,42 @@ describe("Form Writing", () => {
     it("applies font option to all fields during flatten", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       // Create font option
       const font = new ExistingFont("Helv", null, null);
 
       // Flatten with font option
-      await form!.flatten({ font });
+      form!.flatten({ font });
 
       // After flattening, fields should be empty
-      const fieldsAfter = await form!.getFields();
+      const fieldsAfter = form!.getFields();
       expect(fieldsAfter.length).toBe(0);
     });
 
     it("applies font size option during flatten", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       // Flatten with font size option
-      await form!.flatten({ fontSize: 10 });
+      form!.flatten({ fontSize: 10 });
 
-      const fieldsAfter = await form!.getFields();
+      const fieldsAfter = form!.getFields();
       expect(fieldsAfter.length).toBe(0);
     });
 
     it("skips read-only fields when applying font options", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       const font = new ExistingFont("Helv", null, null);
 
       // This should complete without error even if some fields are read-only
-      await form!.flatten({ font, fontSize: 12 });
+      form!.flatten({ font, fontSize: 12 });
 
-      const fieldsAfter = await form!.getFields();
+      const fieldsAfter = form!.getFields();
       expect(fieldsAfter.length).toBe(0);
     });
   });

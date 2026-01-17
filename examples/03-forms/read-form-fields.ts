@@ -24,7 +24,7 @@ async function main() {
   }
 
   // Get the form
-  const form = await pdf.getForm();
+  const form = pdf.getForm();
   if (!form) {
     console.log("Could not load form.");
     return;

@@ -45,7 +45,7 @@ async function main() {
   console.log("\n=== Document Summary ===");
   console.log(`Total Pages: ${pdf.getPageCount()}`);
 
-  const pages = await pdf.getPages();
+  const pages = pdf.getPages();
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i];
     if (!page) {

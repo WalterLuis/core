@@ -80,10 +80,12 @@ export class ObjectCopier {
    * @returns Reference to the copied page in destination document
    */
   async copyPage(srcPageRef: PdfRef): Promise<PdfRef> {
-    const srcPage = await this.source.getObject(srcPageRef);
+    const srcPage = this.source.getObject(srcPageRef);
 
     if (!(srcPage instanceof PdfDict)) {
-      throw new Error(`Page object not found or not a dictionary: ${srcPageRef}`);
+      throw new Error(
+        `Page object not found or not a dictionary: ${srcPageRef.objectNumber} ${srcPageRef.generation} R`,
+      );
     }
 
     // Clone the page dict (shallow)
@@ -92,7 +94,7 @@ export class ObjectCopier {
     // Flatten inherited attributes
     for (const key of INHERITABLE_PAGE_ATTRS) {
       if (!cloned.has(key)) {
-        const inherited = await this.getInheritedAttribute(srcPage, key);
+        const inherited = this.getInheritedAttribute(srcPage, key);
 
         if (inherited) {
           // Deep copy the inherited value
@@ -132,21 +134,25 @@ export class ObjectCopier {
   /**
    * Deep copy any PDF object, remapping references to destination.
    */
-  async copyObject(obj: PdfObject): Promise<PdfObject> {
+  async copyObject<T extends PdfObject>(obj: T): Promise<T> {
     if (obj instanceof PdfRef) {
-      return this.copyRef(obj);
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+      return (await this.copyRef(obj)) as unknown as T;
     }
 
     if (obj instanceof PdfStream) {
-      return this.copyStream(obj);
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+      return (await this.copyStream(obj)) as unknown as T;
     }
 
     if (obj instanceof PdfDict) {
-      return this.copyDict(obj);
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+      return (await this.copyDict(obj)) as unknown as T;
     }
 
     if (obj instanceof PdfArray) {
-      return this.copyArray(obj);
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+      return (await this.copyArray(obj)) as unknown as T;
     }
 
     // Primitives (PdfName, PdfNumber, PdfString, PdfBool, PdfNull)
@@ -171,7 +177,7 @@ export class ObjectCopier {
     }
 
     // Resolve the source object
-    const srcObj = await this.source.getObject(ref);
+    const srcObj = this.source.getObject(ref);
 
     if (srcObj === null) {
       // Referenced object doesn't exist - this shouldn't happen in valid PDFs
@@ -253,14 +259,14 @@ export class ObjectCopier {
       // Source was encrypted - decode and re-encode
       // Wrap in try/catch since decoding may fail for corrupt streams
       try {
-        const decodedData = await srcStream.getDecodedData();
+        const decodedData = srcStream.getDecodedData();
         const filterEntry = srcStream.get("Filter");
 
         if (filterEntry) {
           try {
             const filterSpecs = this.buildFilterSpecs(srcStream);
 
-            streamData = await FilterPipeline.encode(decodedData, filterSpecs);
+            streamData = FilterPipeline.encode(decodedData, filterSpecs);
 
             clonedDict.set("Length", PdfNumber.of(streamData.length));
           } catch (error) {
@@ -372,14 +378,14 @@ export class ObjectCopier {
     // Source was encrypted - we have decrypted data in memory
     // Must decode and re-encode. Wrap in try/catch for robustness.
     try {
-      const decodedData = await stream.getDecodedData();
+      const decodedData = stream.getDecodedData();
       const filterEntry = stream.get("Filter");
 
       if (filterEntry) {
         // Re-encode with same filters
         try {
           const filterSpecs = this.buildFilterSpecs(stream);
-          const encodedData = await FilterPipeline.encode(decodedData, filterSpecs);
+          const encodedData = FilterPipeline.encode(decodedData, filterSpecs);
 
           // Update length
           clonedDict.set("Length", PdfNumber.of(encodedData.length));
@@ -459,7 +465,7 @@ export class ObjectCopier {
   /**
    * Walk up the page tree to find an inherited attribute.
    */
-  private async getInheritedAttribute(page: PdfDict, key: string): Promise<PdfObject | null> {
+  private getInheritedAttribute(page: PdfDict, key: string): PdfObject | null {
     let current: PdfDict | null = page;
 
     while (current) {
@@ -475,7 +481,7 @@ export class ObjectCopier {
         break;
       }
 
-      const parent = await this.source.getObject(parentRef);
+      const parent = this.source.getObject(parentRef);
       current = parent instanceof PdfDict ? parent : null;
     }
 

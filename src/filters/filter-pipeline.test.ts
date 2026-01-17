@@ -37,20 +37,20 @@ describe("FilterPipeline", () => {
   describe("decode", () => {
     it("passes through empty filter array", async () => {
       const data = new Uint8Array([1, 2, 3, 4, 5]);
-      const result = await FilterPipeline.decode(data, []);
+      const result = FilterPipeline.decode(data, []);
       expect(result).toEqual(data);
     });
 
     it("decodes single filter", async () => {
       // "Hello" in hex
       const hexData = new TextEncoder().encode("48656C6C6F>");
-      const result = await FilterPipeline.decode(hexData, { name: "ASCIIHexDecode" });
+      const result = FilterPipeline.decode(hexData, { name: "ASCIIHexDecode" });
       expect(new TextDecoder().decode(result)).toBe("Hello");
     });
 
     it("throws on unknown filter", async () => {
       const data = new Uint8Array([1, 2, 3]);
-      await expect(FilterPipeline.decode(data, { name: "UnknownFilter" })).rejects.toThrow(
+      expect(() => FilterPipeline.decode(data, { name: "UnknownFilter" })).toThrow(
         "Unknown filter: UnknownFilter",
       );
     });
@@ -63,7 +63,7 @@ describe("FilterPipeline", () => {
 
       // For this test, encode "Hello" as hex, then decode with hex filter
       const hexData = new TextEncoder().encode("48656C6C6F>");
-      const result = await FilterPipeline.decode(hexData, [{ name: "ASCIIHexDecode" }]);
+      const result = FilterPipeline.decode(hexData, [{ name: "ASCIIHexDecode" }]);
       expect(new TextDecoder().decode(result)).toBe("Hello");
     });
   });
@@ -71,7 +71,7 @@ describe("FilterPipeline", () => {
   describe("encode", () => {
     it("encodes single filter", async () => {
       const data = new TextEncoder().encode("Hello");
-      const encoded = await FilterPipeline.encode(data, { name: "ASCIIHexDecode" });
+      const encoded = FilterPipeline.encode(data, { name: "ASCIIHexDecode" });
 
       // Should be "48656C6C6F>"
       expect(new TextDecoder().decode(encoded)).toBe("48656C6C6F>");
@@ -83,7 +83,7 @@ describe("FilterPipeline", () => {
       const data = new TextEncoder().encode("Hi");
 
       // Just use single filter for simplicity in this test
-      const encoded = await FilterPipeline.encode(data, { name: "ASCIIHexDecode" });
+      const encoded = FilterPipeline.encode(data, { name: "ASCIIHexDecode" });
       expect(new TextDecoder().decode(encoded)).toBe("4869>");
     });
   });
@@ -93,8 +93,8 @@ describe("FilterPipeline", () => {
       const original = new TextEncoder().encode("Hello, World!");
       const spec = { name: "ASCIIHexDecode" };
 
-      const encoded = await FilterPipeline.encode(original, spec);
-      const decoded = await FilterPipeline.decode(encoded, spec);
+      const encoded = FilterPipeline.encode(original, spec);
+      const decoded = FilterPipeline.decode(encoded, spec);
 
       expect(decoded).toEqual(original);
     });
@@ -103,8 +103,8 @@ describe("FilterPipeline", () => {
       const original = new TextEncoder().encode("Hello, World!");
       const spec = { name: "ASCII85Decode" };
 
-      const encoded = await FilterPipeline.encode(original, spec);
-      const decoded = await FilterPipeline.decode(encoded, spec);
+      const encoded = FilterPipeline.encode(original, spec);
+      const decoded = FilterPipeline.decode(encoded, spec);
 
       expect(decoded).toEqual(original);
     });
@@ -113,8 +113,8 @@ describe("FilterPipeline", () => {
       const original = new TextEncoder().encode("Hello, World! ".repeat(100));
       const spec = { name: "FlateDecode" };
 
-      const encoded = await FilterPipeline.encode(original, spec);
-      const decoded = await FilterPipeline.decode(encoded, spec);
+      const encoded = FilterPipeline.encode(original, spec);
+      const decoded = FilterPipeline.decode(encoded, spec);
 
       expect(decoded).toEqual(original);
     });

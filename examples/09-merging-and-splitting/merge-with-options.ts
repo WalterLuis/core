@@ -19,7 +19,7 @@ async function main() {
   // Document 1 with some content
   const pdf1 = PDF.create();
   pdf1.addPage({ size: "letter" });
-  const page1 = await pdf1.getPage(0);
+  const page1 = pdf1.getPage(0);
   if (page1) {
     page1.drawText("Document 1 - With Annotations", {
       x: 150,
@@ -34,7 +34,7 @@ async function main() {
   // Document 2 with different content
   const pdf2 = PDF.create();
   pdf2.addPage({ size: "letter" });
-  const page2 = await pdf2.getPage(0);
+  const page2 = pdf2.getPage(0);
   if (page2) {
     page2.drawText("Document 2 - Also With Annotations", {
       x: 130,

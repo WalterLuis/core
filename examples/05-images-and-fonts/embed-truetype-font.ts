@@ -17,7 +17,7 @@ async function main() {
   const pdf = PDF.create();
   pdf.addPage({ size: "letter" });
 
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (!page) {
     throw new Error("Failed to get page");
   }
@@ -36,7 +36,7 @@ async function main() {
   console.log(`Font file size: ${formatBytes(fontBytes.length)}`);
 
   // Embed the font
-  const liberationSans = await pdf.embedFont(fontBytes);
+  const liberationSans = pdf.embedFont(fontBytes);
   console.log(`Embedded font: ${liberationSans.baseFontName}`);
 
   // Draw text using the embedded font
@@ -85,7 +85,7 @@ async function main() {
   let italicFont = liberationSans;
   try {
     const italicBytes = await loadFixture("fonts", "ttf/JosefinSans-Italic.ttf");
-    italicFont = await pdf.embedFont(italicBytes);
+    italicFont = pdf.embedFont(italicBytes);
     console.log(`Embedded italic font: ${italicFont.baseFontName}`);
   } catch {
     console.log("Italic font not found, using regular");
@@ -150,7 +150,7 @@ async function main() {
   let decorativeFont = liberationSans;
   try {
     const decorativeBytes = await loadFixture("fonts", "ttf/Pacifico-Regular.ttf");
-    decorativeFont = await pdf.embedFont(decorativeBytes);
+    decorativeFont = pdf.embedFont(decorativeBytes);
     console.log(`Embedded decorative font: ${decorativeFont.baseFontName}`);
   } catch {
     console.log("Decorative font not found");

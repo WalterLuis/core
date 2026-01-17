@@ -28,7 +28,7 @@ async function main() {
 
   const templatePdf = PDF.create();
   templatePdf.addPage({ size: "letter" });
-  const templatePage = await templatePdf.getPage(0);
+  const templatePage = templatePdf.getPage(0);
 
   const liberationSansData = await loadFixture("fonts", "ttf/LiberationSans-Regular.ttf");
   const font = templatePdf.embedFont(liberationSansData);
@@ -85,7 +85,7 @@ async function main() {
 
   const watermarkPdf = PDF.create();
   watermarkPdf.addPage({ size: "letter" });
-  const watermarkPage = await watermarkPdf.getPage(0);
+  const watermarkPage = watermarkPdf.getPage(0);
 
   if (watermarkPage) {
     // Draw diagonal "DRAFT" watermark
@@ -122,7 +122,7 @@ async function main() {
   // Create multiple pages using the same embedded templates
   for (let i = 1; i <= 3; i++) {
     doc.addPage({ size: "letter" });
-    const page = await doc.getPage(i - 1);
+    const page = doc.getPage(i - 1);
 
     if (page) {
       // Draw letterhead as background (full page)

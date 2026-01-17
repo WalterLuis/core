@@ -40,7 +40,7 @@ async function main() {
   const pdf1 = PDF.create();
   pdf1.addPage({ size: "letter" });
 
-  const page1 = await pdf1.getPage(0);
+  const page1 = pdf1.getPage(0);
   if (page1) {
     page1.drawText("Untrapped Document", {
       x: 180,
@@ -86,7 +86,7 @@ async function main() {
   const pdf2 = PDF.create();
   pdf2.addPage({ size: "letter" });
 
-  const page2 = await pdf2.getPage(0);
+  const page2 = pdf2.getPage(0);
   if (page2) {
     page2.drawText("Trapped Document", {
       x: 195,
@@ -132,7 +132,7 @@ async function main() {
   const pdf3 = PDF.create();
   pdf3.addPage({ size: "letter" });
 
-  const page3 = await pdf3.getPage(0);
+  const page3 = pdf3.getPage(0);
   if (page3) {
     page3.drawText("Partially Trapped Document", {
       x: 145,

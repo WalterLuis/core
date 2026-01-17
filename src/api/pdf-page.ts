@@ -53,15 +53,17 @@ import type {
 import type { Operator } from "#src/content/operators";
 import { AcroForm } from "#src/document/forms/acro-form";
 import { AppearanceGenerator } from "#src/document/forms/appearance-generator";
-import type {
+import {
   CheckboxField,
   DropdownField,
-  FormField,
   ListBoxField,
   RadioField,
+  SignatureField,
   TextField,
+  type FormField,
 } from "#src/document/forms/fields";
 import { TerminalField } from "#src/document/forms/fields/base";
+import type { WidgetAnnotation } from "#src/document/forms/widget-annotation";
 import { EmbeddedFont } from "#src/fonts/embedded-font";
 import { parseFont } from "#src/fonts/font-factory";
 import type { PdfFont } from "#src/fonts/pdf-font";
@@ -506,7 +508,7 @@ export class PDFPage {
    * await page.drawField(paymentRadio, { x: 100, y: 520, width: 16, height: 16, option: "PayPal" });
    * ```
    */
-  async drawField(field: FormField, options: DrawFieldOptions): Promise<void> {
+  drawField(field: FormField, options: DrawFieldOptions): void {
     if (!this.ctx) {
       throw new Error("Cannot draw field on page without context");
     }
@@ -517,7 +519,7 @@ export class PDFPage {
     }
 
     // Signature fields use merged field+widget model and are created via createSignatureField
-    if (field.type === "signature") {
+    if (field instanceof SignatureField) {
       throw new Error(
         `Signature fields cannot be drawn with drawField. ` +
           `Use form.createSignatureField() which creates the widget automatically.`,
@@ -525,13 +527,13 @@ export class PDFPage {
     }
 
     // Validate radio group option requirement
-    if (field.type === "radio") {
+    if (field instanceof RadioField) {
       if (!options.option) {
         throw new Error(`Radio group "${field.name}" requires option parameter in drawField`);
       }
 
       // Validate option exists
-      const radioField = field as RadioField;
+      const radioField = field;
       const availableOptions = radioField.getOptions();
 
       // For new radio fields, options might be in /Opt array
@@ -544,8 +546,8 @@ export class PDFPage {
         for (let i = 0; i < optArray.length; i++) {
           const item = optArray.at(i);
 
-          if (item?.type === "string") {
-            optValues.push((item as unknown as { asString(): string }).asString());
+          if (item instanceof PdfString) {
+            optValues.push(item.asString());
           }
         }
 
@@ -574,7 +576,7 @@ export class PDFPage {
     this.addAnnotationRef(widget.ref);
 
     // Generate appearance stream for the widget
-    await this.generateWidgetAppearance(field, widget, options);
+    this.generateWidgetAppearance(field, widget, options);
   }
 
   /**
@@ -650,8 +652,8 @@ export class PDFPage {
     }
 
     // For radio buttons, set the appearance state
-    if (field.type === "radio" && options.option) {
-      const radioField = field as RadioField;
+    if (field instanceof RadioField && options.option) {
+      const radioField = field;
       const currentValue = radioField.getValue();
 
       // Set appearance state to option value if selected, otherwise "Off"
@@ -659,8 +661,8 @@ export class PDFPage {
     }
 
     // For checkboxes, set the appearance state
-    if (field.type === "checkbox") {
-      const checkboxField = field as CheckboxField;
+    if (field instanceof CheckboxField) {
+      const checkboxField = field;
       const isChecked = checkboxField.isChecked();
       const onValue = checkboxField.getOnValue();
       widgetDict.set("AS", PdfName.of(isChecked ? onValue : "Off"));
@@ -672,11 +674,11 @@ export class PDFPage {
   /**
    * Generate appearance stream for a widget.
    */
-  private async generateWidgetAppearance(
+  private generateWidgetAppearance(
     field: TerminalField,
-    widget: import("#src/document/forms/widget-annotation").WidgetAnnotation,
+    widget: WidgetAnnotation,
     options: DrawFieldOptions,
-  ): Promise<void> {
+  ): void {
     if (!this.ctx) {
       return;
     }
@@ -684,7 +686,7 @@ export class PDFPage {
     // We need access to AcroForm for appearance generation
     // Load it via catalog
     const catalogDict = this.ctx.catalog.getDict();
-    const acroForm = await AcroForm.load(catalogDict, this.ctx.registry);
+    const acroForm = AcroForm.load(catalogDict, this.ctx.registry);
 
     if (!acroForm) {
       return;
@@ -692,52 +694,63 @@ export class PDFPage {
 
     const generator = new AppearanceGenerator(acroForm, this.ctx.registry);
 
-    switch (field.type) {
-      case "text": {
-        const textField = field as TextField;
-        const stream = generator.generateTextAppearance(textField, widget);
-        widget.setNormalAppearance(stream);
-        break;
+    if (field instanceof TextField) {
+      const textField = field;
+      const stream = generator.generateTextAppearance(textField, widget);
+
+      widget.setNormalAppearance(stream);
+
+      return;
+    }
+
+    if (field instanceof CheckboxField) {
+      const checkboxField = field;
+      const onValue = checkboxField.getOnValue();
+
+      const { on, off } = generator.generateCheckboxAppearance(checkboxField, widget, onValue);
+
+      widget.setNormalAppearance(on, onValue);
+      widget.setNormalAppearance(off, "Off");
+
+      return;
+    }
+
+    if (field instanceof RadioField) {
+      const radioField = field;
+
+      // options.option is validated in drawField() before reaching here
+      if (!options.option) {
+        throw new Error("Radio field requires an option value");
       }
 
-      case "checkbox": {
-        const checkboxField = field as CheckboxField;
-        const onValue = checkboxField.getOnValue();
-        const { on, off } = generator.generateCheckboxAppearance(checkboxField, widget, onValue);
-        widget.setNormalAppearance(on, onValue);
-        widget.setNormalAppearance(off, "Off");
-        break;
-      }
+      const { selected, off } = generator.generateRadioAppearance(
+        radioField,
+        widget,
+        options.option,
+      );
 
-      case "radio": {
-        const radioField = field as RadioField;
-        // options.option is validated in drawField() before reaching here
-        if (!options.option) {
-          throw new Error("Radio field requires an option value");
-        }
-        const { selected, off } = generator.generateRadioAppearance(
-          radioField,
-          widget,
-          options.option,
-        );
-        widget.setNormalAppearance(selected, options.option);
-        widget.setNormalAppearance(off, "Off");
-        break;
-      }
+      widget.setNormalAppearance(selected, options.option);
+      widget.setNormalAppearance(off, "Off");
 
-      case "dropdown": {
-        const dropdownField = field as DropdownField;
-        const stream = generator.generateDropdownAppearance(dropdownField, widget);
-        widget.setNormalAppearance(stream);
-        break;
-      }
+      return;
+    }
 
-      case "listbox": {
-        const listboxField = field as ListBoxField;
-        const stream = generator.generateListBoxAppearance(listboxField, widget);
-        widget.setNormalAppearance(stream);
-        break;
-      }
+    if (field instanceof DropdownField) {
+      const dropdownField = field;
+      const stream = generator.generateDropdownAppearance(dropdownField, widget);
+
+      widget.setNormalAppearance(stream);
+
+      return;
+    }
+
+    if (field instanceof ListBoxField) {
+      const listboxField = field;
+      const stream = generator.generateListBoxAppearance(listboxField, widget);
+
+      widget.setNormalAppearance(stream);
+
+      return;
     }
   }
 
@@ -1223,13 +1236,13 @@ export class PDFPage {
    *
    * @example
    * ```typescript
-   * const annotations = await page.getAnnotations();
+   * const annotations = page.getAnnotations();
    * for (const annot of annotations) {
    *   console.log(annot.type, annot.contents);
    * }
    * ```
    */
-  async getAnnotations(): Promise<PDFAnnotation[]> {
+  getAnnotations(): PDFAnnotation[] {
     if (this._annotationCache) {
       return this._annotationCache;
     }
@@ -1255,7 +1268,7 @@ export class PDFPage {
 
       if (entry instanceof PdfRef) {
         annotRef = entry;
-        const resolved = await this.ctx.resolve(entry);
+        const resolved = this.ctx.resolve(entry);
 
         if (resolved instanceof PdfDict) {
           annotDict = resolved;
@@ -1292,7 +1305,7 @@ export class PDFPage {
    * Popups are typically accessed via their parent markup annotation
    * using `annotation.getPopup()`, but this method allows direct access.
    */
-  async getPopupAnnotations(): Promise<PDFPopupAnnotation[]> {
+  getPopupAnnotations(): PDFPopupAnnotation[] {
     const popups: PDFPopupAnnotation[] = [];
     const annotsArray = this.dict.getArray("Annots");
 
@@ -1301,7 +1314,7 @@ export class PDFPage {
     }
 
     for (let i = 0; i < annotsArray.length; i++) {
-      const entry = annotsArray.at(i);
+      let entry = annotsArray.at(i);
 
       if (!entry) {
         continue;
@@ -1312,12 +1325,11 @@ export class PDFPage {
 
       if (entry instanceof PdfRef) {
         annotRef = entry;
-        const resolved = await this.ctx.resolve(entry);
 
-        if (resolved instanceof PdfDict) {
-          annotDict = resolved;
-        }
-      } else if (entry instanceof PdfDict) {
+        entry = this.ctx.resolve(entry) ?? undefined;
+      }
+
+      if (entry instanceof PdfDict) {
         annotDict = entry;
       }
 
@@ -1336,8 +1348,8 @@ export class PDFPage {
   /**
    * Get all highlight annotations on this page.
    */
-  async getHighlightAnnotations(): Promise<PDFHighlightAnnotation[]> {
-    const annotations = await this.getAnnotations();
+  getHighlightAnnotations(): PDFHighlightAnnotation[] {
+    const annotations = this.getAnnotations();
 
     return annotations.filter((a): a is PDFHighlightAnnotation => a.type === "Highlight");
   }
@@ -1345,8 +1357,8 @@ export class PDFPage {
   /**
    * Get all underline annotations on this page.
    */
-  async getUnderlineAnnotations(): Promise<PDFUnderlineAnnotation[]> {
-    const annotations = await this.getAnnotations();
+  getUnderlineAnnotations(): PDFUnderlineAnnotation[] {
+    const annotations = this.getAnnotations();
 
     return annotations.filter((a): a is PDFUnderlineAnnotation => a.type === "Underline");
   }
@@ -1354,8 +1366,8 @@ export class PDFPage {
   /**
    * Get all strikeout annotations on this page.
    */
-  async getStrikeOutAnnotations(): Promise<PDFStrikeOutAnnotation[]> {
-    const annotations = await this.getAnnotations();
+  getStrikeOutAnnotations(): PDFStrikeOutAnnotation[] {
+    const annotations = this.getAnnotations();
 
     return annotations.filter((a): a is PDFStrikeOutAnnotation => a.type === "StrikeOut");
   }
@@ -1363,8 +1375,8 @@ export class PDFPage {
   /**
    * Get all squiggly annotations on this page.
    */
-  async getSquigglyAnnotations(): Promise<PDFSquigglyAnnotation[]> {
-    const annotations = await this.getAnnotations();
+  getSquigglyAnnotations(): PDFSquigglyAnnotation[] {
+    const annotations = this.getAnnotations();
 
     return annotations.filter((a): a is PDFSquigglyAnnotation => a.type === "Squiggly");
   }
@@ -1372,8 +1384,8 @@ export class PDFPage {
   /**
    * Get all link annotations on this page.
    */
-  async getLinkAnnotations(): Promise<PDFLinkAnnotation[]> {
-    const annotations = await this.getAnnotations();
+  getLinkAnnotations(): PDFLinkAnnotation[] {
+    const annotations = this.getAnnotations();
 
     return annotations.filter((a): a is PDFLinkAnnotation => a.type === "Link");
   }
@@ -1381,8 +1393,8 @@ export class PDFPage {
   /**
    * Get all text annotations (sticky notes) on this page.
    */
-  async getTextAnnotations(): Promise<PDFTextAnnotation[]> {
-    const annotations = await this.getAnnotations();
+  getTextAnnotations(): PDFTextAnnotation[] {
+    const annotations = this.getAnnotations();
 
     return annotations.filter((a): a is PDFTextAnnotation => a.type === "Text");
   }
@@ -1390,8 +1402,8 @@ export class PDFPage {
   /**
    * Get all free text annotations on this page.
    */
-  async getFreeTextAnnotations(): Promise<PDFFreeTextAnnotation[]> {
-    const annotations = await this.getAnnotations();
+  getFreeTextAnnotations(): PDFFreeTextAnnotation[] {
+    const annotations = this.getAnnotations();
 
     return annotations.filter((a): a is PDFFreeTextAnnotation => a.type === "FreeText");
   }
@@ -1399,8 +1411,8 @@ export class PDFPage {
   /**
    * Get all line annotations on this page.
    */
-  async getLineAnnotations(): Promise<PDFLineAnnotation[]> {
-    const annotations = await this.getAnnotations();
+  getLineAnnotations(): PDFLineAnnotation[] {
+    const annotations = this.getAnnotations();
 
     return annotations.filter((a): a is PDFLineAnnotation => a.type === "Line");
   }
@@ -1408,8 +1420,8 @@ export class PDFPage {
   /**
    * Get all square annotations on this page.
    */
-  async getSquareAnnotations(): Promise<PDFSquareAnnotation[]> {
-    const annotations = await this.getAnnotations();
+  getSquareAnnotations(): PDFSquareAnnotation[] {
+    const annotations = this.getAnnotations();
 
     return annotations.filter((a): a is PDFSquareAnnotation => a.type === "Square");
   }
@@ -1417,8 +1429,8 @@ export class PDFPage {
   /**
    * Get all circle annotations on this page.
    */
-  async getCircleAnnotations(): Promise<PDFCircleAnnotation[]> {
-    const annotations = await this.getAnnotations();
+  getCircleAnnotations(): PDFCircleAnnotation[] {
+    const annotations = this.getAnnotations();
 
     return annotations.filter((a): a is PDFCircleAnnotation => a.type === "Circle");
   }
@@ -1426,8 +1438,8 @@ export class PDFPage {
   /**
    * Get all stamp annotations on this page.
    */
-  async getStampAnnotations(): Promise<PDFStampAnnotation[]> {
-    const annotations = await this.getAnnotations();
+  getStampAnnotations(): PDFStampAnnotation[] {
+    const annotations = this.getAnnotations();
 
     return annotations.filter((a): a is PDFStampAnnotation => a.type === "Stamp");
   }
@@ -1435,8 +1447,8 @@ export class PDFPage {
   /**
    * Get all ink annotations on this page.
    */
-  async getInkAnnotations(): Promise<PDFInkAnnotation[]> {
-    const annotations = await this.getAnnotations();
+  getInkAnnotations(): PDFInkAnnotation[] {
+    const annotations = this.getAnnotations();
 
     return annotations.filter((a): a is PDFInkAnnotation => a.type === "Ink");
   }
@@ -1444,8 +1456,8 @@ export class PDFPage {
   /**
    * Get all polygon annotations on this page.
    */
-  async getPolygonAnnotations(): Promise<PDFPolygonAnnotation[]> {
-    const annotations = await this.getAnnotations();
+  getPolygonAnnotations(): PDFPolygonAnnotation[] {
+    const annotations = this.getAnnotations();
 
     return annotations.filter((a): a is PDFPolygonAnnotation => a.type === "Polygon");
   }
@@ -1453,8 +1465,8 @@ export class PDFPage {
   /**
    * Get all polyline annotations on this page.
    */
-  async getPolylineAnnotations(): Promise<PDFPolylineAnnotation[]> {
-    const annotations = await this.getAnnotations();
+  getPolylineAnnotations(): PDFPolylineAnnotation[] {
+    const annotations = this.getAnnotations();
 
     return annotations.filter((a): a is PDFPolylineAnnotation => a.type === "PolyLine");
   }
@@ -1462,8 +1474,8 @@ export class PDFPage {
   /**
    * Get all caret annotations on this page.
    */
-  async getCaretAnnotations(): Promise<PDFCaretAnnotation[]> {
-    const annotations = await this.getAnnotations();
+  getCaretAnnotations(): PDFCaretAnnotation[] {
+    const annotations = this.getAnnotations();
 
     return annotations.filter((a): a is PDFCaretAnnotation => a.type === "Caret");
   }
@@ -1471,8 +1483,8 @@ export class PDFPage {
   /**
    * Get all file attachment annotations on this page.
    */
-  async getFileAttachmentAnnotations(): Promise<PDFFileAttachmentAnnotation[]> {
-    const annotations = await this.getAnnotations();
+  getFileAttachmentAnnotations(): PDFFileAttachmentAnnotation[] {
+    const annotations = this.getAnnotations();
 
     return annotations.filter((a): a is PDFFileAttachmentAnnotation => a.type === "FileAttachment");
   }
@@ -1506,6 +1518,7 @@ export class PDFPage {
    * ```
    */
   addHighlightAnnotation(options: TextMarkupAnnotationOptions): PDFHighlightAnnotation {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return this.addTextMarkupAnnotation("Highlight", options) as PDFHighlightAnnotation;
   }
 
@@ -1513,6 +1526,7 @@ export class PDFPage {
    * Add an underline annotation.
    */
   addUnderlineAnnotation(options: TextMarkupAnnotationOptions): PDFUnderlineAnnotation {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return this.addTextMarkupAnnotation("Underline", options) as PDFUnderlineAnnotation;
   }
 
@@ -1520,6 +1534,7 @@ export class PDFPage {
    * Add a strikeout annotation.
    */
   addStrikeOutAnnotation(options: TextMarkupAnnotationOptions): PDFStrikeOutAnnotation {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return this.addTextMarkupAnnotation("StrikeOut", options) as PDFStrikeOutAnnotation;
   }
 
@@ -1527,6 +1542,7 @@ export class PDFPage {
    * Add a squiggly underline annotation.
    */
   addSquigglyAnnotation(options: TextMarkupAnnotationOptions): PDFSquigglyAnnotation {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return this.addTextMarkupAnnotation("Squiggly", options) as PDFSquigglyAnnotation;
   }
 
@@ -1629,6 +1645,7 @@ export class PDFPage {
     const annotRef = this.ctx.register(annotDict);
     this.addAnnotationRef(annotRef);
 
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return createAnnotation(annotDict, annotRef, this.ctx.registry) as PDFLinkAnnotation;
   }
 
@@ -1649,6 +1666,7 @@ export class PDFPage {
     const annotRef = this.ctx.register(annotDict);
     this.addAnnotationRef(annotRef);
 
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return createAnnotation(annotDict, annotRef, this.ctx.registry) as PDFTextAnnotation;
   }
 
@@ -1669,6 +1687,7 @@ export class PDFPage {
     const annotRef = this.ctx.register(annotDict);
     this.addAnnotationRef(annotRef);
 
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return createAnnotation(annotDict, annotRef, this.ctx.registry) as PDFLineAnnotation;
   }
 
@@ -1689,6 +1708,7 @@ export class PDFPage {
     const annotRef = this.ctx.register(annotDict);
     this.addAnnotationRef(annotRef);
 
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return createAnnotation(annotDict, annotRef, this.ctx.registry) as PDFSquareAnnotation;
   }
 
@@ -1709,6 +1729,7 @@ export class PDFPage {
     const annotRef = this.ctx.register(annotDict);
     this.addAnnotationRef(annotRef);
 
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return createAnnotation(annotDict, annotRef, this.ctx.registry) as PDFCircleAnnotation;
   }
 
@@ -1729,6 +1750,7 @@ export class PDFPage {
     const annotRef = this.ctx.register(annotDict);
     this.addAnnotationRef(annotRef);
 
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return createAnnotation(annotDict, annotRef, this.ctx.registry) as PDFStampAnnotation;
   }
 
@@ -1749,6 +1771,7 @@ export class PDFPage {
     const annotRef = this.ctx.register(annotDict);
     this.addAnnotationRef(annotRef);
 
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return createAnnotation(annotDict, annotRef, this.ctx.registry) as PDFInkAnnotation;
   }
 
@@ -1765,11 +1788,11 @@ export class PDFPage {
    *
    * @example
    * ```typescript
-   * const highlights = await page.getHighlightAnnotations();
-   * await page.removeAnnotation(highlights[0]);
+   * const highlights = page.getHighlightAnnotations();
+   * page.removeAnnotation(highlights[0]);
    * ```
    */
-  async removeAnnotation(annotation: PDFAnnotation): Promise<void> {
+  removeAnnotation(annotation: PDFAnnotation): void {
     if (!this.ctx) {
       return;
     }
@@ -1834,14 +1857,14 @@ export class PDFPage {
    * @example
    * ```typescript
    * // Remove all highlights
-   * await page.removeAnnotations({ type: "Highlight" });
+   * page.removeAnnotations({ type: "Highlight" });
    *
    * // Remove all annotations
-   * await page.removeAnnotations();
+   * page.removeAnnotations();
    * ```
    */
-  async removeAnnotations(options?: RemoveAnnotationsOptions): Promise<void> {
-    const annotations = await this.getAnnotations();
+  removeAnnotations(options?: RemoveAnnotationsOptions): void {
+    const annotations = this.getAnnotations();
 
     let toRemove = annotations;
 
@@ -1850,7 +1873,7 @@ export class PDFPage {
     }
 
     for (const annotation of toRemove) {
-      await this.removeAnnotation(annotation);
+      this.removeAnnotation(annotation);
     }
   }
 
@@ -2050,12 +2073,13 @@ export class PDFPage {
     } else {
       // Already wrapped - just append our new content
       const contents = this.dict.get("Contents");
+
       if (contents instanceof PdfArray) {
         contents.push(newContent);
-      } else {
+      } else if (contents !== undefined) {
         // Unexpected state - contents should be an array after wrapping
         // Wrap in array now to recover
-        this.dict.set("Contents", new PdfArray([contents as PdfStream | PdfRef, newContent]));
+        this.dict.set("Contents", new PdfArray([contents, newContent]));
       }
     }
   }
@@ -2234,7 +2258,7 @@ export class PDFPage {
    *
    * @example
    * ```typescript
-   * const pageText = await page.extractText();
+   * const pageText = page.extractText();
    * console.log(pageText.text); // Plain text
    *
    * // Access structured content
@@ -2243,12 +2267,12 @@ export class PDFPage {
    * }
    * ```
    */
-  async extractText(_options: ExtractTextOptions = {}): Promise<PageText> {
+  extractText(_options: ExtractTextOptions = {}): PageText {
     // Get content stream bytes
-    const contentBytes = await this.getContentBytes();
+    const contentBytes = this.getContentBytes();
 
     // Create font resolver
-    const resolveFont = await this.createFontResolver();
+    const resolveFont = this.createFontResolver();
 
     // Extract characters
     const extractor = new TextExtractor({ resolveFont });
@@ -2279,17 +2303,17 @@ export class PDFPage {
    * @example
    * ```typescript
    * // String search
-   * const matches = await page.findText("{{ name }}");
+   * const matches = page.findText("{{ name }}");
    * for (const match of matches) {
    *   console.log(`Found at:`, match.bbox);
    * }
    *
    * // Regex search
-   * const placeholders = await page.findText(/\{\{\s*\w+\s*\}\}/g);
+   * const placeholders = page.findText(/\{\{\s*\w+\s*\}\}/g);
    * ```
    */
-  async findText(query: string | RegExp, options: FindTextOptions = {}): Promise<TextMatch[]> {
-    const pageText = await this.extractText();
+  findText(query: string | RegExp, options: FindTextOptions = {}): TextMatch[] {
+    const pageText = this.extractText();
 
     return searchPage(pageText, query, options);
   }
@@ -2297,7 +2321,7 @@ export class PDFPage {
   /**
    * Get the concatenated content stream bytes.
    */
-  private async getContentBytes(): Promise<Uint8Array> {
+  private getContentBytes(): Uint8Array {
     const contents = this.dict.get("Contents");
 
     if (!contents) {
@@ -2306,16 +2330,16 @@ export class PDFPage {
 
     // Single stream reference
     if (contents instanceof PdfRef && this.ctx) {
-      const stream = await this.ctx.resolve(contents);
+      const stream = this.ctx.resolve(contents);
 
       if (stream instanceof PdfStream) {
-        return await stream.getDecodedData();
+        return stream.getDecodedData();
       }
     }
 
     // Direct stream
     if (contents instanceof PdfStream) {
-      return await contents.getDecodedData();
+      return contents.getDecodedData();
     }
 
     // Array of streams
@@ -2326,13 +2350,13 @@ export class PDFPage {
         const item = contents.at(i);
 
         if (item instanceof PdfRef && this.ctx) {
-          const stream = await this.ctx.resolve(item);
+          const stream = this.ctx.resolve(item);
 
           if (stream instanceof PdfStream) {
-            chunks.push(await stream.getDecodedData());
+            chunks.push(stream.getDecodedData());
           }
         } else if (item instanceof PdfStream) {
-          chunks.push(await item.getDecodedData());
+          chunks.push(item.getDecodedData());
         }
       }
 
@@ -2378,7 +2402,7 @@ export class PDFPage {
    * PDF pages can inherit Resources from parent Pages nodes (see PDF spec 7.7.3.4).
    * This method checks the page first, then walks up the Parent chain.
    */
-  private async resolveInheritedResources(): Promise<PdfDict | null> {
+  private resolveInheritedResources(): PdfDict | null {
     if (!this.ctx) {
       return null;
     }
@@ -2391,7 +2415,7 @@ export class PDFPage {
       const resourcesEntry = currentDict.get("Resources");
 
       if (resourcesEntry instanceof PdfRef) {
-        const resolved = await this.ctx.resolve(resourcesEntry);
+        const resolved = this.ctx.resolve(resourcesEntry);
 
         if (resolved instanceof PdfDict) {
           return resolved;
@@ -2404,7 +2428,7 @@ export class PDFPage {
       const parentEntry = currentDict.get("Parent");
 
       if (parentEntry instanceof PdfRef) {
-        const parent = await this.ctx.resolve(parentEntry);
+        const parent = this.ctx.resolve(parentEntry);
 
         if (parent instanceof PdfDict) {
           currentDict = parent;
@@ -2422,9 +2446,9 @@ export class PDFPage {
   /**
    * Create a font resolver function for text extraction.
    */
-  private async createFontResolver(): Promise<(name: string) => PdfFont | null> {
+  private createFontResolver(): (name: string) => PdfFont | null {
     // Get the page's Font resources (may be a ref or inherited from parent)
-    const resourcesDict = await this.resolveInheritedResources();
+    const resourcesDict = this.resolveInheritedResources();
 
     if (!resourcesDict) {
       return () => null;
@@ -2435,7 +2459,7 @@ export class PDFPage {
 
     // Resolve if it's a reference
     if (fontEntry instanceof PdfRef && this.ctx) {
-      const resolved = await this.ctx.resolve(fontEntry);
+      const resolved = this.ctx.resolve(fontEntry);
 
       if (resolved instanceof PdfDict) {
         fontDict = resolved;
@@ -2456,7 +2480,7 @@ export class PDFPage {
       let fontDictEntry: PdfDict | null = null;
 
       if (fontEntry instanceof PdfRef && this.ctx) {
-        const resolved = await this.ctx.resolve(fontEntry);
+        const resolved = this.ctx.resolve(fontEntry);
 
         if (resolved instanceof PdfDict) {
           fontDictEntry = resolved;
@@ -2477,7 +2501,7 @@ export class PDFPage {
         let toUnicodeStream: PdfStream | null = null;
 
         if (toUnicodeEntry instanceof PdfRef) {
-          const resolved = await this.ctx.resolve(toUnicodeEntry);
+          const resolved = this.ctx.resolve(toUnicodeEntry);
 
           if (resolved instanceof PdfStream) {
             toUnicodeStream = resolved;
@@ -2488,7 +2512,7 @@ export class PDFPage {
 
         if (toUnicodeStream) {
           try {
-            const decoded = await toUnicodeStream.getDecodedData();
+            const decoded = toUnicodeStream.getDecodedData();
             toUnicodeMap = parseToUnicode(decoded);
           } catch {
             // ToUnicode parsing failed - continue without it
@@ -2498,12 +2522,12 @@ export class PDFPage {
 
       // Pre-resolve all refs that parseFont might need (DescendantFonts, FontDescriptor, etc.)
       // This is necessary because parseFont uses a synchronous resolveRef callback,
-      // but ctx.getObject() doesn't work for all refs - only ctx.resolve() (async) does.
+      // but ctx.getObject() doesn't work for all refs - only ctx.resolve() does.
       const resolvedRefs = new Map<string, PdfDict | PdfArray | PdfStream>();
       // Pre-decoded stream data (keyed by ref string for consistent lookup)
       const decodedStreams = new Map<string, Uint8Array>();
 
-      const preResolveValue = async (value: unknown): Promise<void> => {
+      const preResolveValue = (value: unknown): void => {
         if (!this.ctx) {
           return;
         }
@@ -2515,7 +2539,7 @@ export class PDFPage {
             return;
           }
 
-          const resolved = await this.ctx.resolve(value);
+          const resolved = this.ctx.resolve(value);
           if (
             resolved instanceof PdfDict ||
             resolved instanceof PdfArray ||
@@ -2525,43 +2549,43 @@ export class PDFPage {
             // Pre-decode streams (for font file data)
             if (resolved instanceof PdfStream) {
               try {
-                const decoded = await resolved.getDecodedData();
+                const decoded = resolved.getDecodedData();
                 decodedStreams.set(key, decoded);
               } catch {
                 // Decoding failed - will use raw data as fallback
               }
             }
             // Recursively resolve nested values
-            await preResolveValue(resolved);
+            preResolveValue(resolved);
           }
         } else if (value instanceof PdfDict) {
           // Traverse dict values
           for (const [, v] of value) {
-            await preResolveValue(v);
+            preResolveValue(v);
           }
         } else if (value instanceof PdfArray) {
           // Traverse array items
           for (let i = 0; i < value.length; i++) {
-            await preResolveValue(value.at(i));
+            preResolveValue(value.at(i));
           }
         }
       };
 
       // Pre-resolve DescendantFonts (critical for composite fonts)
       const descendantFontsEntry = fontDictEntry.get("DescendantFonts");
-      await preResolveValue(descendantFontsEntry);
+      preResolveValue(descendantFontsEntry);
 
       // Pre-resolve FontDescriptor (for simple fonts)
       const fontDescriptorEntry = fontDictEntry.get("FontDescriptor");
-      await preResolveValue(fontDescriptorEntry);
+      preResolveValue(fontDescriptorEntry);
 
       // Pre-resolve Encoding if it's a ref
       const encodingEntry = fontDictEntry.get("Encoding");
-      await preResolveValue(encodingEntry);
+      preResolveValue(encodingEntry);
 
       // Pre-resolve Widths if it's a ref (for simple fonts)
       const widthsEntry = fontDictEntry.get("Widths");
-      await preResolveValue(widthsEntry);
+      preResolveValue(widthsEntry);
 
       // Parse the font with resolved references
       const pdfFont = parseFont(fontDictEntry, {

@@ -22,9 +22,9 @@ async function main() {
 
   const pdf1 = PDF.create();
   pdf1.addPage({ size: "letter" });
-  const page1 = await pdf1.getPage(0);
+  const page1 = pdf1.getPage(0);
 
-  const font1 = await pdf1.embedFont(fontBytes);
+  const font1 = pdf1.embedFont(fontBytes);
 
   if (page1) {
     page1.drawText("Font Subsetting Demo", {
@@ -75,9 +75,9 @@ async function main() {
 
   const pdf2 = PDF.create();
   pdf2.addPage({ size: "letter" });
-  const page2 = await pdf2.getPage(0);
+  const page2 = pdf2.getPage(0);
 
-  const font2 = await pdf2.embedFont(fontBytes);
+  const font2 = pdf2.embedFont(fontBytes);
 
   if (page2) {
     page2.drawText("Font Subsetting Demo", {
@@ -131,9 +131,9 @@ abcdefghijklmnopqrstuvwxyz
 
   const pdf3 = PDF.create();
   pdf3.addPage({ size: "letter" });
-  const page3 = await pdf3.getPage(0);
+  const page3 = pdf3.getPage(0);
 
-  const font3 = await pdf3.embedFont(fontBytes);
+  const font3 = pdf3.embedFont(fontBytes);
 
   if (page3) {
     page3.drawText("Full Character Set", {

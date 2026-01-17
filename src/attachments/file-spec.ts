@@ -31,7 +31,7 @@ import type { AddAttachmentOptions, AttachmentInfo } from "./types";
 /**
  * Function to resolve a reference to its object.
  */
-type Resolver = (ref: PdfRef) => Promise<PdfObject | null>;
+type Resolver = (ref: PdfRef) => PdfObject | null;
 
 /**
  * MIME type mappings for auto-detection.
@@ -137,16 +137,13 @@ function decodeFilename(str: PdfString): string {
  *
  * @returns The stream if found, null if external reference or missing
  */
-export async function getEmbeddedFileStream(
-  fileSpec: PdfDict,
-  resolver: Resolver,
-): Promise<PdfStream | null> {
+export function getEmbeddedFileStream(fileSpec: PdfDict, resolver: Resolver): PdfStream | null {
   // Get /EF (embedded file dictionary)
   const efEntry = fileSpec.get("EF");
   let ef: PdfDict | null = null;
 
   if (efEntry instanceof PdfRef) {
-    const resolved = await resolver(efEntry);
+    const resolved = resolver(efEntry);
 
     if (resolved instanceof PdfDict) {
       ef = resolved;
@@ -166,7 +163,7 @@ export async function getEmbeddedFileStream(
     return null;
   }
 
-  const stream = await resolver(streamRef);
+  const stream = resolver(streamRef);
 
   if (stream instanceof PdfStream) {
     return stream;
@@ -183,13 +180,13 @@ export async function getEmbeddedFileStream(
  * @param resolver Function to resolve references
  * @returns AttachmentInfo or null if external file reference
  */
-export async function parseFileSpec(
+export function parseFileSpec(
   fileSpec: PdfDict,
   name: string,
   resolver: Resolver,
-): Promise<AttachmentInfo | null> {
+): AttachmentInfo | null {
   // Get the embedded file stream
-  const stream = await getEmbeddedFileStream(fileSpec, resolver);
+  const stream = getEmbeddedFileStream(fileSpec, resolver);
 
   if (!stream) {
     // External file reference - we don't support these
@@ -222,7 +219,7 @@ export async function parseFileSpec(
   let params: PdfDict | null = null;
 
   if (paramsEntry instanceof PdfRef) {
-    const resolved = await resolver(paramsEntry);
+    const resolved = resolver(paramsEntry);
 
     if (resolved instanceof PdfDict) {
       params = resolved;
@@ -256,7 +253,7 @@ export async function parseFileSpec(
 
   // If size wasn't in Params, compute from decoded stream data
   if (info.size === undefined) {
-    const data = await stream.getDecodedData();
+    const data = stream.getDecodedData();
     info.size = data.length;
   }
 

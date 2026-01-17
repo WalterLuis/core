@@ -76,15 +76,15 @@ export class CheckboxField extends TerminalField {
   /**
    * Check the checkbox (sets to the on-value).
    */
-  async check(): Promise<void> {
-    await this.setValue(this.getOnValue());
+  check(): void {
+    this.setValue(this.getOnValue());
   }
 
   /**
    * Uncheck the checkbox (sets to "Off").
    */
-  async uncheck(): Promise<void> {
-    await this.setValue("Off");
+  uncheck(): void {
+    this.setValue("Off");
   }
 
   /**
@@ -96,7 +96,7 @@ export class CheckboxField extends TerminalField {
    * @param value "Off" or one of the on-values
    * @throws {Error} if field is read-only or value is invalid
    */
-  async setValue(value: string): Promise<void> {
+  setValue(value: string): void {
     this.assertWritable();
 
     // Validate value
@@ -118,6 +118,6 @@ export class CheckboxField extends TerminalField {
     this.needsAppearanceUpdate = true;
 
     // Regenerate appearance immediately
-    await this.applyChange();
+    this.applyChange();
   }
 }

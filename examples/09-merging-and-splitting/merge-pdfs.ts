@@ -19,7 +19,7 @@ async function main() {
   // Document 1
   const pdf1 = PDF.create();
   pdf1.addPage({ size: "letter" });
-  const page1 = await pdf1.getPage(0);
+  const page1 = pdf1.getPage(0);
   if (page1) {
     page1.drawText("Document 1 - Cover Page", {
       x: 170,
@@ -41,7 +41,7 @@ async function main() {
   const pdf2 = PDF.create();
   for (let i = 1; i <= 3; i++) {
     pdf2.addPage({ size: "letter" });
-    const page = await pdf2.getPage(i - 1);
+    const page = pdf2.getPage(i - 1);
     if (page) {
       page.drawText(`Document 2 - Page ${i}`, {
         x: 190,
@@ -57,7 +57,7 @@ async function main() {
   // Document 3
   const pdf3 = PDF.create();
   pdf3.addPage({ size: "a4" }); // Different page size
-  const page3 = await pdf3.getPage(0);
+  const page3 = pdf3.getPage(0);
   if (page3) {
     page3.drawText("Document 3 - A4 Size", {
       x: 180,
@@ -83,7 +83,7 @@ async function main() {
   console.log(`Merged document: ${merged.getPageCount()} pages`);
 
   // Verify page dimensions
-  const pages = await merged.getPages();
+  const pages = merged.getPages();
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i];
     if (page) {

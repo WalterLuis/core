@@ -92,7 +92,7 @@ describe("ObjectStreamParser", () => {
 
       const parser = new ObjectStreamParser(stream);
 
-      await parser.parse();
+      parser.parse();
 
       expect(parser.objectCount).toBe(1);
       expect(parser.isParsed).toBe(true);
@@ -107,7 +107,7 @@ describe("ObjectStreamParser", () => {
 
       const parser = new ObjectStreamParser(stream);
 
-      await parser.parse();
+      parser.parse();
 
       expect(parser.objectCount).toBe(3);
     });
@@ -118,11 +118,11 @@ describe("ObjectStreamParser", () => {
       const parser = new ObjectStreamParser(stream);
 
       expect(parser.isParsed).toBe(false);
-      await parser.parse();
+      parser.parse();
       expect(parser.isParsed).toBe(true);
 
       // Second call should be no-op
-      await parser.parse();
+      parser.parse();
       expect(parser.isParsed).toBe(true);
     });
   });
@@ -135,8 +135,8 @@ describe("ObjectStreamParser", () => {
       ]);
 
       const parser = new ObjectStreamParser(stream);
-      const obj0 = await parser.getObject(0);
-      const obj1 = await parser.getObject(1);
+      const obj0 = parser.getObject(0);
+      const obj1 = parser.getObject(1);
 
       expect(obj0).toBeInstanceOf(PdfNumber);
       expect((obj0 as PdfNumber).value).toBe(42);
@@ -150,9 +150,9 @@ describe("ObjectStreamParser", () => {
 
       const parser = new ObjectStreamParser(stream);
 
-      expect(await parser.getObject(-1)).toBeNull();
-      expect(await parser.getObject(1)).toBeNull();
-      expect(await parser.getObject(100)).toBeNull();
+      expect(parser.getObject(-1)).toBeNull();
+      expect(parser.getObject(1)).toBeNull();
+      expect(parser.getObject(100)).toBeNull();
     });
 
     it("parses dict objects", async () => {
@@ -161,7 +161,7 @@ describe("ObjectStreamParser", () => {
       ]);
 
       const parser = new ObjectStreamParser(stream);
-      const obj = await parser.getObject(0);
+      const obj = parser.getObject(0);
 
       expect(obj).toBeInstanceOf(PdfDict);
       expect((obj as PdfDict).getName("Type")?.value).toBe("Page");
@@ -171,7 +171,7 @@ describe("ObjectStreamParser", () => {
       const stream = createObjectStream([{ objNum: 5, text: "[1 2 3 /Name (string)]" }]);
 
       const parser = new ObjectStreamParser(stream);
-      const obj = await parser.getObject(0);
+      const obj = parser.getObject(0);
 
       expect(obj).toBeInstanceOf(PdfArray);
       expect((obj as PdfArray).length).toBe(5);
@@ -181,7 +181,7 @@ describe("ObjectStreamParser", () => {
       const stream = createObjectStream([{ objNum: 3, text: "/FlateDecode" }]);
 
       const parser = new ObjectStreamParser(stream);
-      const obj = await parser.getObject(0);
+      const obj = parser.getObject(0);
 
       expect(obj).toBeInstanceOf(PdfName);
       expect((obj as PdfName).value).toBe("FlateDecode");
@@ -197,7 +197,7 @@ describe("ObjectStreamParser", () => {
       ]);
 
       const parser = new ObjectStreamParser(stream);
-      const objects = await parser.getAllObjects();
+      const objects = parser.getAllObjects();
 
       expect(objects.size).toBe(3);
       expect(objects.has(1)).toBe(true);
@@ -219,7 +219,7 @@ describe("ObjectStreamParser", () => {
 
       const parser = new ObjectStreamParser(stream);
 
-      await parser.parse();
+      parser.parse();
 
       expect(parser.getObjectNumber(0)).toBe(100);
       expect(parser.getObjectNumber(1)).toBe(200);
@@ -230,7 +230,7 @@ describe("ObjectStreamParser", () => {
 
       const parser = new ObjectStreamParser(stream);
 
-      await parser.parse();
+      parser.parse();
 
       expect(parser.getObjectNumber(-1)).toBeNull();
       expect(parser.getObjectNumber(5)).toBeNull();
@@ -252,7 +252,7 @@ describe("ObjectStreamParser", () => {
       ]);
 
       const parser = new ObjectStreamParser(stream);
-      const obj = (await parser.getObject(0)) as PdfDict;
+      const obj = parser.getObject(0) as PdfDict;
 
       expect(obj).toBeInstanceOf(PdfDict);
       const resources = obj.getDict("Resources");
@@ -264,7 +264,7 @@ describe("ObjectStreamParser", () => {
       const stream = createObjectStream([{ objNum: 5, text: "[<< /Type /A >> << /Type /B >>]" }]);
 
       const parser = new ObjectStreamParser(stream);
-      const obj = (await parser.getObject(0)) as PdfArray;
+      const obj = parser.getObject(0) as PdfArray;
 
       expect(obj.length).toBe(2);
       expect((obj.at(0) as PdfDict).getName("Type")?.value).toBe("A");
@@ -284,7 +284,7 @@ describe("ObjectStreamParser", () => {
       );
 
       const parser = new ObjectStreamParser(stream);
-      const objects = await parser.getAllObjects();
+      const objects = parser.getAllObjects();
 
       expect(objects.size).toBe(0);
     });
@@ -307,7 +307,7 @@ describe("ObjectStreamParser", () => {
 
       const parser = new ObjectStreamParser(stream);
 
-      await parser.parse();
+      parser.parse();
 
       expect(parser.objectCount).toBe(2);
       expect(parser.getObjectNumber(0)).toBe(1);

@@ -63,7 +63,7 @@ async function main() {
   console.log(`=== Document: ${pdf.getPageCount()} page(s) ===\n`);
 
   // Get all pages
-  const pages = await pdf.getPages();
+  const pages = pdf.getPages();
 
   // Display information for each page
   for (let i = 0; i < pages.length; i++) {
@@ -91,17 +91,24 @@ async function main() {
 
     // Show page boxes
     const mediaBox = page.getMediaBox();
-    console.log(`  Media Box: [${mediaBox.x1}, ${mediaBox.y1}, ${mediaBox.x2}, ${mediaBox.y2}]`);
+
+    const mediaX2 = mediaBox.x + mediaBox.width;
+    const mediaY2 = mediaBox.y + mediaBox.height;
+
+    console.log(`  Media Box: [${mediaBox.x}, ${mediaBox.y}, ${mediaX2}, ${mediaY2}]`);
 
     const cropBox = page.getCropBox();
     const isCropped =
-      cropBox.x1 !== mediaBox.x1 ||
-      cropBox.y1 !== mediaBox.y1 ||
-      cropBox.x2 !== mediaBox.x2 ||
-      cropBox.y2 !== mediaBox.y2;
+      cropBox.x !== mediaBox.x ||
+      cropBox.y !== mediaBox.y ||
+      cropBox.width !== mediaBox.width ||
+      cropBox.height !== mediaBox.height;
 
     if (isCropped) {
-      console.log(`  Crop Box:  [${cropBox.x1}, ${cropBox.y1}, ${cropBox.x2}, ${cropBox.y2}]`);
+      const cropX2 = cropBox.x + cropBox.width;
+      const cropY2 = cropBox.y + cropBox.height;
+
+      console.log(`  Crop Box:  [${cropBox.x}, ${cropBox.y}, ${cropX2}, ${cropY2}]`);
     }
 
     // Check for bleed, trim, and art boxes
@@ -111,31 +118,37 @@ async function main() {
 
     // Only show these if they differ from media/crop box
     const bleedDiffers =
-      bleedBox.x1 !== mediaBox.x1 ||
-      bleedBox.y1 !== mediaBox.y1 ||
-      bleedBox.x2 !== mediaBox.x2 ||
-      bleedBox.y2 !== mediaBox.y2;
+      bleedBox.x !== mediaBox.x ||
+      bleedBox.y !== mediaBox.y ||
+      bleedBox.width !== mediaBox.width ||
+      bleedBox.height !== mediaBox.height;
 
     const trimDiffers =
-      trimBox.x1 !== mediaBox.x1 ||
-      trimBox.y1 !== mediaBox.y1 ||
-      trimBox.x2 !== mediaBox.x2 ||
-      trimBox.y2 !== mediaBox.y2;
+      trimBox.x !== mediaBox.x ||
+      trimBox.y !== mediaBox.y ||
+      trimBox.width !== mediaBox.width ||
+      trimBox.height !== mediaBox.height;
 
     const artDiffers =
-      artBox.x1 !== mediaBox.x1 ||
-      artBox.y1 !== mediaBox.y1 ||
-      artBox.x2 !== mediaBox.x2 ||
-      artBox.y2 !== mediaBox.y2;
+      artBox.x !== mediaBox.x ||
+      artBox.y !== mediaBox.y ||
+      artBox.width !== mediaBox.width ||
+      artBox.height !== mediaBox.height;
 
     if (bleedDiffers) {
-      console.log(`  Bleed Box: [${bleedBox.x1}, ${bleedBox.y1}, ${bleedBox.x2}, ${bleedBox.y2}]`);
+      const bleedX2 = bleedBox.x + bleedBox.width;
+      const bleedY2 = bleedBox.y + bleedBox.height;
+      console.log(`  Bleed Box: [${bleedBox.x}, ${bleedBox.y}, ${bleedX2}, ${bleedY2}]`);
     }
     if (trimDiffers) {
-      console.log(`  Trim Box:  [${trimBox.x1}, ${trimBox.y1}, ${trimBox.x2}, ${trimBox.y2}]`);
+      const trimX2 = trimBox.x + trimBox.width;
+      const trimY2 = trimBox.y + trimBox.height;
+      console.log(`  Trim Box:  [${trimBox.x}, ${trimBox.y}, ${trimX2}, ${trimY2}]`);
     }
     if (artDiffers) {
-      console.log(`  Art Box:   [${artBox.x1}, ${artBox.y1}, ${artBox.x2}, ${artBox.y2}]`);
+      const artX2 = artBox.x + artBox.width;
+      const artY2 = artBox.y + artBox.height;
+      console.log(`  Art Box:   [${artBox.x}, ${artBox.y}, ${artX2}, ${artY2}]`);
     }
 
     console.log("");
@@ -150,7 +163,7 @@ async function main() {
   multiPdf.addPage({ size: "legal" });
   multiPdf.addPage({ width: 400, height: 600 }); // Custom size
 
-  const multiPages = await multiPdf.getPages();
+  const multiPages = multiPdf.getPages();
   for (let i = 0; i < multiPages.length; i++) {
     const page = multiPages[i];
     if (!page) {

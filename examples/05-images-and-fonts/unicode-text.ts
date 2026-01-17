@@ -18,7 +18,7 @@ async function main() {
   const pdf = PDF.create();
   pdf.addPage({ size: "letter" });
 
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (!page) {
     throw new Error("Failed to get page");
   }
@@ -35,15 +35,13 @@ async function main() {
   console.log("Loading Unicode fonts...");
 
   // Load Liberation Sans for basic Latin/European characters
-  const latinFont = await pdf.embedFont(
-    await loadFixture("fonts", "ttf/LiberationSans-Regular.ttf"),
-  );
+  const latinFont = pdf.embedFont(await loadFixture("fonts", "ttf/LiberationSans-Regular.ttf"));
   console.log(`Loaded Latin font: ${latinFont.baseFontName}`);
 
   // Load Noto Sans JP for Japanese characters
   let japaneseFont = latinFont;
   try {
-    japaneseFont = await pdf.embedFont(await loadFixture("fonts", "ttf/NotoSansJP-Regular.ttf"));
+    japaneseFont = pdf.embedFont(await loadFixture("fonts", "ttf/NotoSansJP-Regular.ttf"));
     console.log(`Loaded Japanese font: ${japaneseFont.baseFontName}`);
   } catch {
     console.log("Japanese font not found, using Latin font");
@@ -52,7 +50,7 @@ async function main() {
   // Load Noto Sans SC for Simplified Chinese
   let chineseFont = latinFont;
   try {
-    chineseFont = await pdf.embedFont(await loadFixture("fonts", "ttf/NotoSansSC-Regular.ttf"));
+    chineseFont = pdf.embedFont(await loadFixture("fonts", "ttf/NotoSansSC-Regular.ttf"));
     console.log(`Loaded Chinese font: ${chineseFont.baseFontName}`);
   } catch {
     console.log("Chinese font not found, using Latin font");
@@ -61,7 +59,7 @@ async function main() {
   // Load Noto Sans KR for Korean
   let koreanFont = latinFont;
   try {
-    koreanFont = await pdf.embedFont(await loadFixture("fonts", "ttf/NotoSansKR-Regular.ttf"));
+    koreanFont = pdf.embedFont(await loadFixture("fonts", "ttf/NotoSansKR-Regular.ttf"));
     console.log(`Loaded Korean font: ${koreanFont.baseFontName}`);
   } catch {
     console.log("Korean font not found, using Latin font");
@@ -70,7 +68,7 @@ async function main() {
   // Load Bengali font
   let bengaliFont = latinFont;
   try {
-    bengaliFont = await pdf.embedFont(await loadFixture("fonts", "ttf/Lohit-Bengali.ttf"));
+    bengaliFont = pdf.embedFont(await loadFixture("fonts", "ttf/Lohit-Bengali.ttf"));
     console.log(`Loaded Bengali font: ${bengaliFont.baseFontName}`);
   } catch {
     console.log("Bengali font not found, using Latin font");

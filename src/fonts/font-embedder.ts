@@ -20,12 +20,10 @@ import { PdfStream } from "#src/objects/pdf-stream.ts";
 import { PdfString } from "#src/objects/pdf-string.ts";
 
 import type { EmbeddedFont } from "./embedded-font.ts";
-import type {
-  CFFCIDFontProgram,
-  CFFType1FontProgram,
-  FontProgram,
-  TrueTypeFontProgram,
-} from "./font-program/index.ts";
+import { isCFFCIDFontProgram } from "./font-program/cff-cid.ts";
+import { isCFFType1FontProgram } from "./font-program/cff.ts";
+import type { FontProgram } from "./font-program/index.ts";
+import { isTrueTypeFontProgram } from "./font-program/truetype.ts";
 import { buildToUnicodeCMapFromGids } from "./to-unicode-builder.ts";
 import {
   buildWidthsArrayFromGids,
@@ -127,10 +125,7 @@ export function generateSubsetTag(): string {
  * @param options - Embedding options
  * @returns All PDF objects that need to be registered
  */
-export async function createFontObjects(
-  font: EmbeddedFont,
-  options: EmbedOptions = {},
-): Promise<FontEmbedResult> {
+export function createFontObjects(font: EmbeddedFont, options: EmbedOptions = {}): FontEmbedResult {
   const program = font.program;
 
   // Generate or use provided subset tag
@@ -146,11 +141,7 @@ export async function createFontObjects(
   const gidToCodePoint = font.getGidToCodePointMap();
 
   // 1. Subset the font
-  const subsetResult = await subsetFont(
-    program,
-    font.getUsedGlyphIds(),
-    font.getCodePointToGidMap(),
-  );
+  const subsetResult = subsetFont(program, font.getUsedGlyphIds(), font.getCodePointToGidMap());
 
   // 2. Build ToUnicode CMap (maps original GID → Unicode for text extraction)
   const toUnicodeData = buildToUnicodeCMapFromGids(gidToCodePoint);
@@ -213,7 +204,7 @@ export async function createFontObjects(
  * @param font - The EmbeddedFont
  * @returns All PDF objects that need to be registered
  */
-export async function createFontObjectsFull(font: EmbeddedFont): Promise<FontEmbedResult> {
+export function createFontObjectsFull(font: EmbeddedFont): FontEmbedResult {
   const program = font.program;
 
   // Full embedding - no subset tag
@@ -353,15 +344,14 @@ interface SubsetResult {
  * @param usedGlyphIds - GIDs to include
  * @param usedCodePoints - Code points that were used (for TTF subsetter)
  */
-async function subsetFont(
+function subsetFont(
   program: FontProgram,
   usedGlyphIds: number[],
   usedCodePoints: Map<number, number>,
-): Promise<SubsetResult> {
+): SubsetResult {
   // CFF fonts (standalone or OTF with CFF outlines)
-  if (program.type === "cff" || program.type === "cff-cid") {
-    const cffProgram = program as CFFType1FontProgram | CFFCIDFontProgram;
-    const subsetter = new CFFSubsetter(cffProgram.font);
+  if (isCFFType1FontProgram(program) || isCFFCIDFontProgram(program)) {
+    const subsetter = new CFFSubsetter(program.font);
 
     for (const gid of usedGlyphIds) {
       subsetter.addGlyph(gid);
@@ -375,8 +365,8 @@ async function subsetFont(
   }
 
   // TrueType fonts
-  if (program.type === "truetype") {
-    const ttf = (program as TrueTypeFontProgram).font;
+  if (isTrueTypeFontProgram(program)) {
+    const ttf = program.font;
 
     // Check if the font has a glyf table (CFF-based OTF fonts don't have one)
     if (!ttf.getTableBytes("glyf")) {
@@ -420,7 +410,7 @@ async function subsetFont(
     const oldToNewGidMap = subsetter.getOldToNewGIDMap();
 
     return {
-      data: await subsetter.write(),
+      data: subsetter.write(),
       fontFileKey: "FontFile2",
       oldToNewGidMap,
     };
@@ -441,21 +431,32 @@ function getFontFileType(program: FontProgram): {
   fontFileKey: "FontFile2" | "FontFile3";
   fontFileSubtype?: string;
 } {
-  if (program.type === "cff" || program.type === "cff-cid") {
-    return { fontFileKey: "FontFile3", fontFileSubtype: "CIDFontType0C" };
+  if (isCFFType1FontProgram(program) || isCFFCIDFontProgram(program)) {
+    return {
+      fontFileKey: "FontFile3",
+      fontFileSubtype: "CIDFontType0C",
+    };
   }
 
-  if (program.type === "truetype") {
-    const ttf = (program as TrueTypeFontProgram).font;
+  if (isTrueTypeFontProgram(program)) {
+    const ttf = program.font;
 
     if (!ttf.getTableBytes("glyf")) {
-      return { fontFileKey: "FontFile3", fontFileSubtype: "OpenType" };
+      return {
+        fontFileKey: "FontFile3",
+        fontFileSubtype: "OpenType",
+      };
     }
 
-    return { fontFileKey: "FontFile2" };
+    return {
+      fontFileKey: "FontFile2",
+    };
   }
 
-  return { fontFileKey: "FontFile3", fontFileSubtype: "Type1C" };
+  return {
+    fontFileKey: "FontFile3",
+    fontFileSubtype: "Type1C",
+  };
 }
 
 /**

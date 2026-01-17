@@ -85,6 +85,7 @@ export class TrueTypeFont implements TrueTypeFontAccess {
   getTable<T extends TTFTable>(tag: string): T | undefined {
     // Return cached table if already parsed
     if (this.tables.has(tag)) {
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       return this.tables.get(tag) as T;
     }
 
@@ -102,6 +103,7 @@ export class TrueTypeFont implements TrueTypeFontAccess {
       this.tables.set(tag, table);
     }
 
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return table as T | undefined;
   }
 

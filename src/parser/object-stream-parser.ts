@@ -71,13 +71,13 @@ export class ObjectStreamParser {
    * Decompress and parse the stream index.
    * Called automatically by getObject/getAllObjects if needed.
    */
-  async parse(): Promise<void> {
+  parse(): void {
     if (this.index !== null) {
       return; // Already parsed
     }
 
     // Decompress stream data
-    this.decodedData = await this.stream.getDecodedData();
+    this.decodedData = this.stream.getDecodedData();
 
     // Parse the index (N pairs of integers before /First)
     this.index = this.parseIndex();
@@ -130,8 +130,8 @@ export class ObjectStreamParser {
    * @param index - 0-based index from XRef entry's indexInStream
    * @returns The parsed object, or null if index is out of range
    */
-  async getObject(index: number): Promise<PdfObject | null> {
-    await this.parse();
+  getObject(index: number): PdfObject | null {
+    this.parse();
 
     if (this.index === null) {
       throw new ObjectParseError("Index not parsed");
@@ -166,8 +166,8 @@ export class ObjectStreamParser {
    *
    * @returns Map of object number → parsed object
    */
-  async getAllObjects(): Promise<Map<number, PdfObject>> {
-    await this.parse();
+  getAllObjects(): Map<number, PdfObject> {
+    this.parse();
 
     if (this.index === null) {
       throw new ObjectParseError("Index not parsed");
@@ -176,7 +176,7 @@ export class ObjectStreamParser {
     const result = new Map<number, PdfObject>();
 
     for (let i = 0; i < this.index.length; i++) {
-      const obj = await this.getObject(i);
+      const obj = this.getObject(i);
 
       if (obj !== null) {
         result.set(this.index[i].objNum, obj);

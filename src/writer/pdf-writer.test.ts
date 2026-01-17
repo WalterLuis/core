@@ -29,7 +29,7 @@ describe("writeComplete", () => {
 
     registry.register(pages);
 
-    const result = await writeComplete(registry, { root: catalogRef });
+    const result = writeComplete(registry, { root: catalogRef });
     const text = new TextDecoder().decode(result.bytes);
 
     expect(text).toMatch(/^%PDF-1\.7\n/);
@@ -40,7 +40,7 @@ describe("writeComplete", () => {
     const catalog = PdfDict.of({ Type: PdfName.Catalog });
     const catalogRef = registry.register(catalog);
 
-    const result = await writeComplete(registry, { root: catalogRef });
+    const result = writeComplete(registry, { root: catalogRef });
 
     // Binary comment should be second line (bytes 9-14 approximately)
     // %âãÏÓ (0x25 0xe2 0xe3 0xcf 0xd3)
@@ -60,7 +60,7 @@ describe("writeComplete", () => {
 
     registry.register(info);
 
-    const result = await writeComplete(registry, { root: catalogRef });
+    const result = writeComplete(registry, { root: catalogRef });
     const text = new TextDecoder().decode(result.bytes);
 
     expect(text).toContain("1 0 obj");
@@ -72,7 +72,7 @@ describe("writeComplete", () => {
     const catalog = PdfDict.of({ Type: PdfName.Catalog });
     const catalogRef = registry.register(catalog);
 
-    const result = await writeComplete(registry, { root: catalogRef });
+    const result = writeComplete(registry, { root: catalogRef });
     const text = new TextDecoder().decode(result.bytes);
 
     expect(text).toContain("xref");
@@ -84,7 +84,7 @@ describe("writeComplete", () => {
     const catalog = PdfDict.of({ Type: PdfName.Catalog });
     const catalogRef = registry.register(catalog);
 
-    const result = await writeComplete(registry, { root: catalogRef });
+    const result = writeComplete(registry, { root: catalogRef });
     const text = new TextDecoder().decode(result.bytes);
 
     expect(text).toContain(`/Root ${catalogRef.objectNumber} 0 R`);
@@ -97,7 +97,7 @@ describe("writeComplete", () => {
 
     registry.register(new PdfDict()); // Second object
 
-    const result = await writeComplete(registry, { root: catalogRef });
+    const result = writeComplete(registry, { root: catalogRef });
     const text = new TextDecoder().decode(result.bytes);
 
     // Size should be max object number + 1
@@ -109,7 +109,7 @@ describe("writeComplete", () => {
     const catalog = PdfDict.of({ Type: PdfName.Catalog });
     const catalogRef = registry.register(catalog);
 
-    const result = await writeComplete(registry, { root: catalogRef });
+    const result = writeComplete(registry, { root: catalogRef });
     const text = new TextDecoder().decode(result.bytes);
 
     // startxref should match returned offset
@@ -121,7 +121,7 @@ describe("writeComplete", () => {
     const catalog = PdfDict.of({ Type: PdfName.Catalog });
     const catalogRef = registry.register(catalog);
 
-    const result = await writeComplete(registry, { root: catalogRef });
+    const result = writeComplete(registry, { root: catalogRef });
     const text = new TextDecoder().decode(result.bytes);
 
     expect(text).toMatch(/%%EOF\n$/);
@@ -132,7 +132,7 @@ describe("writeComplete", () => {
     const catalog = PdfDict.of({ Type: PdfName.Catalog });
     const catalogRef = registry.register(catalog);
 
-    const result = await writeComplete(registry, {
+    const result = writeComplete(registry, {
       root: catalogRef,
       version: "2.0",
     });
@@ -146,7 +146,7 @@ describe("writeComplete", () => {
     const catalog = PdfDict.of({ Type: PdfName.Catalog });
     const catalogRef = registry.register(catalog);
 
-    const result = await writeComplete(registry, {
+    const result = writeComplete(registry, {
       root: catalogRef,
       useXRefStream: true,
     });
@@ -166,7 +166,7 @@ describe("writeComplete", () => {
     const info = PdfDict.of({ Title: PdfString.fromString("Test") });
     const infoRef = registry.register(info);
 
-    const result = await writeComplete(registry, {
+    const result = writeComplete(registry, {
       root: catalogRef,
       info: infoRef,
     });
@@ -186,7 +186,7 @@ describe("writeComplete", () => {
 
     registry.register(stream);
 
-    const result = await writeComplete(registry, { root: catalogRef });
+    const result = writeComplete(registry, { root: catalogRef });
     const text = new TextDecoder().decode(result.bytes);
 
     // Should have /Filter /FlateDecode added
@@ -206,7 +206,7 @@ describe("writeComplete", () => {
 
     registry.register(stream);
 
-    const result = await writeComplete(registry, {
+    const result = writeComplete(registry, {
       root: catalogRef,
       compressStreams: false,
     });
@@ -231,7 +231,7 @@ describe("writeComplete", () => {
 
     registry.register(stream);
 
-    const result = await writeComplete(registry, { root: catalogRef });
+    const result = writeComplete(registry, { root: catalogRef });
     const text = new TextDecoder().decode(result.bytes);
 
     // Should keep original filter, not add FlateDecode
@@ -268,7 +268,7 @@ describe("writeIncremental", () => {
     // Commit objects so they're "loaded"
     registry.commitNewObjects();
 
-    const result = await writeComplete(registry, {
+    const result = writeComplete(registry, {
       root: catalogRef,
       compressStreams: false, // Keep original bytes predictable
     });
@@ -294,7 +294,7 @@ describe("writeIncremental", () => {
 
     catalog.set("ModDate", PdfString.fromString("D:20240101"));
 
-    const result = await writeIncremental(registry, {
+    const result = writeIncremental(registry, {
       originalBytes: bytes,
       originalXRefOffset: xrefOffset,
       root: catalogRef,
@@ -313,7 +313,7 @@ describe("writeIncremental", () => {
 
     catalog.set("ModDate", PdfString.fromString("D:20240101"));
 
-    const result = await writeIncremental(registry, {
+    const result = writeIncremental(registry, {
       originalBytes: bytes,
       originalXRefOffset: xrefOffset,
       root: catalogRef,
@@ -336,7 +336,7 @@ describe("writeIncremental", () => {
 
     catalog.set("ModDate", PdfString.fromString("D:20240101"));
 
-    const result = await writeIncremental(registry, {
+    const result = writeIncremental(registry, {
       originalBytes: bytes,
       originalXRefOffset: xrefOffset,
       root: catalogRef,
@@ -359,7 +359,7 @@ describe("writeIncremental", () => {
 
     registry.register(newAnnot);
 
-    const result = await writeIncremental(registry, {
+    const result = writeIncremental(registry, {
       originalBytes: bytes,
       originalXRefOffset: xrefOffset,
       root: catalogRef,
@@ -375,7 +375,7 @@ describe("writeIncremental", () => {
   it("returns original bytes when no changes", async () => {
     const { bytes, xrefOffset, registry, catalogRef } = await createMinimalPdf();
 
-    const result = await writeIncremental(registry, {
+    const result = writeIncremental(registry, {
       originalBytes: bytes,
       originalXRefOffset: xrefOffset,
       root: catalogRef,
@@ -394,7 +394,7 @@ describe("writeIncremental", () => {
     catalog.set("ModDate", PdfString.fromString("D:20240101"));
     expect(catalog.dirty).toBe(true);
 
-    await writeIncremental(registry, {
+    writeIncremental(registry, {
       originalBytes: bytes,
       originalXRefOffset: xrefOffset,
       root: catalogRef,
@@ -411,7 +411,7 @@ describe("writeIncremental", () => {
 
     expect(registry.isNew(newRef)).toBe(true);
 
-    await writeIncremental(registry, {
+    writeIncremental(registry, {
       originalBytes: bytes,
       originalXRefOffset: xrefOffset,
       root: catalogRef,
@@ -427,7 +427,7 @@ describe("writeIncremental", () => {
 
     catalog.set("Modified", PdfNumber.of(1));
 
-    const result = await writeIncremental(registry, {
+    const result = writeIncremental(registry, {
       originalBytes: bytes,
       originalXRefOffset: xrefOffset,
       root: catalogRef,
@@ -449,7 +449,7 @@ describe("writeIncremental", () => {
 
     registry.register(stream);
 
-    const result = await writeIncremental(registry, {
+    const result = writeIncremental(registry, {
       originalBytes: bytes,
       originalXRefOffset: xrefOffset,
       root: catalogRef,
@@ -471,7 +471,7 @@ describe("writeIncremental", () => {
 
     registry.register(stream);
 
-    const result = await writeIncremental(registry, {
+    const result = writeIncremental(registry, {
       originalBytes: bytes,
       originalXRefOffset: xrefOffset,
       root: catalogRef,
@@ -543,7 +543,7 @@ describe("round-trip", () => {
     });
     const catalogRef = registry.register(catalog);
 
-    const result = await writeComplete(registry, { root: catalogRef });
+    const result = writeComplete(registry, { root: catalogRef });
     const text = new TextDecoder().decode(result.bytes);
 
     // Verify structure
@@ -566,7 +566,7 @@ describe("round-trip", () => {
     registry1.commitNewObjects();
     catalog.clearDirty();
 
-    const result1 = await writeComplete(registry1, {
+    const result1 = writeComplete(registry1, {
       root: catalogRef,
       compressStreams: false,
     });
@@ -574,7 +574,7 @@ describe("round-trip", () => {
     // Second save (first incremental)
     catalog.set("ModDate", PdfString.fromString("D:20240101"));
 
-    const result2 = await writeIncremental(registry1, {
+    const result2 = writeIncremental(registry1, {
       originalBytes: result1.bytes,
       originalXRefOffset: result1.xrefOffset,
       root: catalogRef,
@@ -584,7 +584,7 @@ describe("round-trip", () => {
     // Third save (second incremental)
     catalog.set("ModDate", PdfString.fromString("D:20240102"));
 
-    const result3 = await writeIncremental(registry1, {
+    const result3 = writeIncremental(registry1, {
       originalBytes: result2.bytes,
       originalXRefOffset: result2.xrefOffset,
       root: catalogRef,

@@ -44,7 +44,7 @@ describe("PDF", () => {
       const bytes = await loadFixture("basic", "rot0.pdf");
       const pdf = await PDF.load(bytes);
 
-      const catalog = await pdf.getCatalog();
+      const catalog = pdf.getCatalog();
 
       expect(catalog).toBeInstanceOf(PdfDict);
       expect(catalog?.getName("Type")?.value).toBe("Catalog");
@@ -54,7 +54,7 @@ describe("PDF", () => {
       const bytes = await loadFixture("basic", "rot0.pdf");
       const pdf = await PDF.load(bytes);
 
-      const pages = await pdf.getPages();
+      const pages = pdf.getPages();
 
       expect(pages.length).toBeGreaterThan(0);
     });
@@ -72,7 +72,7 @@ describe("PDF", () => {
       const bytes = await loadFixture("basic", "rot0.pdf");
       const pdf = await PDF.load(bytes);
 
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
 
       expect(page).not.toBeNull();
       expect(page?.ref.objectNumber).toBeGreaterThan(0);
@@ -82,8 +82,8 @@ describe("PDF", () => {
       const bytes = await loadFixture("basic", "rot0.pdf");
       const pdf = await PDF.load(bytes);
 
-      expect(await pdf.getPage(-1)).toBeNull();
-      expect(await pdf.getPage(1000)).toBeNull();
+      expect(pdf.getPage(-1)).toBeNull();
+      expect(pdf.getPage(1000)).toBeNull();
     });
   });
 
@@ -96,7 +96,7 @@ describe("PDF", () => {
       const newPage = pdf.addPage();
 
       expect(pdf.getPageCount()).toBe(originalCount + 1);
-      expect((await pdf.getPage(originalCount))?.ref).toEqual(newPage.ref);
+      expect(pdf.getPage(originalCount)?.ref).toEqual(newPage.ref);
 
       // Verify it's a valid page
       expect(newPage.dict).toBeInstanceOf(PdfDict);
@@ -132,25 +132,25 @@ describe("PDF", () => {
     it("addPage respects insertAt option", async () => {
       const bytes = await loadFixture("basic", "rot0.pdf");
       const pdf = await PDF.load(bytes);
-      const firstPage = await pdf.getPage(0);
+      const firstPage = pdf.getPage(0);
 
       const newPage = pdf.addPage({ insertAt: 0 });
 
-      expect((await pdf.getPage(0))?.ref).toEqual(newPage.ref);
-      expect((await pdf.getPage(1))?.ref).toEqual(firstPage?.ref);
+      expect(pdf.getPage(0)?.ref).toEqual(newPage.ref);
+      expect(pdf.getPage(1)?.ref).toEqual(firstPage?.ref);
     });
 
     it("removePage removes a page", async () => {
       const bytes = await loadFixture("basic", "rot0.pdf");
       const pdf = await PDF.load(bytes);
       const originalCount = pdf.getPageCount();
-      const secondPage = await pdf.getPage(1);
+      const secondPage = pdf.getPage(1);
 
       const removed = pdf.removePage(0);
 
       expect(pdf.getPageCount()).toBe(originalCount - 1);
       expect(removed).not.toEqual(secondPage?.ref);
-      expect((await pdf.getPage(0))?.ref).toEqual(secondPage?.ref);
+      expect(pdf.getPage(0)?.ref).toEqual(secondPage?.ref);
     });
 
     it("removePage throws on out of bounds", async () => {
@@ -169,12 +169,12 @@ describe("PDF", () => {
       pdf.addPage(); // page2 - just need it to exist
 
       // Move page1 to the end
-      const pages = await pdf.getPages();
+      const pages = pdf.getPages();
       const page1Index = pages.findIndex(p => p.ref.objectNumber === page1.ref.objectNumber);
       const lastIndex = pdf.getPageCount() - 1;
       pdf.movePage(page1Index, lastIndex);
 
-      expect((await pdf.getPage(lastIndex))?.ref).toEqual(page1.ref);
+      expect(pdf.getPage(lastIndex)?.ref).toEqual(page1.ref);
     });
 
     it("page modifications persist through save/load", async () => {
@@ -204,7 +204,7 @@ describe("PDF", () => {
       const bytes = await loadFixture("basic", "rot0.pdf");
       const pdf = await PDF.load(bytes);
 
-      const catalog = await pdf.getCatalog();
+      const catalog = pdf.getCatalog();
 
       catalog?.set("ModDate", PdfString.fromString("D:20240101"));
 
@@ -238,7 +238,7 @@ describe("PDF", () => {
 
       const ref = pdf.createDict({ Type: PdfName.of("Annot") });
 
-      const obj = await pdf.getObject(ref);
+      const obj = pdf.getObject(ref);
 
       expect(obj).toBeInstanceOf(PdfDict);
       expect((obj as PdfDict).getName("Type")?.value).toBe("Annot");
@@ -307,7 +307,7 @@ describe("PDF", () => {
       const originalLength = bytes.length;
 
       // Modify catalog
-      const catalog = await pdf.getCatalog();
+      const catalog = pdf.getCatalog();
 
       catalog?.set("ModDate", PdfString.fromString("D:20240101"));
 
@@ -324,7 +324,7 @@ describe("PDF", () => {
       const bytes = await loadFixture("basic", "rot0.pdf");
       const pdf = await PDF.load(bytes);
 
-      const catalog = await pdf.getCatalog();
+      const catalog = pdf.getCatalog();
 
       catalog?.set("Modified", PdfNumber.of(1));
 
@@ -365,7 +365,7 @@ describe("PDF", () => {
 
       // Page is automatically inserted at the end
       expect(dest.getPageCount()).toBe(destOriginalCount + 1);
-      expect((await dest.getPage(destOriginalCount))?.ref).toEqual(copiedPage.ref);
+      expect(dest.getPage(destOriginalCount)?.ref).toEqual(copiedPage.ref);
 
       // Verify it's a valid page with accessible properties
       expect(copiedPage.dict).toBeInstanceOf(PdfDict);
@@ -393,8 +393,8 @@ describe("PDF", () => {
       expect(dest.getPageCount()).toBe(destOriginalCount + 2);
 
       // Pages inserted in order
-      expect((await dest.getPage(destOriginalCount))?.ref).toEqual(copiedPages[0].ref);
-      expect((await dest.getPage(destOriginalCount + 1))?.ref).toEqual(copiedPages[1].ref);
+      expect(dest.getPage(destOriginalCount)?.ref).toEqual(copiedPages[0].ref);
+      expect(dest.getPage(destOriginalCount + 1)?.ref).toEqual(copiedPages[1].ref);
     });
 
     it("inserts at specified position with insertAt option", async () => {
@@ -404,28 +404,28 @@ describe("PDF", () => {
       const destBytes = await loadFixture("basic", "sample.pdf");
       const dest = await PDF.load(destBytes);
 
-      const originalFirstPage = await dest.getPage(0);
+      const originalFirstPage = dest.getPage(0);
 
       const [copiedPage] = await dest.copyPagesFrom(source, [0], { insertAt: 0 });
 
       // Copied page is now first
-      expect((await dest.getPage(0))?.ref).toEqual(copiedPage.ref);
+      expect(dest.getPage(0)?.ref).toEqual(copiedPage.ref);
       // Original first page is now second
-      expect((await dest.getPage(1))?.ref).toEqual(originalFirstPage?.ref);
+      expect(dest.getPage(1)?.ref).toEqual(originalFirstPage?.ref);
     });
 
     it("duplicates a page within the same document", async () => {
       const bytes = await loadFixture("basic", "document.pdf");
       const pdf = await PDF.load(bytes);
       const originalCount = pdf.getPageCount();
-      const originalFirstPage = await pdf.getPage(0);
+      const originalFirstPage = pdf.getPage(0);
 
       // Duplicate page 0 and insert after it
       const [duplicatedPage] = await pdf.copyPagesFrom(pdf, [0], { insertAt: 1 });
 
       expect(pdf.getPageCount()).toBe(originalCount + 1);
-      expect((await pdf.getPage(0))?.ref).toEqual(originalFirstPage?.ref);
-      expect((await pdf.getPage(1))?.ref).toEqual(duplicatedPage.ref);
+      expect(pdf.getPage(0)?.ref).toEqual(originalFirstPage?.ref);
+      expect(pdf.getPage(1)?.ref).toEqual(duplicatedPage.ref);
 
       // Refs should be different
       expect(duplicatedPage.ref).not.toEqual(originalFirstPage?.ref);
@@ -621,7 +621,7 @@ describe("PDF", () => {
       const sourceBytes = await loadFixture("basic", "sample.pdf");
       const source = await PDF.load(sourceBytes);
 
-      const sourcePage = await source.getPage(0);
+      const sourcePage = source.getPage(0);
 
       const embedded = await dest.embedPage(source, 0);
 
@@ -648,7 +648,7 @@ describe("PDF", () => {
       const source = await PDF.load(sourceBytes);
 
       const embedded = await dest.embedPage(source, 0);
-      const page = await dest.getPage(0);
+      const page = dest.getPage(0);
 
       expect(page).not.toBeNull();
       page!.drawPage(embedded);
@@ -668,7 +668,7 @@ describe("PDF", () => {
       const source = await PDF.load(sourceBytes);
 
       const embedded = await dest.embedPage(source, 0);
-      const page = await dest.getPage(0);
+      const page = dest.getPage(0);
 
       page!.drawPage(embedded, { background: true });
 
@@ -686,7 +686,7 @@ describe("PDF", () => {
       const source = await PDF.load(sourceBytes);
 
       const embedded = await dest.embedPage(source, 0);
-      const page = await dest.getPage(0);
+      const page = dest.getPage(0);
 
       page!.drawPage(embedded, { x: 50, y: 100, scale: 0.5 });
 
@@ -705,7 +705,7 @@ describe("PDF", () => {
       const source = await PDF.load(sourceBytes);
 
       const embedded = await dest.embedPage(source, 0);
-      const page = await dest.getPage(0);
+      const page = dest.getPage(0);
 
       page!.drawPage(embedded, { opacity: 0.5 });
 
@@ -724,7 +724,7 @@ describe("PDF", () => {
       const source = await PDF.load(sourceBytes);
 
       const embedded = await dest.embedPage(source, 0);
-      const page = await dest.getPage(0);
+      const page = dest.getPage(0);
 
       page!.drawPage(embedded);
 
@@ -735,11 +735,52 @@ describe("PDF", () => {
       expect(reloaded.getPageCount()).toBe(dest.getPageCount());
 
       // Verify the XObject is in the reloaded document
-      const reloadedPage = await reloaded.getPage(0);
+      const reloadedPage = reloaded.getPage(0);
       const resources = reloadedPage!.getResources();
       const xobjects = resources.get("XObject");
 
       expect(xobjects).toBeInstanceOf(PdfDict);
+    });
+
+    it("preserves resources when drawing Skia-produced overlay onto page", async () => {
+      const destBytes = await loadFixture("scenarios", "example-filled-in.pdf");
+      const dest = await PDF.load(destBytes);
+
+      // Get original resources before modification
+      const origPage = dest.getPage(0);
+      const origResources = origPage!.getResources();
+      const origFonts = origResources.get("Font") as PdfDict;
+      const origFontCount = origFonts ? [...origFonts.keys()].length : 0;
+
+      const sourceBytes = await loadFixture("scenarios", "pdf-overlay-page-1.pdf");
+      const source = await PDF.load(sourceBytes);
+
+      const embedded = await dest.embedPage(source, 0);
+      const page = dest.getPage(0);
+
+      page!.drawPage(embedded);
+
+      const saved = await dest.save();
+      const reloaded = await PDF.load(saved);
+
+      expect(reloaded.getPageCount()).toBe(dest.getPageCount());
+
+      // Verify resources were preserved (fonts, colorspaces, etc)
+      const reloadedPage = reloaded.getPage(0);
+      const resources = reloadedPage!.getResources();
+
+      // Should have original fonts preserved
+      const fonts = resources.get("Font") as PdfDict;
+      expect(fonts).toBeInstanceOf(PdfDict);
+      expect([...fonts.keys()].length).toBe(origFontCount);
+
+      // Should have XObject with our embedded page
+      const xobjects = resources.get("XObject") as PdfDict;
+      expect(xobjects).toBeInstanceOf(PdfDict);
+      expect(xobjects.has("Fm0")).toBe(true);
+
+      const outputPath = await saveTestOutput("draw-page/skia-producer.pdf", saved);
+      console.log(`  -> Skia overlay on Quartz page: ${outputPath}`);
     });
   });
 
@@ -802,7 +843,7 @@ describe("PDF", () => {
       const embedded = await dest.embedPage(source, 0);
 
       // Draw on first page, scaled down and positioned
-      const page = await dest.getPage(0);
+      const page = dest.getPage(0);
       page!.drawPage(embedded, {
         x: 50,
         y: 50,
@@ -827,7 +868,7 @@ describe("PDF", () => {
       const embedded = await dest.embedPage(source, 0);
 
       // Draw as background on first page
-      const page = await dest.getPage(0);
+      const page = dest.getPage(0);
       page!.drawPage(embedded, {
         background: true,
         scale: 0.5,
@@ -853,7 +894,7 @@ describe("PDF", () => {
       const embedded = await dest.embedPage(source, 0);
 
       // Draw with 50% opacity
-      const page = await dest.getPage(0);
+      const page = dest.getPage(0);
       page!.drawPage(embedded, {
         opacity: 0.5,
         scale: 0.4,
@@ -879,7 +920,7 @@ describe("PDF", () => {
       const watermark = await dest.embedPage(source, 0);
 
       // Apply watermark to all pages
-      const pages = await dest.getPages();
+      const pages = dest.getPages();
 
       for (const page of pages) {
         // Center the watermark
@@ -908,13 +949,13 @@ describe("PDF", () => {
       const bytes = await loadFixture("basic", "rot0.pdf");
       const pdf1 = await PDF.load(bytes);
 
-      const catalog1 = await pdf1.getCatalog();
+      const catalog1 = pdf1.getCatalog();
       const pageCount1 = pdf1.getPageCount();
 
       const saved = await pdf1.save();
       const pdf2 = await PDF.load(saved);
 
-      const catalog2 = await pdf2.getCatalog();
+      const catalog2 = pdf2.getCatalog();
       const pageCount2 = pdf2.getPageCount();
 
       expect(catalog2?.getName("Type")?.value).toBe(catalog1?.getName("Type")?.value);
@@ -926,14 +967,14 @@ describe("PDF", () => {
       const pdf1 = await PDF.load(bytes);
 
       // Add metadata
-      const catalog = await pdf1.getCatalog();
+      const catalog = pdf1.getCatalog();
 
       catalog?.set("CustomKey", PdfString.fromString("CustomValue"));
 
       const saved = await pdf1.save();
       const pdf2 = await PDF.load(saved);
 
-      const catalog2 = await pdf2.getCatalog();
+      const catalog2 = pdf2.getCatalog();
 
       expect(catalog2?.getString("CustomKey")?.asString()).toBe("CustomValue");
     });
@@ -943,7 +984,7 @@ describe("PDF", () => {
       const pdf1 = await PDF.load(bytes);
 
       // First modification
-      const catalog1 = await pdf1.getCatalog();
+      const catalog1 = pdf1.getCatalog();
 
       catalog1?.set("Mod1", PdfNumber.of(1));
 
@@ -951,7 +992,7 @@ describe("PDF", () => {
 
       // Load and modify again
       const pdf2 = await PDF.load(saved1);
-      const catalog2 = await pdf2.getCatalog();
+      const catalog2 = pdf2.getCatalog();
 
       catalog2?.set("Mod2", PdfNumber.of(2));
 
@@ -959,7 +1000,7 @@ describe("PDF", () => {
 
       // Verify both modifications exist
       const pdf3 = await PDF.load(saved2);
-      const catalog3 = await pdf3.getCatalog();
+      const catalog3 = pdf3.getCatalog();
 
       expect(catalog3?.getNumber("Mod1")?.value).toBe(1);
       expect(catalog3?.getNumber("Mod2")?.value).toBe(2);
@@ -977,7 +1018,7 @@ describe("PDF", () => {
       const bytes = await loadFixture("basic", "document.pdf");
       const pdf = await PDF.load(bytes);
 
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       expect(form).toBeNull();
     });
@@ -986,7 +1027,7 @@ describe("PDF", () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
 
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
 
       expect(form).not.toBeNull();
       expect(form!.fieldCount).toBeGreaterThan(0);
@@ -996,8 +1037,8 @@ describe("PDF", () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
 
-      const form1 = await pdf.getForm();
-      const form2 = await pdf.getForm();
+      const form1 = pdf.getForm();
+      const form2 = pdf.getForm();
 
       expect(form1).toBe(form2);
     });
@@ -1008,7 +1049,7 @@ describe("PDF", () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
 
-      const form = await pdf.getForm();
+      const form = pdf.getForm();
       const acroForm = form?.acroForm();
 
       expect(acroForm).not.toBeNull();
@@ -1151,7 +1192,7 @@ describe("PDF", () => {
 
         pdf.setTitle("My Document", { showInWindowTitleBar: true });
 
-        const catalog = await pdf.getCatalog();
+        const catalog = pdf.getCatalog();
         const viewerPrefs = catalog?.get("ViewerPreferences");
 
         expect(viewerPrefs).toBeInstanceOf(PdfDict);

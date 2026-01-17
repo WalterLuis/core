@@ -27,20 +27,20 @@ async function main() {
   console.log(`   Pages: ${pdf.getPageCount()}`);
 
   // Get the first page
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (!page) {
     throw new Error("Failed to get page");
   }
 
   // Extract text to show what's in the document
   console.log("\n2. Extracting text...");
-  const pageText = await page.extractText();
+  const pageText = page.extractText();
   console.log(`   Total characters: ${pageText.text.length}`);
   console.log(`   Total lines: ${pageText.lines.length}`);
 
   // Search for template tags with {{ ... }} pattern
   console.log("\n3. Searching for template tags...");
-  const matches = await page.findText(/\{\{[^}]+\}\}/g);
+  const matches = page.findText(/\{\{[^}]+\}\}/g);
 
   console.log(`   Found ${matches.length} template tags:\n`);
 

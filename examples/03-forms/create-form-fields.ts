@@ -20,13 +20,13 @@ async function main() {
   pdf.addPage({ size: "letter" });
 
   // Get the page object for drawing
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (!page) {
     throw new Error("Failed to get page");
   }
 
   // Get or create the form
-  const form = await pdf.getOrCreateForm();
+  const form = pdf.getOrCreateForm();
 
   // Draw a title
   page.drawText("Registration Form", {
@@ -47,7 +47,7 @@ async function main() {
     fontSize: 12,
     maxLength: 50,
   });
-  await page.drawField(nameField, { x: 150, y: 695, width: 300, height: 20 });
+  page.drawField(nameField, { x: 150, y: 695, width: 300, height: 20 });
 
   // Email field
   page.drawText("Email:", { x: 50, y: 660, size: 12, color: black });
@@ -56,7 +56,7 @@ async function main() {
     fontSize: 12,
     maxLength: 100,
   });
-  await page.drawField(emailField, { x: 150, y: 655, width: 300, height: 20 });
+  page.drawField(emailField, { x: 150, y: 655, width: 300, height: 20 });
 
   // Phone field
   page.drawText("Phone:", { x: 50, y: 620, size: 12, color: black });
@@ -65,7 +65,7 @@ async function main() {
     fontSize: 12,
     maxLength: 20,
   });
-  await page.drawField(phoneField, { x: 150, y: 615, width: 200, height: 20 });
+  page.drawField(phoneField, { x: 150, y: 615, width: 200, height: 20 });
 
   // Comments (multiline)
   page.drawText("Comments:", { x: 50, y: 580, size: 12, color: black });
@@ -74,7 +74,7 @@ async function main() {
     fontSize: 10,
     multiline: true,
   });
-  await page.drawField(commentsField, { x: 150, y: 500, width: 300, height: 80 });
+  page.drawField(commentsField, { x: 150, y: 500, width: 300, height: 80 });
 
   console.log("  - Created: fullName, email, phone, comments");
 
@@ -87,14 +87,14 @@ async function main() {
   const newsletterCheckbox = form.createCheckbox("newsletter", {
     symbol: "check",
   });
-  await page.drawField(newsletterCheckbox, { x: 150, y: 440, width: 18, height: 18 });
+  page.drawField(newsletterCheckbox, { x: 150, y: 440, width: 18, height: 18 });
   page.drawText("Subscribe to newsletter", { x: 175, y: 442, size: 11, color: black });
 
   // Terms checkbox
   const termsCheckbox = form.createCheckbox("agreeTerms", {
     symbol: "check",
   });
-  await page.drawField(termsCheckbox, { x: 150, y: 410, width: 18, height: 18 });
+  page.drawField(termsCheckbox, { x: 150, y: 410, width: 18, height: 18 });
   page.drawText("I agree to the terms and conditions", {
     x: 175,
     y: 412,
@@ -114,7 +114,7 @@ async function main() {
   });
 
   // Draw each radio option
-  await page.drawField(contactMethod, {
+  page.drawField(contactMethod, {
     x: 150,
     y: 350,
     width: 16,
@@ -123,7 +123,7 @@ async function main() {
   });
   page.drawText("Email", { x: 175, y: 352, size: 11, color: black });
 
-  await page.drawField(contactMethod, {
+  page.drawField(contactMethod, {
     x: 250,
     y: 350,
     width: 16,
@@ -132,7 +132,7 @@ async function main() {
   });
   page.drawText("Phone", { x: 275, y: 352, size: 11, color: black });
 
-  await page.drawField(contactMethod, {
+  page.drawField(contactMethod, {
     x: 350,
     y: 350,
     width: 16,
@@ -160,7 +160,7 @@ async function main() {
       "Other",
     ],
   });
-  await page.drawField(countryDropdown, { x: 150, y: 305, width: 200, height: 20 });
+  page.drawField(countryDropdown, { x: 150, y: 305, width: 200, height: 20 });
 
   console.log("  - Created: country dropdown");
 
@@ -173,7 +173,7 @@ async function main() {
     maxLength: 10,
     defaultValue: "REF-0001",
   });
-  await page.drawField(refField, { x: 150, y: 265, width: 100, height: 20 });
+  page.drawField(refField, { x: 150, y: 265, width: 100, height: 20 });
 
   console.log("  - Created: referenceNumber (right-aligned, with default value)");
 
@@ -201,7 +201,7 @@ async function main() {
   // Verify the form
   console.log("\n=== Verification ===");
   const verifyPdf = await PDF.load(savedBytes);
-  const verifyForm = await verifyPdf.getForm();
+  const verifyForm = verifyPdf.getForm();
 
   if (verifyForm) {
     console.log(`Loaded form with ${verifyForm.fieldCount} fields`);

@@ -87,7 +87,7 @@ export class PDFPolygonAnnotation extends PDFPolyAnnotation {
    */
   setInteriorColor(color: Color): void {
     const components = colorToArray(color);
-    this.dict.set("IC", new PdfArray(components.map(PdfNumber.of)));
+    this.dict.set("IC", new PdfArray(components.map(n => PdfNumber.of(n))));
     this.markModified();
   }
 
@@ -116,10 +116,12 @@ export class PDFPolylineAnnotation extends PDFPolyAnnotation {
       return ["None", "None"];
     }
 
-    const startStyle = (le.at(0) as { value?: string } | null)?.value ?? "None";
-    const endStyle = (le.at(1) as { value?: string } | null)?.value ?? "None";
+    const [startStyle, endStyle] = le
+      .toArray()
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+      .map(item => (item instanceof PdfName ? (item.value as LineEndingStyle) : "None"));
 
-    return [startStyle as LineEndingStyle, endStyle as LineEndingStyle];
+    return [startStyle ?? "None", endStyle ?? "None"];
   }
 
   /**

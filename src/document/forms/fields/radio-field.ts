@@ -102,7 +102,7 @@ export class RadioField extends TerminalField {
    * @param option One of getOptions() or null to deselect
    * @throws {Error} if field is read-only, option is invalid, or deselection not allowed
    */
-  async setValue(option: string | null): Promise<void> {
+  setValue(option: string | null): void {
     this.assertWritable();
 
     let value: string;
@@ -136,6 +136,6 @@ export class RadioField extends TerminalField {
     this.needsAppearanceUpdate = true;
 
     // Regenerate appearance immediately
-    await this.applyChange();
+    this.applyChange();
   }
 }

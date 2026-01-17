@@ -20,7 +20,7 @@ describe("Form Integration: Embedded Fonts", () => {
     const fontBytes = await loadFixture("fonts", "ttf/LiberationSans-Regular.ttf");
 
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     // Embed font
@@ -40,7 +40,7 @@ describe("Form Integration: Embedded Fonts", () => {
     }
 
     // Update appearances
-    await form!.updateAppearances();
+    form!.updateAppearances();
 
     // Save (full save)
     const savedBytes = await pdf.save();
@@ -51,7 +51,7 @@ describe("Form Integration: Embedded Fonts", () => {
 
     // Verify by reloading
     const pdf2 = await PDF.load(savedBytes);
-    const form2 = await pdf2.getForm();
+    const form2 = pdf2.getForm();
     const reloadedFields = form2!.getTextFields();
     const filledField = reloadedFields.find(f => f.getValue() === "Test Value");
     expect(filledField).toBeDefined();
@@ -62,7 +62,7 @@ describe("Form Integration: Embedded Fonts", () => {
     const fontBytes = await loadFixture("fonts", "otf/FoglihtenNo07.otf");
 
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     // Embed OTF font
@@ -76,7 +76,7 @@ describe("Form Integration: Embedded Fonts", () => {
       nameField.setValue("John Doe");
     }
 
-    await form!.updateAppearances();
+    form!.updateAppearances();
 
     const savedBytes = await pdf.save();
     const outputPath = await saveTestOutput("forms/embedded-otf-font.pdf", savedBytes);
@@ -91,7 +91,7 @@ describe("Form Integration: Embedded Fonts", () => {
     const italicBytes = await loadFixture("fonts", "ttf/JosefinSans-Italic.ttf");
 
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     // Embed two different fonts
@@ -121,7 +121,7 @@ describe("Form Integration: Embedded Fonts", () => {
       }
     }
 
-    await form!.updateAppearances();
+    form!.updateAppearances();
 
     const savedBytes = await pdf.save();
     const outputPath = await saveTestOutput("forms/multiple-fonts.pdf", savedBytes);
@@ -139,7 +139,7 @@ describe("Form Integration: Existing Fonts", () => {
   it("uses existing PDF fonts (Helvetica) for form fields", async () => {
     const pdfBytes = await loadFixture("forms", "sample_form.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     const acroForm = form!.acroForm();
@@ -158,7 +158,7 @@ describe("Form Integration: Existing Fonts", () => {
       }
     }
 
-    await form!.updateAppearances();
+    form!.updateAppearances();
 
     const savedBytes = await pdf.save();
     const outputPath = await saveTestOutput("forms/existing-font-helv.pdf", savedBytes);
@@ -170,7 +170,7 @@ describe("Form Integration: Existing Fonts", () => {
   it("lists available fonts from form default resources", async () => {
     const pdfBytes = await loadFixture("forms", "sample_form.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     const acroForm = form!.acroForm();
@@ -189,7 +189,7 @@ describe("Form Integration: Text Colors", () => {
   it("applies custom text colors to fields", async () => {
     const pdfBytes = await loadFixture("forms", "sample_form.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     const textFields = form!.getTextFields();
@@ -211,7 +211,7 @@ describe("Form Integration: Text Colors", () => {
       colorIndex++;
     }
 
-    await form!.updateAppearances();
+    form!.updateAppearances();
 
     const savedBytes = await pdf.save();
     const outputPath = await saveTestOutput("forms/text-colors.pdf", savedBytes);
@@ -229,7 +229,7 @@ describe("Form Integration: All Field Types", () => {
   it("updates appearances for all field types", async () => {
     const pdfBytes = await loadFixture("forms", "fancy_fields.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     // Fill different field types
@@ -276,7 +276,7 @@ describe("Form Integration: All Field Types", () => {
       }
     }
 
-    await form!.updateAppearances();
+    form!.updateAppearances();
 
     const savedBytes = await pdf.save();
     const outputPath = await saveTestOutput("forms/all-field-types.pdf", savedBytes);
@@ -286,7 +286,7 @@ describe("Form Integration: All Field Types", () => {
 
     // Verify round-trip
     const pdf2 = await PDF.load(savedBytes);
-    const form2 = await pdf2.getForm();
+    const form2 = pdf2.getForm();
     expect(form2!.getFields().length).toBe(form!.getFields().length);
   });
 });
@@ -304,7 +304,7 @@ describe("Form Integration: Incremental Saves", () => {
     const blocker = pdf.canSaveIncrementally();
     console.log(`  Incremental save blocker: ${blocker ?? "none"}`);
 
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     // Make a simple change
@@ -312,7 +312,7 @@ describe("Form Integration: Incremental Saves", () => {
     expect(stateField).toBeDefined();
     stateField!.setValue("CA");
 
-    await form!.updateAppearances();
+    form!.updateAppearances();
 
     // Save incrementally
     const savedBytes = await pdf.save({ incremental: true });
@@ -328,7 +328,7 @@ describe("Form Integration: Incremental Saves", () => {
 
     // Verify the change persisted
     const pdf2 = await PDF.load(savedBytes);
-    const form2 = await pdf2.getForm();
+    const form2 = pdf2.getForm();
     const field2 = form2!.getTextField("STATE");
     expect(field2!.getValue()).toBe("CA");
   });
@@ -345,10 +345,10 @@ describe("Form Integration: Incremental Saves", () => {
     }
 
     // First incremental save
-    let form = await pdf.getForm();
+    let form = pdf.getForm();
     const field1 = form!.getTextField("STATE");
     field1!.setValue("NY");
-    await form!.updateAppearances();
+    form!.updateAppearances();
 
     currentBytes = await pdf.save({ incremental: true });
     const size1 = currentBytes.length;
@@ -356,11 +356,11 @@ describe("Form Integration: Incremental Saves", () => {
 
     // Second incremental save (reload from previous)
     pdf = await PDF.load(currentBytes);
-    form = await pdf.getForm();
+    form = pdf.getForm();
     const field2 = form!.getTextField("ZIP");
     if (field2 && !field2.isReadOnly()) {
       field2.setValue("10001");
-      await form!.updateAppearances();
+      form!.updateAppearances();
 
       currentBytes = await pdf.save({ incremental: true });
       const size2 = currentBytes.length;
@@ -372,7 +372,7 @@ describe("Form Integration: Incremental Saves", () => {
 
     // Verify both changes persisted
     const finalPdf = await PDF.load(currentBytes);
-    const finalForm = await finalPdf.getForm();
+    const finalForm = finalPdf.getForm();
     expect(finalForm!.getTextField("STATE")!.getValue()).toBe("NY");
   });
 
@@ -380,7 +380,7 @@ describe("Form Integration: Incremental Saves", () => {
     const pdfBytes = await loadFixture("forms", "sample_form.pdf");
     const pdf = await PDF.load(pdfBytes);
 
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     // Toggle some checkboxes
@@ -393,7 +393,7 @@ describe("Form Integration: Incremental Saves", () => {
       }
     }
 
-    await form!.updateAppearances();
+    form!.updateAppearances();
 
     const savedBytes = await pdf.save({ incremental: true });
     const outputPath = await saveTestOutput("forms/incremental-checkboxes.pdf", savedBytes);
@@ -402,7 +402,7 @@ describe("Form Integration: Incremental Saves", () => {
 
     // Verify
     const pdf2 = await PDF.load(savedBytes);
-    const form2 = await pdf2.getForm();
+    const form2 = pdf2.getForm();
     const cbs2 = form2!.getCheckboxes();
 
     // States should be toggled from original
@@ -418,7 +418,7 @@ describe("Form Integration: Incremental Saves", () => {
     const fontBytes = await loadFixture("fonts", "ttf/LiberationSans-Regular.ttf");
 
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     // Embed font and use it
@@ -430,7 +430,7 @@ describe("Form Integration: Incremental Saves", () => {
     const stateField = form!.getTextField("STATE");
     stateField!.setValue("TX");
 
-    await form!.updateAppearances();
+    form!.updateAppearances();
 
     // Try incremental save with embedded font
     const savedBytes = await pdf.save({ incremental: true });
@@ -441,7 +441,7 @@ describe("Form Integration: Incremental Saves", () => {
 
     // Verify
     const pdf2 = await PDF.load(savedBytes);
-    const form2 = await pdf2.getForm();
+    const form2 = pdf2.getForm();
     expect(form2!.getTextField("STATE")!.getValue()).toBe("TX");
   });
 });
@@ -456,7 +456,7 @@ describe("Form Integration: Flatten with Output", () => {
     const fontBytes = await loadFixture("fonts", "ttf/LiberationSans-Regular.ttf");
 
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     // Embed font
@@ -479,7 +479,7 @@ describe("Form Integration: Flatten with Output", () => {
     }
 
     // Flatten
-    await form!.flatten();
+    form!.flatten();
 
     const savedBytes = await pdf.save();
     const outputPath = await saveTestOutput("forms/flatten-embedded-font.pdf", savedBytes);
@@ -488,7 +488,7 @@ describe("Form Integration: Flatten with Output", () => {
 
     // Verify form is gone
     const pdf2 = await PDF.load(savedBytes);
-    const form2 = await pdf2.getForm();
+    const form2 = pdf2.getForm();
     if (form2) {
       expect(form2.getFields().length).toBe(0);
     }
@@ -500,7 +500,7 @@ describe("Form Integration: Flatten with Output", () => {
     const fontBytes = await loadFixture("fonts", "ttf/LiberationSans-Regular.ttf");
 
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
 
     if (!form || form.getFields().length === 0) {
       console.log("  Skipping: form has no fields");
@@ -518,7 +518,7 @@ describe("Form Integration: Flatten with Output", () => {
     }
 
     // Flatten with font options
-    await form.flatten({ font, fontSize: 12 });
+    form.flatten({ font, fontSize: 12 });
 
     const savedBytes = await pdf.save();
     const outputPath = await saveTestOutput("forms/flatten-font-options.pdf", savedBytes);
@@ -530,7 +530,7 @@ describe("Form Integration: Flatten with Output", () => {
   it("flattens fancy_fields form with all field types", async () => {
     const pdfBytes = await loadFixture("forms", "fancy_fields.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     // Fill various field types
@@ -562,7 +562,7 @@ describe("Form Integration: Flatten with Output", () => {
       }
     }
 
-    await form!.flatten();
+    form!.flatten();
 
     const savedBytes = await pdf.save();
     const outputPath = await saveTestOutput("forms/flatten-fancy-fields.pdf", savedBytes);
@@ -572,7 +572,7 @@ describe("Form Integration: Flatten with Output", () => {
 
     // Verify flattening
     const pdf2 = await PDF.load(savedBytes);
-    const form2 = await pdf2.getForm();
+    const form2 = pdf2.getForm();
     if (form2) {
       expect(form2.getFields().length).toBe(0);
     }
@@ -587,7 +587,7 @@ describe("Form Integration: Round-trip Integrity", () => {
   it("preserves all field values through save/load cycle", async () => {
     const pdfBytes = await loadFixture("forms", "sample_form.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     // Record original values and set new ones
@@ -604,14 +604,14 @@ describe("Form Integration: Round-trip Integrity", () => {
       }
     }
 
-    await form!.updateAppearances();
+    form!.updateAppearances();
 
     // Save and reload
     const savedBytes = await pdf.save();
     await saveTestOutput("forms/round-trip-values.pdf", savedBytes);
 
     const pdf2 = await PDF.load(savedBytes);
-    const form2 = await pdf2.getForm();
+    const form2 = pdf2.getForm();
 
     // Verify new values persisted
     for (const [name, expectedValue] of newValues) {
@@ -628,19 +628,19 @@ describe("Form Integration: Round-trip Integrity", () => {
 
     // First cycle: check all
     let pdf = await PDF.load(currentBytes);
-    let form = await pdf.getForm();
+    let form = pdf.getForm();
 
     for (const cb of form!.getCheckboxes()) {
       cb.check();
     }
-    await form!.updateAppearances();
+    form!.updateAppearances();
 
     currentBytes = await pdf.save();
     await saveTestOutput("forms/checkbox-round-trip-1.pdf", currentBytes);
 
     // Verify all checked
     pdf = await PDF.load(currentBytes);
-    form = await pdf.getForm();
+    form = pdf.getForm();
     for (const cb of form!.getCheckboxes()) {
       expect(cb.isChecked()).toBe(true);
     }
@@ -649,14 +649,14 @@ describe("Form Integration: Round-trip Integrity", () => {
     for (const cb of form!.getCheckboxes()) {
       cb.uncheck();
     }
-    await form!.updateAppearances();
+    form!.updateAppearances();
 
     currentBytes = await pdf.save();
     await saveTestOutput("forms/checkbox-round-trip-2.pdf", currentBytes);
 
     // Verify all unchecked
     pdf = await PDF.load(currentBytes);
-    form = await pdf.getForm();
+    form = pdf.getForm();
     for (const cb of form!.getCheckboxes()) {
       expect(cb.isChecked()).toBe(false);
     }
@@ -667,7 +667,7 @@ describe("Form Integration: Round-trip Integrity", () => {
     const fontBytes = await loadFixture("fonts", "ttf/LiberationSans-Regular.ttf");
 
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
 
     // Embed font and use it
     const font = pdf.embedFont(fontBytes);
@@ -676,7 +676,7 @@ describe("Form Integration: Round-trip Integrity", () => {
 
     const stateField = form!.getTextField("STATE");
     stateField!.setValue("FL");
-    await form!.updateAppearances();
+    form!.updateAppearances();
 
     // First save
     const bytes1 = await pdf.save();
@@ -684,20 +684,20 @@ describe("Form Integration: Round-trip Integrity", () => {
 
     // Reload and modify again
     const pdf2 = await PDF.load(bytes1);
-    const form2 = await pdf2.getForm();
+    const form2 = pdf2.getForm();
 
     const stateField2 = form2!.getTextField("STATE");
     expect(stateField2!.getValue()).toBe("FL");
 
     stateField2!.setValue("GA");
-    await form2!.updateAppearances();
+    form2!.updateAppearances();
 
     const bytes2 = await pdf2.save();
     await saveTestOutput("forms/font-round-trip-2.pdf", bytes2);
 
     // Final verification
     const pdf3 = await PDF.load(bytes2);
-    const form3 = await pdf3.getForm();
+    const form3 = pdf3.getForm();
     expect(form3!.getTextField("STATE")!.getValue()).toBe("GA");
   });
 });
@@ -712,7 +712,7 @@ describe("Form Integration: Unicode Text", () => {
     const fontBytes = await loadFixture("fonts", "ttf/LiberationSans-Regular.ttf");
 
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     // Embed font that supports more glyphs
@@ -724,7 +724,7 @@ describe("Form Integration: Unicode Text", () => {
       const field = textFields[0];
       field.setFont(font);
       field.setValue("Hello Wörld Café");
-      await form!.updateAppearances();
+      form!.updateAppearances();
 
       const savedBytes = await pdf.save();
       const outputPath = await saveTestOutput("forms/unicode-text.pdf", savedBytes);
@@ -733,7 +733,7 @@ describe("Form Integration: Unicode Text", () => {
 
       // Verify value preserved
       const pdf2 = await PDF.load(savedBytes);
-      const form2 = await pdf2.getForm();
+      const form2 = pdf2.getForm();
       const field2 = form2!.getTextField(field.name);
       expect(field2!.getValue()).toBe("Hello Wörld Café");
     }
@@ -743,7 +743,7 @@ describe("Form Integration: Unicode Text", () => {
     const pdfBytes = await loadFixture("forms", "fancy_fields.pdf");
 
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     // Note: The font may not have CJK glyphs, but the value should still be stored
@@ -759,7 +759,7 @@ describe("Form Integration: Unicode Text", () => {
 
       // Value should be preserved even if appearance may have fallback glyphs
       const pdf2 = await PDF.load(savedBytes);
-      const form2 = await pdf2.getForm();
+      const form2 = pdf2.getForm();
       const field2 = form2!.getTextField(field.name);
       expect(field2!.getValue()).toBe("こんにちは世界");
     }
@@ -774,7 +774,7 @@ describe("Form Integration: Edge Cases", () => {
   it("handles empty form gracefully", async () => {
     const pdfBytes = await loadFixture("basic", "document.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
 
     // Document without form - should be null or have no fields
     if (form) {
@@ -787,7 +787,7 @@ describe("Form Integration: Edge Cases", () => {
   it("handles form with read-only fields", async () => {
     const pdfBytes = await loadFixture("forms", "sample_form.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     // Count read-only fields
@@ -795,14 +795,14 @@ describe("Form Integration: Edge Cases", () => {
     console.log(`  Read-only fields: ${readOnlyFields.length}`);
 
     // Attempt to fill - should skip read-only
-    const result = await form!.fill({
+    const result = form!.fill({
       STATE: "CA",
       CITY: "Los Angeles",
     });
 
     console.log(`  Filled: ${result.filled.join(", ")}, Skipped: ${result.skipped.join(", ")}`);
 
-    await form!.updateAppearances();
+    form!.updateAppearances();
 
     const savedBytes = await pdf.save();
     await saveTestOutput("forms/with-readonly.pdf", savedBytes);
@@ -813,7 +813,7 @@ describe("Form Integration: Edge Cases", () => {
   it("handles comb fields correctly", async () => {
     const pdfBytes = await loadFixture("forms", "with_combed_fields.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
 
     if (!form) {
       console.log("  Skipping: no form found");
@@ -835,7 +835,7 @@ describe("Form Integration: Edge Cases", () => {
       field.setValue("A".repeat(Math.min(maxLen, 5)));
     }
 
-    await form.updateAppearances();
+    form.updateAppearances();
 
     const savedBytes = await pdf.save();
     const outputPath = await saveTestOutput("forms/comb-fields.pdf", savedBytes);
@@ -847,7 +847,7 @@ describe("Form Integration: Edge Cases", () => {
   it("handles multiline text fields", async () => {
     const pdfBytes = await loadFixture("forms", "sample_form.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     const textFields = form!.getTextFields();
@@ -864,7 +864,7 @@ describe("Form Integration: Edge Cases", () => {
       field.setValue("Single line");
     }
 
-    await form!.updateAppearances();
+    form!.updateAppearances();
 
     const savedBytes = await pdf.save();
     const outputPath = await saveTestOutput("forms/multiline-fields.pdf", savedBytes);
@@ -882,10 +882,10 @@ describe("Form Integration: Field Tree", () => {
   it("accesses fields via FieldTree", async () => {
     const pdfBytes = await loadFixture("forms", "fancy_fields.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = (await pdf.getForm())?.acroForm();
+    const form = pdf.getForm()?.acroForm();
     expect(form).not.toBeNull();
 
-    const tree = await form!.getFieldTree();
+    const tree = form!.getFieldTree();
 
     // Test iteration
     const fieldNames: string[] = [];
@@ -911,10 +911,10 @@ describe("Form Integration: Field Tree", () => {
   it("finds fields by name via FieldTree", async () => {
     const pdfBytes = await loadFixture("forms", "sample_form.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = (await pdf.getForm())?.acroForm();
+    const form = pdf.getForm()?.acroForm();
     expect(form).not.toBeNull();
 
-    const tree = await form!.getFieldTree();
+    const tree = form!.getFieldTree();
 
     // Find a known field
     const field = tree.findField("STATE");
@@ -925,10 +925,10 @@ describe("Form Integration: Field Tree", () => {
   it("gets terminal field by name", async () => {
     const pdfBytes = await loadFixture("forms", "sample_form.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = (await pdf.getForm())?.acroForm();
+    const form = pdf.getForm()?.acroForm();
     expect(form).not.toBeNull();
 
-    const tree = await form!.getFieldTree();
+    const tree = form!.getFieldTree();
 
     const terminalField = tree.findTerminalField("STATE");
     expect(terminalField).not.toBeNull();
@@ -941,10 +941,10 @@ describe("Form Integration: Field Tree", () => {
   it("provides size and isEmpty properties", async () => {
     const pdfBytes = await loadFixture("forms", "sample_form.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = (await pdf.getForm())?.acroForm();
+    const form = pdf.getForm()?.acroForm();
     expect(form).not.toBeNull();
 
-    const tree = await form!.getFieldTree();
+    const tree = form!.getFieldTree();
 
     expect(tree.size).toBeGreaterThan(0);
     expect(tree.isEmpty).toBe(false);
@@ -959,7 +959,7 @@ describe("Form Integration: Async setValue", () => {
   it("setValue is async and auto-updates appearance", async () => {
     const pdfBytes = await loadFixture("forms", "sample_form.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     const textField = form!.getTextField("STATE");
@@ -967,10 +967,8 @@ describe("Form Integration: Async setValue", () => {
 
     // setValue returns a promise
     const result = textField!.setValue("NY");
-    expect(result instanceof Promise).toBe(true);
 
     // After awaiting, appearance should be updated (needsAppearanceUpdate = false)
-    await result;
     expect(textField!.needsAppearanceUpdate).toBe(false);
 
     // Value should be set
@@ -980,7 +978,7 @@ describe("Form Integration: Async setValue", () => {
   it("checkbox check/uncheck are async", async () => {
     const pdfBytes = await loadFixture("forms", "sample_form.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     const checkboxes = form!.getCheckboxes();
@@ -993,10 +991,10 @@ describe("Form Integration: Async setValue", () => {
 
     // check/uncheck return promises
     if (wasChecked) {
-      await cb.uncheck();
+      cb.uncheck();
       expect(cb.isChecked()).toBe(false);
     } else {
-      await cb.check();
+      cb.check();
       expect(cb.isChecked()).toBe(true);
     }
   });
@@ -1004,7 +1002,7 @@ describe("Form Integration: Async setValue", () => {
   it("radio setValue is async", async () => {
     const pdfBytes = await loadFixture("forms", "fancy_fields.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     const radios = form!.getRadioGroups();
@@ -1019,25 +1017,25 @@ describe("Form Integration: Async setValue", () => {
     }
 
     // setValue returns a promise
-    await radio.setValue(options[0]);
+    radio.setValue(options[0]);
     expect(radio.getValue()).toBe(options[0]);
   });
 
   it("resetValue is async and updates appearance", async () => {
     const pdfBytes = await loadFixture("forms", "sample_form.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     const textField = form!.getTextField("STATE");
     expect(textField).not.toBeNull();
 
     // Set a value first
-    await textField!.setValue("XX");
+    textField!.setValue("XX");
     expect(textField!.getValue()).toBe("XX");
 
     // Reset should be async
-    await textField!.resetValue();
+    textField!.resetValue();
 
     // After reset, appearance should be updated
     expect(textField!.needsAppearanceUpdate).toBe(false);
@@ -1052,7 +1050,7 @@ describe("Form Integration: Stress Test", () => {
   it("fully processes fancy_fields.pdf with all field types", async () => {
     const pdfBytes = await loadFixture("forms", "fancy_fields.pdf");
     const pdf = await PDF.load(pdfBytes);
-    const form = await pdf.getForm();
+    const form = pdf.getForm();
     expect(form).not.toBeNull();
 
     // Count fields by type
@@ -1072,7 +1070,7 @@ describe("Form Integration: Stress Test", () => {
     // Fill all text fields
     for (const field of textFields) {
       if (!field.isReadOnly()) {
-        await field.setValue("Test Value");
+        field.setValue("Test Value");
       }
     }
 
@@ -1080,9 +1078,9 @@ describe("Form Integration: Stress Test", () => {
     for (const cb of checkboxes) {
       if (!cb.isReadOnly()) {
         if (cb.isChecked()) {
-          await cb.uncheck();
+          cb.uncheck();
         } else {
-          await cb.check();
+          cb.check();
         }
       }
     }
@@ -1093,7 +1091,7 @@ describe("Form Integration: Stress Test", () => {
         const options = radio.getOptions();
 
         if (options.length > 0) {
-          await radio.setValue(options[0]);
+          radio.setValue(options[0]);
         }
       }
     }
@@ -1104,7 +1102,7 @@ describe("Form Integration: Stress Test", () => {
         const options = dropdown.getOptions();
 
         if (options.length > 0) {
-          await dropdown.setValue(options[0].value);
+          dropdown.setValue(options[0].value);
         }
       }
     }
@@ -1115,7 +1113,7 @@ describe("Form Integration: Stress Test", () => {
         const options = listbox.getOptions();
 
         if (options.length > 0) {
-          await listbox.setValue([options[0].value]);
+          listbox.setValue([options[0].value]);
         }
       }
     }
@@ -1126,7 +1124,7 @@ describe("Form Integration: Stress Test", () => {
     console.log(`  -> Filled output: ${filledPath}`);
 
     // Flatten and save
-    await form!.flatten();
+    form!.flatten();
     const flattenedBytes = await pdf.save();
     const flattenedPath = await saveTestOutput("forms/stress-test-flattened.pdf", flattenedBytes);
     console.log(`  -> Flattened output: ${flattenedPath}`);
@@ -1135,7 +1133,7 @@ describe("Form Integration: Stress Test", () => {
 
     // Verify flattening removed fields
     const pdf2 = await PDF.load(flattenedBytes);
-    const form2 = await pdf2.getForm();
+    const form2 = pdf2.getForm();
 
     if (form2) {
       expect(form2.getFields().length).toBe(0);

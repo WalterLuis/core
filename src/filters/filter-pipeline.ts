@@ -67,7 +67,7 @@ export class FilterPipeline {
    * @returns Decoded data
    * @throws {Error} if a filter is not registered
    */
-  static async decode(data: Uint8Array, filters: FilterSpec | FilterSpec[]): Promise<Uint8Array> {
+  static decode(data: Uint8Array, filters: FilterSpec | FilterSpec[]): Uint8Array {
     const filterList = Array.isArray(filters) ? filters : [filters];
 
     if (filterList.length === 0) {
@@ -83,7 +83,7 @@ export class FilterPipeline {
         throw new Error(`Unknown filter: ${spec.name}`);
       }
 
-      result = await filter.decode(result, spec.params);
+      result = filter.decode(result, spec.params);
     }
 
     return result;
@@ -101,7 +101,7 @@ export class FilterPipeline {
    * @returns Encoded data
    * @throws {Error} if a filter is not registered
    */
-  static async encode(data: Uint8Array, filters: FilterSpec | FilterSpec[]): Promise<Uint8Array> {
+  static encode(data: Uint8Array, filters: FilterSpec | FilterSpec[]): Uint8Array {
     const filterList = Array.isArray(filters) ? filters : [filters];
 
     if (filterList.length === 0) {
@@ -118,7 +118,7 @@ export class FilterPipeline {
         throw new Error(`Unknown filter: ${spec.name}`);
       }
 
-      result = await filter.encode(result, spec.params);
+      result = filter.encode(result, spec.params);
     }
 
     return result;

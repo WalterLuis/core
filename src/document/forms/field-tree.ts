@@ -11,7 +11,7 @@ import { PdfDict } from "#src/objects/pdf-dict";
 import { PdfRef } from "#src/objects/pdf-ref";
 
 import type { ObjectRegistry } from "../object-registry";
-import { createFormField, type FormField, NonTerminalField, type TerminalField } from "./fields";
+import { createFormField, type FormField, NonTerminalField, TerminalField } from "./fields";
 
 /**
  * Interface for AcroForm-like objects that can provide field tree iteration.
@@ -19,7 +19,7 @@ import { createFormField, type FormField, NonTerminalField, type TerminalField }
 export interface FieldTreeSource {
   getDict(): PdfDict;
   defaultQuadding: number;
-  updateFieldAppearance?(field: TerminalField): Promise<void>;
+  updateFieldAppearance?(field: TerminalField): void;
 }
 
 /**
@@ -63,7 +63,7 @@ export class FieldTree implements Iterable<FormField> {
    * @param registry The object registry for resolving references
    * @returns A fully-loaded FieldTree
    */
-  static async load(acroForm: FieldTreeSource, registry: ObjectRegistry): Promise<FieldTree> {
+  static load(acroForm: FieldTreeSource, registry: ObjectRegistry): FieldTree {
     const dict = acroForm.getDict();
     const fieldsArray = dict.getArray("Fields");
 
@@ -98,7 +98,8 @@ export class FieldTree implements Iterable<FormField> {
         continue;
       }
 
-      const { item, parentName, parent } = entry;
+      const { parentName, parent } = entry;
+      let { item } = entry;
 
       const ref = item instanceof PdfRef ? item : null;
       const refKey = ref ? `${ref.objectNumber}:${ref.generation}` : "";
@@ -117,12 +118,10 @@ export class FieldTree implements Iterable<FormField> {
       let fieldDict: PdfDict | null = null;
 
       if (item instanceof PdfRef) {
-        const resolved = await registry.resolve(item);
+        item = registry.resolve(item) ?? undefined;
+      }
 
-        if (resolved instanceof PdfDict) {
-          fieldDict = resolved;
-        }
-      } else if (item instanceof PdfDict) {
+      if (item instanceof PdfDict) {
         fieldDict = item;
       }
 
@@ -139,13 +138,13 @@ export class FieldTree implements Iterable<FormField> {
         : partialName;
 
       // Check if terminal or non-terminal
-      const isTerminal = await checkIsTerminalField(fieldDict, registry);
+      const isTerminal = checkIsTerminalField(fieldDict, registry);
 
       if (isTerminal) {
         // Create terminal field
         const field = createFormField(fieldDict, ref, registry, acroForm, fullName);
 
-        await field.resolveWidgets();
+        field.resolveWidgets();
 
         field.parent = parent;
         fields.push(field);
@@ -200,8 +199,8 @@ export class FieldTree implements Iterable<FormField> {
    */
   *terminalFields(): Generator<TerminalField> {
     for (const field of this.fields) {
-      if (!(field instanceof NonTerminalField)) {
-        yield field as TerminalField;
+      if (field instanceof TerminalField) {
+        yield field;
       }
     }
   }
@@ -217,7 +216,7 @@ export class FieldTree implements Iterable<FormField> {
    * Get all terminal fields as an array.
    */
   getTerminalFields(): TerminalField[] {
-    return this.fields.filter(f => !(f instanceof NonTerminalField)) as TerminalField[];
+    return this.fields.filter(f => f instanceof TerminalField);
   }
 
   /**
@@ -233,8 +232,8 @@ export class FieldTree implements Iterable<FormField> {
   findTerminalField(name: string): TerminalField | null {
     const field = this.findField(name);
 
-    if (field && !(field instanceof NonTerminalField)) {
-      return field as TerminalField;
+    if (field && field instanceof TerminalField) {
+      return field;
     }
 
     return null;
@@ -262,7 +261,7 @@ export class FieldTree implements Iterable<FormField> {
  * - It has no /Kids, OR
  * - Its /Kids contain widgets (no /T) rather than child fields (have /T)
  */
-async function checkIsTerminalField(dict: PdfDict, registry: ObjectRegistry): Promise<boolean> {
+function checkIsTerminalField(dict: PdfDict, registry: ObjectRegistry): boolean {
   const kids = dict.getArray("Kids");
 
   if (!kids || kids.length === 0) {
@@ -271,7 +270,7 @@ async function checkIsTerminalField(dict: PdfDict, registry: ObjectRegistry): Pr
 
   // Check the first kid - if it has /T, these are child fields (non-terminal)
   // If it has no /T, these are widgets (terminal)
-  const firstKid = kids.at(0);
+  let firstKid = kids.at(0);
 
   if (!firstKid) {
     return true;
@@ -280,12 +279,10 @@ async function checkIsTerminalField(dict: PdfDict, registry: ObjectRegistry): Pr
   let firstKidDict: PdfDict | null = null;
 
   if (firstKid instanceof PdfRef) {
-    const resolved = await registry.resolve(firstKid);
+    firstKid = registry.resolve(firstKid) ?? undefined;
+  }
 
-    if (resolved instanceof PdfDict) {
-      firstKidDict = resolved;
-    }
-  } else if (firstKid instanceof PdfDict) {
+  if (firstKid instanceof PdfDict) {
     firstKidDict = firstKid;
   }
 

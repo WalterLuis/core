@@ -10,7 +10,6 @@
     "allowJs": true,
 
     // Paths (must match package.json imports)
-    "baseUrl": ".",
     "paths": {
       "#src/*": ["./src/*"]
     },

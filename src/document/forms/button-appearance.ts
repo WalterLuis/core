@@ -354,7 +354,7 @@ function encodeTextForFont(text: string, font: FormFont): PdfString {
     font.markUsedInForm();
 
     if (!font.canEncode(text)) {
-      const unencodable = (font as EmbeddedFont).getUnencodableCharacters(text);
+      const unencodable = font.getUnencodableCharacters(text);
       const firstBad = unencodable[0];
 
       throw new Error(

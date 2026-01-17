@@ -17,7 +17,7 @@ async function main() {
   const pdf = PDF.create();
   pdf.addPage({ size: "letter" });
 
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (!page) {
     throw new Error("Failed to get page");
   }
@@ -36,7 +36,7 @@ async function main() {
   console.log(`Loaded PNG: ${formatBytes(pngBytes.length)}`);
 
   // Embed the PNG
-  const image = await pdf.embedPng(pngBytes);
+  const image = pdf.embedPng(pngBytes);
   console.log(`Image dimensions: ${image.width} x ${image.height} pixels`);
 
   // Draw a colored background to show transparency
@@ -125,14 +125,14 @@ async function main() {
 
   try {
     const redBytes = await loadFixture("images", "red-square.png");
-    redPng = await pdf.embedPng(redBytes);
+    redPng = pdf.embedPng(redBytes);
   } catch {
     redPng = image;
   }
 
   try {
     const blueBytes = await loadFixture("images", "blue-rectangle.png");
-    bluePng = await pdf.embedPng(blueBytes);
+    bluePng = pdf.embedPng(blueBytes);
   } catch {
     bluePng = image;
   }
@@ -168,7 +168,7 @@ async function main() {
   });
 
   // embedImage automatically detects JPEG vs PNG
-  const autoImage = await pdf.embedImage(pngBytes);
+  const autoImage = pdf.embedImage(pngBytes);
   page.drawImage(autoImage, {
     x: 300,
     y: page.height - 520,

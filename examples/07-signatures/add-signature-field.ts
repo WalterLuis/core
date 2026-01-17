@@ -17,7 +17,7 @@ async function main() {
   const pdf = PDF.create();
   pdf.addPage({ size: "letter" });
 
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (!page) {
     throw new Error("Failed to get page");
   }
@@ -76,7 +76,7 @@ async function main() {
   });
 
   // Get or create the form
-  const form = await pdf.getOrCreateForm();
+  const form = pdf.getOrCreateForm();
 
   // Create an unsigned signature field
   // Note: Signature fields are invisible until signed. The visual "signature area"
@@ -119,7 +119,7 @@ async function main() {
 
   // Verify
   const reloaded = await PDF.load(savedBytes);
-  const reloadedForm = await reloaded.getForm();
+  const reloadedForm = reloaded.getForm();
 
   console.log("\n=== Verification ===");
   console.log(`Signature fields: ${reloadedForm?.getSignatureFields().length}`);

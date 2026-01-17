@@ -18,10 +18,10 @@ describe("Text Extraction Bounding Boxes", () => {
     it("highlights every character in rot0.pdf", async () => {
       const bytes = await loadFixture("text", "rot0.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
       expect(page).not.toBeNull();
 
-      const pageText = await page!.extractText();
+      const pageText = page!.extractText();
 
       // Draw a small rectangle around each character
       let charCount = 0;
@@ -69,10 +69,10 @@ describe("Text Extraction Bounding Boxes", () => {
     it("highlights every character in proposal.pdf", async () => {
       const bytes = await loadFixture("text", "proposal.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
       expect(page).not.toBeNull();
 
-      const pageText = await page!.extractText();
+      const pageText = page!.extractText();
 
       // Draw rectangles with alternating colors per line
       let charCount = 0;
@@ -112,12 +112,12 @@ describe("Text Extraction Bounding Boxes", () => {
       const pageCount = pdf.getPageCount();
 
       for (let i = 0; i < pageCount; i++) {
-        const page = await pdf.getPage(i);
+        const page = pdf.getPage(i);
         if (!page) {
           continue;
         }
 
-        const pageText = await page.extractText();
+        const pageText = page.extractText();
 
         for (const line of pageText.lines) {
           for (const span of line.spans) {
@@ -150,11 +150,11 @@ describe("Text Extraction Bounding Boxes", () => {
     it("highlights words in rot0.pdf", async () => {
       const bytes = await loadFixture("text", "rot0.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
       expect(page).not.toBeNull();
 
       // Find all words using regex
-      const matches = await page!.findText(/\S+/g);
+      const matches = page!.findText(/\S+/g);
 
       // Draw rectangles around each word
       for (let i = 0; i < matches.length; i++) {
@@ -203,10 +203,10 @@ describe("Text Extraction Bounding Boxes", () => {
     it("highlights words in proposal.pdf", async () => {
       const bytes = await loadFixture("text", "proposal.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
       expect(page).not.toBeNull();
 
-      const matches = await page!.findText(/\S+/g);
+      const matches = page!.findText(/\S+/g);
 
       for (let i = 0; i < matches.length; i++) {
         const match = matches[i];
@@ -238,10 +238,10 @@ describe("Text Extraction Bounding Boxes", () => {
     it("highlights lines in rot0.pdf", async () => {
       const bytes = await loadFixture("text", "rot0.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
       expect(page).not.toBeNull();
 
-      const pageText = await page!.extractText();
+      const pageText = page!.extractText();
 
       // Draw rectangles around each line
       for (let i = 0; i < pageText.lines.length; i++) {
@@ -297,10 +297,10 @@ describe("Text Extraction Bounding Boxes", () => {
     it("highlights lines in proposal.pdf", async () => {
       const bytes = await loadFixture("text", "proposal.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
       expect(page).not.toBeNull();
 
-      const pageText = await page!.extractText();
+      const pageText = page!.extractText();
 
       for (let i = 0; i < pageText.lines.length; i++) {
         const line = pageText.lines[i];
@@ -330,10 +330,10 @@ describe("Text Extraction Bounding Boxes", () => {
     it("characters have varying widths in proportional fonts", async () => {
       const bytes = await loadFixture("text", "proposal.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
       expect(page).not.toBeNull();
 
-      const pageText = await page!.extractText();
+      const pageText = page!.extractText();
 
       // Collect character widths
       const widthsByChar = new Map<string, number[]>();
@@ -386,10 +386,10 @@ describe("Text Extraction Bounding Boxes", () => {
     it("space characters have non-zero width", async () => {
       const bytes = await loadFixture("text", "proposal.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
       expect(page).not.toBeNull();
 
-      const pageText = await page!.extractText();
+      const pageText = page!.extractText();
 
       let spaceCount = 0;
       let totalSpaceWidth = 0;
@@ -420,11 +420,11 @@ describe("Text Extraction Bounding Boxes", () => {
       // This test verifies our bounding boxes still align correctly
       const bytes = await loadFixture("text", "proposal.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
       expect(page).not.toBeNull();
 
       // Find specific known text
-      const companyMatches = await page!.findText("COMPANY_NAME");
+      const companyMatches = page!.findText("COMPANY_NAME");
       expect(companyMatches.length).toBeGreaterThan(0);
 
       const match = companyMatches[0];
@@ -471,10 +471,10 @@ describe("Text Extraction Bounding Boxes", () => {
     it("creates comprehensive highlight visualization", async () => {
       const bytes = await loadFixture("text", "proposal.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
       expect(page).not.toBeNull();
 
-      const pageText = await page!.extractText();
+      const pageText = page!.extractText();
 
       // Layer 1: Line backgrounds (very light)
       for (let i = 0; i < pageText.lines.length; i++) {
@@ -506,7 +506,7 @@ describe("Text Extraction Bounding Boxes", () => {
       }
 
       // Layer 3: Template tag highlights
-      const templateMatches = await page!.findText(/\{\{[^}]+\}\}/g);
+      const templateMatches = page!.findText(/\{\{[^}]+\}\}/g);
       for (const match of templateMatches) {
         page!.drawRectangle({
           x: match.bbox.x - 2,
@@ -564,10 +564,10 @@ describe("Variety of PDF producers", () => {
       }
 
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
       expect(page).not.toBeNull();
 
-      const pageText = await page!.extractText();
+      const pageText = page!.extractText();
 
       // Should extract some text (may be empty for some edge cases)
       expect(pageText).toBeDefined();

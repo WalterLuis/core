@@ -18,7 +18,7 @@ async function main() {
   pdf.addPage({ size: "letter" });
 
   // Add some content
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (page) {
     page.drawText("Document with Custom Metadata", {
       x: 150,

@@ -13,10 +13,10 @@ describe("FieldTree", () => {
     it("loads fields from a form", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
       expect(form).not.toBeNull();
 
-      const tree = await form!.getFieldTree();
+      const tree = form!.getFieldTree();
 
       expect(tree.size).toBeGreaterThan(0);
       expect(tree.isEmpty).toBe(false);
@@ -25,14 +25,14 @@ describe("FieldTree", () => {
     it("returns empty tree for form with no fields", async () => {
       const bytes = await loadFixture("basic", "document.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
 
       // document.pdf has no form, so we skip this test
       if (!form) {
         return;
       }
 
-      const tree = await form.getFieldTree();
+      const tree = form.getFieldTree();
       expect(tree.isEmpty).toBe(true);
     });
   });
@@ -41,10 +41,10 @@ describe("FieldTree", () => {
     it("iterates all fields including non-terminal", async () => {
       const bytes = await loadFixture("forms", "fancy_fields.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
       expect(form).not.toBeNull();
 
-      const tree = await form!.getFieldTree();
+      const tree = form!.getFieldTree();
 
       const fields = [...tree];
       expect(fields.length).toBeGreaterThan(0);
@@ -53,10 +53,10 @@ describe("FieldTree", () => {
     it("iterates terminal fields only", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
       expect(form).not.toBeNull();
 
-      const tree = await form!.getFieldTree();
+      const tree = form!.getFieldTree();
 
       const terminalFields = [...tree.terminalFields()];
 
@@ -71,10 +71,10 @@ describe("FieldTree", () => {
     it("finds field by fully-qualified name", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
       expect(form).not.toBeNull();
 
-      const tree = await form!.getFieldTree();
+      const tree = form!.getFieldTree();
 
       const field = tree.findField("STATE");
       expect(field).not.toBeNull();
@@ -84,10 +84,10 @@ describe("FieldTree", () => {
     it("returns null for non-existent field", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
       expect(form).not.toBeNull();
 
-      const tree = await form!.getFieldTree();
+      const tree = form!.getFieldTree();
 
       const field = tree.findField("NonExistentField");
       expect(field).toBeNull();
@@ -96,10 +96,10 @@ describe("FieldTree", () => {
     it("finds terminal field by name", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
       expect(form).not.toBeNull();
 
-      const tree = await form!.getFieldTree();
+      const tree = form!.getFieldTree();
 
       const field = tree.findTerminalField("STATE");
       expect(field).not.toBeNull();
@@ -111,10 +111,10 @@ describe("FieldTree", () => {
     it("sets parent references during iteration", async () => {
       const bytes = await loadFixture("forms", "fancy_fields.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
       expect(form).not.toBeNull();
 
-      const tree = await form!.getFieldTree();
+      const tree = form!.getFieldTree();
 
       // Root fields should have null parent
       // Child fields should have their parent set
@@ -130,10 +130,10 @@ describe("FieldTree", () => {
     it("returns all fields as array", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
       expect(form).not.toBeNull();
 
-      const tree = await form!.getFieldTree();
+      const tree = form!.getFieldTree();
 
       const fields = tree.getAllFields();
       expect(Array.isArray(fields)).toBe(true);
@@ -145,10 +145,10 @@ describe("FieldTree", () => {
     it("returns only terminal fields as array", async () => {
       const bytes = await loadFixture("forms", "sample_form.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
       expect(form).not.toBeNull();
 
-      const tree = await form!.getFieldTree();
+      const tree = form!.getFieldTree();
 
       const terminalFields = tree.getTerminalFields();
 
@@ -163,10 +163,10 @@ describe("FieldTree", () => {
     it("handles deep field hierarchy", async () => {
       const bytes = await loadFixture("forms", "fancy_fields.pdf");
       const pdf = await PDF.load(bytes);
-      const form = (await pdf.getForm())?.acroForm();
+      const form = pdf.getForm()?.acroForm();
       expect(form).not.toBeNull();
 
-      const tree = await form!.getFieldTree();
+      const tree = form!.getFieldTree();
 
       // Should handle any depth without issues
       const fields = tree.getAllFields();

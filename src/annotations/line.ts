@@ -51,7 +51,7 @@ export class PDFLineAnnotation extends PDFMarkupAnnotation {
         PdfNumber.of(end.x),
         PdfNumber.of(end.y),
       ]),
-      C: new PdfArray(colorComponents.map(PdfNumber.of)),
+      C: new PdfArray(colorComponents.map(n => PdfNumber.of(n))),
       F: PdfNumber.of(4), // Print flag
     });
 
@@ -77,7 +77,7 @@ export class PDFLineAnnotation extends PDFMarkupAnnotation {
     // Interior color for closed arrows
     if (options.interiorColor) {
       const icComponents = colorToArray(options.interiorColor);
-      annotDict.set("IC", new PdfArray(icComponents.map(PdfNumber.of)));
+      annotDict.set("IC", new PdfArray(icComponents.map(n => PdfNumber.of(n))));
     }
 
     if (options.contents) {
@@ -94,17 +94,22 @@ export class PDFLineAnnotation extends PDFMarkupAnnotation {
     const l = this.dict.getArray("L");
 
     if (!l || l.length < 4) {
-      return { start: { x: 0, y: 0 }, end: { x: 0, y: 0 } };
+      return {
+        start: { x: 0, y: 0 },
+        end: { x: 0, y: 0 },
+      };
     }
+
+    const [x1, y1, x2, y2] = l.toArray().map(item => (item instanceof PdfNumber ? item.value : 0));
 
     return {
       start: {
-        x: (l.at(0) as PdfNumber | null)?.value ?? 0,
-        y: (l.at(1) as PdfNumber | null)?.value ?? 0,
+        x: x1 ?? 0,
+        y: y1 ?? 0,
       },
       end: {
-        x: (l.at(2) as PdfNumber | null)?.value ?? 0,
-        y: (l.at(3) as PdfNumber | null)?.value ?? 0,
+        x: x2 ?? 0,
+        y: y2 ?? 0,
       },
     };
   }
@@ -159,10 +164,12 @@ export class PDFLineAnnotation extends PDFMarkupAnnotation {
       return ["None", "None"];
     }
 
-    const startStyle = (le.at(0) as { value?: string } | null)?.value ?? "None";
-    const endStyle = (le.at(1) as { value?: string } | null)?.value ?? "None";
+    const [startStyle, endStyle] = le
+      .toArray()
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+      .map(item => (item instanceof PdfName ? (item.value as LineEndingStyle) : "None"));
 
-    return [startStyle as LineEndingStyle, endStyle as LineEndingStyle];
+    return [startStyle ?? "None", endStyle ?? "None"];
   }
 
   /**
@@ -187,7 +194,7 @@ export class PDFLineAnnotation extends PDFMarkupAnnotation {
    */
   setInteriorColor(color: Color): void {
     const components = colorToArray(color);
-    this.dict.set("IC", new PdfArray(components.map(PdfNumber.of)));
+    this.dict.set("IC", new PdfArray(components.map(n => PdfNumber.of(n))));
     this.markModified();
   }
 

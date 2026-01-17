@@ -7,11 +7,11 @@ describe("Text Extraction Integration", () => {
     it("extracts text from simple PDF", async () => {
       const bytes = await loadFixture("text", "rot0.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
 
       expect(page).not.toBeNull();
 
-      const pageText = await page!.extractText();
+      const pageText = page!.extractText();
 
       expect(pageText.pageIndex).toBe(0);
       expect(pageText.text.length).toBeGreaterThan(0);
@@ -21,11 +21,11 @@ describe("Text Extraction Integration", () => {
     it("extracts text from yaddatest PDF", async () => {
       const bytes = await loadFixture("text", "yaddatest.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
 
       expect(page).not.toBeNull();
 
-      const pageText = await page!.extractText();
+      const pageText = page!.extractText();
 
       expect(pageText.text.length).toBeGreaterThan(0);
       // The file should contain some text
@@ -39,8 +39,8 @@ describe("Text Extraction Integration", () => {
 
       expect(pageCount).toBeGreaterThan(0);
 
-      const page = await pdf.getPage(0);
-      const pageText = await page!.extractText();
+      const page = pdf.getPage(0);
+      const pageText = page!.extractText();
 
       expect(pageText.text.length).toBeGreaterThan(0);
     });
@@ -48,8 +48,8 @@ describe("Text Extraction Integration", () => {
     it("includes line structure", async () => {
       const bytes = await loadFixture("text", "rot0.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
-      const pageText = await page!.extractText();
+      const page = pdf.getPage(0);
+      const pageText = page!.extractText();
 
       // Check that we have structured data
       expect(pageText.lines).toBeDefined();
@@ -76,7 +76,7 @@ describe("Text Extraction Integration", () => {
       const pdf = await PDF.load(bytes);
       const pageCount = pdf.getPageCount();
 
-      const allText = await pdf.extractText();
+      const allText = pdf.extractText();
 
       expect(allText).toHaveLength(pageCount);
 
@@ -90,15 +90,15 @@ describe("Text Extraction Integration", () => {
     it("finds string in page", async () => {
       const bytes = await loadFixture("text", "rot0.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
 
       // First extract text to see what's in the PDF
-      const pageText = await page!.extractText();
+      const pageText = page!.extractText();
 
       // Use the first few characters of the text as search query
       if (pageText.text.length >= 3) {
         const searchTerm = pageText.text.substring(0, 3);
-        const matches = await page!.findText(searchTerm);
+        const matches = page!.findText(searchTerm);
 
         expect(matches.length).toBeGreaterThan(0);
         expect(matches[0].text).toBe(searchTerm);
@@ -111,9 +111,9 @@ describe("Text Extraction Integration", () => {
     it("returns empty array when text not found", async () => {
       const bytes = await loadFixture("text", "rot0.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
 
-      const matches = await page!.findText("xyz123nonexistent");
+      const matches = page!.findText("xyz123nonexistent");
 
       expect(matches).toHaveLength(0);
     });
@@ -121,10 +121,10 @@ describe("Text Extraction Integration", () => {
     it("finds regex patterns", async () => {
       const bytes = await loadFixture("text", "rot0.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
 
       // Search for any word characters
-      const matches = await page!.findText(/\w+/g);
+      const matches = page!.findText(/\w+/g);
 
       expect(matches.length).toBeGreaterThan(0);
     });
@@ -136,7 +136,7 @@ describe("Text Extraction Integration", () => {
       const pdf = await PDF.load(bytes);
 
       // First extract to see what text exists
-      const allText = await pdf.extractText();
+      const allText = pdf.extractText();
       const combinedText = allText.map(p => p.text).join(" ");
 
       // Find a word that appears in the document
@@ -144,7 +144,7 @@ describe("Text Extraction Integration", () => {
 
       if (wordMatch) {
         const searchTerm = wordMatch[0];
-        const matches = await pdf.findText(searchTerm);
+        const matches = pdf.findText(searchTerm);
 
         expect(matches.length).toBeGreaterThan(0);
       }
@@ -156,7 +156,7 @@ describe("Text Extraction Integration", () => {
 
       if (pdf.getPageCount() > 1) {
         // Search only first page
-        const matches = await pdf.findText(/\w+/, { pages: [0] });
+        const matches = pdf.findText(/\w+/, { pages: [0] });
 
         // All matches should be from page 0
         for (const match of matches) {
@@ -170,10 +170,10 @@ describe("Text Extraction Integration", () => {
     it("extracts all template tags from proposal document", async () => {
       const bytes = await loadFixture("text", "proposal.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
 
       // Search for template tags with {{ ... }} pattern
-      const matches = await page!.findText(/\{\{[^}]+\}\}/g);
+      const matches = page!.findText(/\{\{[^}]+\}\}/g);
 
       // Should find exactly 5 template tags
       expect(matches).toHaveLength(5);
@@ -190,9 +190,9 @@ describe("Text Extraction Integration", () => {
     it("provides accurate bounding boxes for template tags", async () => {
       const bytes = await loadFixture("text", "proposal.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
+      const page = pdf.getPage(0);
 
-      const matches = await page!.findText(/\{\{[^}]+\}\}/g);
+      const matches = page!.findText(/\{\{[^}]+\}\}/g);
 
       for (const match of matches) {
         // Bounding box should be valid
@@ -210,8 +210,8 @@ describe("Text Extraction Integration", () => {
     it("can extract full page text from proposal", async () => {
       const bytes = await loadFixture("text", "proposal.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
-      const pageText = await page!.extractText();
+      const page = pdf.getPage(0);
+      const pageText = page!.extractText();
 
       // Check for expected content
       expect(pageText.text).toContain("OVERVIEW");
@@ -226,8 +226,8 @@ describe("Text Extraction Integration", () => {
     it("provides valid bounding boxes", async () => {
       const bytes = await loadFixture("text", "rot0.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
-      const pageText = await page!.extractText();
+      const page = pdf.getPage(0);
+      const pageText = page!.extractText();
 
       // Check line bounding boxes
       for (const line of pageText.lines) {
@@ -241,12 +241,12 @@ describe("Text Extraction Integration", () => {
     it("provides character boxes for search matches", async () => {
       const bytes = await loadFixture("text", "rot0.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
-      const pageText = await page!.extractText();
+      const page = pdf.getPage(0);
+      const pageText = page!.extractText();
 
       if (pageText.text.length >= 3) {
         const searchTerm = pageText.text.substring(0, 3);
-        const matches = await page!.findText(searchTerm);
+        const matches = page!.findText(searchTerm);
 
         if (matches.length > 0) {
           const match = matches[0];
@@ -271,8 +271,8 @@ describe("Text Extraction Integration", () => {
       // - Tm 1 0 0 1 74.1 774.5 for fourth char
       const bytes = await loadFixture("text", "openoffice-test-document.pdf");
       const pdf = await PDF.load(bytes);
-      const page = await pdf.getPage(0);
-      const pageText = await page!.extractText();
+      const page = pdf.getPage(0);
+      const pageText = page!.extractText();
 
       expect(pageText.lines.length).toBe(1);
       expect(pageText.lines[0].text).toBe("Test");

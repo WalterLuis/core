@@ -235,6 +235,7 @@ async function importKms(): Promise<typeof import("@google-cloud/kms")> {
   try {
     return await import("@google-cloud/kms");
   } catch (error) {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const code = (error as NodeJS.ErrnoException).code;
 
     if (code === "ERR_MODULE_NOT_FOUND" || code === "MODULE_NOT_FOUND") {
@@ -254,6 +255,7 @@ async function importSecretManager(): Promise<typeof import("@google-cloud/secre
   try {
     return await import("@google-cloud/secret-manager");
   } catch (error) {
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const code = (error as NodeJS.ErrnoException).code;
 
     if (code === "ERR_MODULE_NOT_FOUND" || code === "MODULE_NOT_FOUND") {
@@ -307,11 +309,14 @@ interface GrpcError extends Error {
  * Type guard for gRPC errors from Google Cloud libraries.
  */
 function isGrpcError(error: unknown): error is GrpcError {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+  const grpcError = error as GrpcError;
+
   return (
-    error instanceof Error &&
-    typeof (error as GrpcError).code === "number" &&
-    (error as GrpcError).code >= 0 &&
-    (error as GrpcError).code <= 16
+    grpcError instanceof Error &&
+    typeof grpcError.code === "number" &&
+    grpcError.code >= 0 &&
+    grpcError.code <= 16
   );
 }
 
@@ -637,9 +642,13 @@ export class GoogleKmsSigner implements Signer {
         throw new KmsSignerError("KMS did not return a signature");
       }
 
+      if (typeof response.signature === "string") {
+        return new TextEncoder().encode(response.signature);
+      }
+
       // Return signature bytes directly
       // KMS returns DER-encoded ECDSA signatures, which matches our interface
-      return new Uint8Array(response.signature as Uint8Array);
+      return new Uint8Array(response.signature);
     } catch (error) {
       if (error instanceof KmsSignerError) {
         throw error;

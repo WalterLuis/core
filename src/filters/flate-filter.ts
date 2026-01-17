@@ -1,4 +1,5 @@
 import type { PdfDict } from "#src/objects/pdf-dict";
+import pako from "pako";
 
 import type { Filter } from "./filter";
 import { applyPredictor } from "./predictor";
@@ -15,10 +16,7 @@ import { applyPredictor } from "./predictor";
 export class FlateFilter implements Filter {
   readonly name = "FlateDecode";
 
-  async decode(data: Uint8Array, params?: PdfDict): Promise<Uint8Array> {
-    // Dynamic import for tree-shaking
-    const pako = await import("pako");
-
+  decode(data: Uint8Array, params?: PdfDict): Uint8Array {
     // pako.inflate handles zlib header automatically and gracefully
     // handles truncated/corrupt data (unlike native DecompressionStream
     // which can hang indefinitely on malformed input)
@@ -36,9 +34,7 @@ export class FlateFilter implements Filter {
     return decompressed;
   }
 
-  async encode(data: Uint8Array, _params?: PdfDict): Promise<Uint8Array> {
-    const pako = await import("pako");
-
+  encode(data: Uint8Array, _params?: PdfDict): Uint8Array {
     // Use default compression level (6)
     // Returns zlib format with header
     return pako.deflate(data);

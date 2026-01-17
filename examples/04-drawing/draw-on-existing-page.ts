@@ -20,7 +20,7 @@ async function main() {
   console.log(`Loaded PDF with ${pdf.getPageCount()} page(s)`);
 
   // Get the first page
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (!page) {
     throw new Error("Failed to get page");
   }

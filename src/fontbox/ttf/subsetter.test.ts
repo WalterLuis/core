@@ -17,7 +17,7 @@ describe("TTFSubsetter", () => {
   describe("empty subset", () => {
     it("should create subset with only .notdef (PDFBOX-2854)", async () => {
       const subsetter = new TTFSubsetter(fullFont);
-      const subsetBytes = await subsetter.write();
+      const subsetBytes = subsetter.write();
 
       // Parse the subset
       const subset = parseTTF(subsetBytes, { isEmbedded: true });
@@ -31,7 +31,7 @@ describe("TTFSubsetter", () => {
     it("should subset to single glyph (PDFBOX-2854)", async () => {
       const subsetter = new TTFSubsetter(fullFont);
       subsetter.add("a".charCodeAt(0));
-      const subsetBytes = await subsetter.write();
+      const subsetBytes = subsetter.write();
 
       const subset = parseTTF(subsetBytes, { isEmbedded: true });
 
@@ -46,7 +46,7 @@ describe("TTFSubsetter", () => {
 
       const subsetter = new TTFSubsetter(fullFont);
       subsetter.add("a".charCodeAt(0));
-      const subsetBytes = await subsetter.write();
+      const subsetBytes = subsetter.write();
 
       const subset = parseTTF(subsetBytes, { isEmbedded: true });
       const subsetWidth = subset.getAdvanceWidth(1); // 'a' is glyph 1
@@ -59,7 +59,7 @@ describe("TTFSubsetter", () => {
     it("should subset multiple characters", async () => {
       const subsetter = new TTFSubsetter(fullFont);
       subsetter.addString("ABC");
-      const subsetBytes = await subsetter.write();
+      const subsetBytes = subsetter.write();
 
       const subset = parseTTF(subsetBytes, { isEmbedded: true });
 
@@ -71,7 +71,7 @@ describe("TTFSubsetter", () => {
       subsetter.add("A".charCodeAt(0));
       subsetter.add(" ".charCodeAt(0));
       subsetter.add("B".charCodeAt(0));
-      const subsetBytes = await subsetter.write();
+      const subsetBytes = subsetter.write();
 
       const subset = parseTTF(subsetBytes, { isEmbedded: true });
 
@@ -93,7 +93,7 @@ describe("TTFSubsetter", () => {
       const subsetter = new TTFSubsetter(fullFont);
       // Ö (O-dieresis) is typically a composite of O + dieresis
       subsetter.add("Ö".charCodeAt(0));
-      const subsetBytes = await subsetter.write();
+      const subsetBytes = subsetter.write();
 
       const subset = parseTTF(subsetBytes, { isEmbedded: true });
 
@@ -139,7 +139,7 @@ describe("TTFSubsetter", () => {
       subsetter.add("B".charCodeAt(0));
       subsetter.forceInvisible("B".charCodeAt(0));
 
-      const subsetBytes = await subsetter.write();
+      const subsetBytes = subsetter.write();
       const subset = parseTTF(subsetBytes, { isEmbedded: true });
 
       // A should have non-zero width
@@ -157,7 +157,7 @@ describe("TTFSubsetter", () => {
       const subsetter = new TTFSubsetter(fullFont);
       subsetter.setPrefix("SUBSET+");
       subsetter.add("a".charCodeAt(0));
-      const subsetBytes = await subsetter.write();
+      const subsetBytes = subsetter.write();
 
       const subset = parseTTF(subsetBytes, { isEmbedded: true });
 
@@ -174,7 +174,7 @@ describe("TTFSubsetter", () => {
         keepTables: ["head", "hhea", "loca", "maxp", "glyf", "hmtx"],
       });
       subsetter.add("a".charCodeAt(0));
-      const subsetBytes = await subsetter.write();
+      const subsetBytes = subsetter.write();
 
       const subset = parseTTF(subsetBytes, { isEmbedded: true });
 
@@ -196,7 +196,7 @@ describe("TTFSubsetter", () => {
     it("should produce valid re-parseable TTF", async () => {
       const subsetter = new TTFSubsetter(fullFont);
       subsetter.addString("Hello World");
-      const subsetBytes = await subsetter.write();
+      const subsetBytes = subsetter.write();
 
       // Should not throw when parsing
       const subset = parseTTF(subsetBytes, { isEmbedded: true });

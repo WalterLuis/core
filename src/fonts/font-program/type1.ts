@@ -151,3 +151,6 @@ export class Type1FontProgram implements FontProgram {
     return this.data;
   }
 }
+
+export const isType1FontProgram = (program: FontProgram): program is Type1FontProgram =>
+  program.type === "type1";

@@ -139,7 +139,9 @@ export abstract class FormField {
         break;
       }
 
-      current = this.registry.getObject(parentRef) as PdfDict | null;
+      const obj = this.registry.getObject(parentRef);
+
+      current = obj instanceof PdfDict ? obj : null;
     }
 
     return null;
@@ -430,11 +432,11 @@ export abstract class TerminalField extends FormField {
    *
    * @internal
    */
-  async resolveWidgets(): Promise<void> {
+  resolveWidgets(): void {
     // If field has /Rect, it's merged with its widget
     if (this.dict.has("Rect")) {
       // Also resolve MK if it's a reference
-      await this.resolveMK(this.dict);
+      this.resolveMK(this.dict);
       this._widgets = [new WidgetAnnotation(this.dict, this.ref, this.registry)];
 
       return;
@@ -458,14 +460,14 @@ export abstract class TerminalField extends FormField {
       let widgetDict: PdfObject | null = null;
 
       if (ref) {
-        widgetDict = await this.registry.resolve(ref);
+        widgetDict = this.registry.resolve(ref);
       } else if (item instanceof PdfDict) {
         widgetDict = item;
       }
 
       if (widgetDict instanceof PdfDict) {
         // Also resolve MK if it's a reference
-        await this.resolveMK(widgetDict);
+        this.resolveMK(widgetDict);
         widgets.push(new WidgetAnnotation(widgetDict, ref, this.registry));
       }
     }
@@ -477,11 +479,11 @@ export abstract class TerminalField extends FormField {
    * Resolve MK dictionary if it's a reference.
    * This ensures getAppearanceCharacteristics() can work synchronously.
    */
-  private async resolveMK(dict: PdfDict): Promise<void> {
+  private resolveMK(dict: PdfDict): void {
     const mkEntry = dict.get("MK");
 
     if (mkEntry instanceof PdfRef) {
-      await this.registry.resolve(mkEntry);
+      this.registry.resolve(mkEntry);
     }
   }
 
@@ -531,7 +533,7 @@ export abstract class TerminalField extends FormField {
    * This method is async because it regenerates the field's appearance
    * stream after resetting the value.
    */
-  async resetValue(): Promise<void> {
+  resetValue(): void {
     const dv = this.getInheritable("DV");
 
     if (dv) {
@@ -543,7 +545,7 @@ export abstract class TerminalField extends FormField {
     this.needsAppearanceUpdate = true;
 
     // Regenerate appearance immediately
-    await this.applyChange();
+    this.applyChange();
   }
 
   /**
@@ -563,9 +565,9 @@ export abstract class TerminalField extends FormField {
    *
    * @internal
    */
-  protected async applyChange(): Promise<void> {
+  protected applyChange(): void {
     if (this.acroForm.updateFieldAppearance) {
-      await this.acroForm.updateFieldAppearance(this);
+      this.acroForm.updateFieldAppearance(this);
     }
 
     this.needsAppearanceUpdate = false;

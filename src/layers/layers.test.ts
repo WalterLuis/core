@@ -13,7 +13,7 @@ describe("hasLayers", () => {
     const bytes = await loadFixture("layers", "no-layers.pdf");
     const pdf = await PDF.load(bytes);
 
-    const result = await hasLayers(pdf.context);
+    const result = hasLayers(pdf.context);
 
     expect(result).toBe(false);
   });
@@ -22,7 +22,7 @@ describe("hasLayers", () => {
     const bytes = await loadFixture("layers", "single-layer-on.pdf");
     const pdf = await PDF.load(bytes);
 
-    const result = await hasLayers(pdf.context);
+    const result = hasLayers(pdf.context);
 
     expect(result).toBe(true);
   });
@@ -31,7 +31,7 @@ describe("hasLayers", () => {
     const bytes = await loadFixture("layers", "single-layer-off.pdf");
     const pdf = await PDF.load(bytes);
 
-    const result = await hasLayers(pdf.context);
+    const result = hasLayers(pdf.context);
 
     expect(result).toBe(true);
   });
@@ -40,7 +40,7 @@ describe("hasLayers", () => {
     const bytes = await loadFixture("layers", "multiple-layers.pdf");
     const pdf = await PDF.load(bytes);
 
-    const result = await hasLayers(pdf.context);
+    const result = hasLayers(pdf.context);
 
     expect(result).toBe(true);
   });
@@ -51,7 +51,7 @@ describe("getLayers", () => {
     const bytes = await loadFixture("layers", "no-layers.pdf");
     const pdf = await PDF.load(bytes);
 
-    const layers = await getLayers(pdf.context);
+    const layers = getLayers(pdf.context);
 
     expect(layers).toEqual([]);
   });
@@ -60,7 +60,7 @@ describe("getLayers", () => {
     const bytes = await loadFixture("layers", "single-layer-on.pdf");
     const pdf = await PDF.load(bytes);
 
-    const layers = await getLayers(pdf.context);
+    const layers = getLayers(pdf.context);
 
     expect(layers).toHaveLength(1);
     expect(layers[0].name).toBe("Layer 1");
@@ -72,7 +72,7 @@ describe("getLayers", () => {
     const bytes = await loadFixture("layers", "single-layer-off.pdf");
     const pdf = await PDF.load(bytes);
 
-    const layers = await getLayers(pdf.context);
+    const layers = getLayers(pdf.context);
 
     expect(layers).toHaveLength(1);
     expect(layers[0].name).toBe("Hidden Layer");
@@ -84,7 +84,7 @@ describe("getLayers", () => {
     const bytes = await loadFixture("layers", "multiple-layers.pdf");
     const pdf = await PDF.load(bytes);
 
-    const layers = await getLayers(pdf.context);
+    const layers = getLayers(pdf.context);
 
     expect(layers).toHaveLength(3);
 
@@ -115,7 +115,7 @@ describe("flattenLayers", () => {
     const bytes = await loadFixture("layers", "no-layers.pdf");
     const pdf = await PDF.load(bytes);
 
-    const result = await flattenLayers(pdf.context);
+    const result = flattenLayers(pdf.context);
 
     expect(result.flattened).toBe(false);
     expect(result.layerCount).toBe(0);
@@ -125,13 +125,13 @@ describe("flattenLayers", () => {
     const bytes = await loadFixture("layers", "single-layer-on.pdf");
     const pdf = await PDF.load(bytes);
 
-    const result = await flattenLayers(pdf.context);
+    const result = flattenLayers(pdf.context);
 
     expect(result.flattened).toBe(true);
     expect(result.layerCount).toBe(1);
 
     // Verify OCProperties is gone
-    const catalog = await pdf.getCatalog();
+    const catalog = pdf.getCatalog();
     expect(catalog?.has("OCProperties")).toBe(false);
   });
 
@@ -139,13 +139,13 @@ describe("flattenLayers", () => {
     const bytes = await loadFixture("layers", "multiple-layers.pdf");
     const pdf = await PDF.load(bytes);
 
-    const result = await flattenLayers(pdf.context);
+    const result = flattenLayers(pdf.context);
 
     expect(result.flattened).toBe(true);
     expect(result.layerCount).toBe(3);
 
     // Verify OCProperties is gone
-    const catalog = await pdf.getCatalog();
+    const catalog = pdf.getCatalog();
     expect(catalog?.has("OCProperties")).toBe(false);
   });
 
@@ -153,18 +153,18 @@ describe("flattenLayers", () => {
     const bytes = await loadFixture("layers", "single-layer-on.pdf");
     const pdf = await PDF.load(bytes);
 
-    await flattenLayers(pdf.context);
+    flattenLayers(pdf.context);
 
-    expect(await hasLayers(pdf.context)).toBe(false);
+    expect(hasLayers(pdf.context)).toBe(false);
   });
 
   it("getLayers returns empty after flattening", async () => {
     const bytes = await loadFixture("layers", "multiple-layers.pdf");
     const pdf = await PDF.load(bytes);
 
-    await flattenLayers(pdf.context);
+    flattenLayers(pdf.context);
 
-    const layers = await getLayers(pdf.context);
+    const layers = getLayers(pdf.context);
     expect(layers).toEqual([]);
   });
 });
@@ -175,17 +175,17 @@ describe("malformed OCG handling", () => {
     const pdf = await PDF.load(bytes);
 
     // Corrupt OCProperties.OCGs to be a number instead of array
-    const catalog = await pdf.getCatalog();
+    const catalog = pdf.getCatalog();
     const ocProperties = catalog?.get("OCProperties");
     if (ocProperties && "set" in ocProperties) {
       (ocProperties as any).set("OCGs", 42); // Invalid: should be array
     }
 
     // flattenLayers should still work - just remove OCProperties
-    const result = await flattenLayers(pdf.context);
+    const result = flattenLayers(pdf.context);
 
     expect(result.flattened).toBe(true);
-    expect(await hasLayers(pdf.context)).toBe(false);
+    expect(hasLayers(pdf.context)).toBe(false);
   });
 
   it("flattenLayers succeeds when OCProperties.D is not a dictionary", async () => {
@@ -193,17 +193,17 @@ describe("malformed OCG handling", () => {
     const pdf = await PDF.load(bytes);
 
     // Corrupt OCProperties.D to be a string instead of dictionary
-    const catalog = await pdf.getCatalog();
+    const catalog = pdf.getCatalog();
     const ocProperties = catalog?.get("OCProperties");
     if (ocProperties && "set" in ocProperties) {
       (ocProperties as any).set("D", "invalid"); // Invalid: should be dict
     }
 
     // flattenLayers should still work - just remove OCProperties
-    const result = await flattenLayers(pdf.context);
+    const result = flattenLayers(pdf.context);
 
     expect(result.flattened).toBe(true);
-    expect(await hasLayers(pdf.context)).toBe(false);
+    expect(hasLayers(pdf.context)).toBe(false);
   });
 });
 
@@ -212,26 +212,26 @@ describe("round-trip", () => {
     const bytes = await loadFixture("layers", "single-layer-on.pdf");
     const pdf = await PDF.load(bytes);
 
-    await flattenLayers(pdf.context);
+    flattenLayers(pdf.context);
     const savedBytes = await pdf.save();
 
     const reloaded = await PDF.load(savedBytes);
     expect(reloaded.getPageCount()).toBe(1);
-    expect(await hasLayers(reloaded.context)).toBe(false);
+    expect(hasLayers(reloaded.context)).toBe(false);
   });
 
   it("page content preserved after layer flattening", async () => {
     const bytes = await loadFixture("layers", "single-layer-on.pdf");
     const pdf = await PDF.load(bytes);
 
-    await flattenLayers(pdf.context);
+    flattenLayers(pdf.context);
     const savedBytes = await pdf.save();
 
     const reloaded = await PDF.load(savedBytes);
     expect(reloaded.getPageCount()).toBe(1);
 
     // The page should still have contents
-    const page = await reloaded.getPage(0);
+    const page = reloaded.getPage(0);
     expect(page?.dict.has("Contents")).toBe(true);
   });
 });
@@ -241,21 +241,21 @@ describe("PDF class integration", () => {
     const bytes = await loadFixture("layers", "no-layers.pdf");
     const pdf = await PDF.load(bytes);
 
-    expect(await pdf.hasLayers()).toBe(false);
+    expect(pdf.hasLayers()).toBe(false);
   });
 
   it("pdf.hasLayers() returns true for PDF with layers", async () => {
     const bytes = await loadFixture("layers", "single-layer-on.pdf");
     const pdf = await PDF.load(bytes);
 
-    expect(await pdf.hasLayers()).toBe(true);
+    expect(pdf.hasLayers()).toBe(true);
   });
 
   it("pdf.getLayers() returns layer information", async () => {
     const bytes = await loadFixture("layers", "multiple-layers.pdf");
     const pdf = await PDF.load(bytes);
 
-    const layers = await pdf.getLayers();
+    const layers = pdf.getLayers();
 
     expect(layers).toHaveLength(3);
     expect(layers.map(l => l.name)).toContain("Background");
@@ -267,11 +267,11 @@ describe("PDF class integration", () => {
     const bytes = await loadFixture("layers", "single-layer-on.pdf");
     const pdf = await PDF.load(bytes);
 
-    const result = await pdf.flattenLayers();
+    const result = pdf.flattenLayers();
 
     expect(result.flattened).toBe(true);
     expect(result.layerCount).toBe(1);
-    expect(await pdf.hasLayers()).toBe(false);
+    expect(pdf.hasLayers()).toBe(false);
   });
 
   it("flattenLayers before sign workflow", async () => {
@@ -279,10 +279,10 @@ describe("PDF class integration", () => {
     const pdf = await PDF.load(bytes);
 
     // Flatten layers (security best practice before signing)
-    await pdf.flattenLayers();
+    pdf.flattenLayers();
 
     // Verify layers are gone
-    expect(await pdf.hasLayers()).toBe(false);
+    expect(pdf.hasLayers()).toBe(false);
 
     // Document is ready for signing
     const savedBytes = await pdf.save();
@@ -295,13 +295,13 @@ describe("visual output tests", () => {
     const bytes = await loadFixture("layers", "multiple-layers.pdf");
     const pdf = await PDF.load(bytes);
 
-    const layers = await pdf.getLayers();
+    const layers = pdf.getLayers();
     console.log(`  Source: multiple-layers.pdf (${layers.length} layers)`);
     for (const layer of layers) {
       console.log(`    - "${layer.name}" (visible: ${layer.visible}, locked: ${layer.locked})`);
     }
 
-    const result = await pdf.flattenLayers();
+    const result = pdf.flattenLayers();
     const saved = await pdf.save();
     const path = await saveTestOutput("layers/multiple-layers-flattened.pdf", saved);
     console.log(`  -> Output: ${path}`);
@@ -313,13 +313,13 @@ describe("visual output tests", () => {
   it("outputs PDFBox header/footer layer flattened", async () => {
     const bytes = await loadFixture("layers", "pdfbox-header-footer.pdf");
 
-    const layers = await (await PDF.load(bytes)).getLayers();
+    const layers = (await PDF.load(bytes)).getLayers();
     console.log(
       `  Source: pdfbox-header-footer.pdf (${(await PDF.load(bytes)).getPageCount()} pages, ${layers.length} layer)`,
     );
 
     const pdf = await PDF.load(bytes);
-    const result = await pdf.flattenLayers();
+    const result = pdf.flattenLayers();
     const saved = await pdf.save();
     const path = await saveTestOutput("layers/pdfbox-header-footer-flattened.pdf", saved);
     console.log(`  -> Output: ${path}`);
@@ -327,14 +327,14 @@ describe("visual output tests", () => {
 
     expect(saved.length).toBeGreaterThan(0);
     const reloaded = await PDF.load(saved);
-    expect(await reloaded.hasLayers()).toBe(false);
+    expect(reloaded.hasLayers()).toBe(false);
     expect(reloaded.getPageCount()).toBe(8);
   });
 
   it("outputs PDF.js 49-layer flattened (complex OCG structure)", async () => {
     const bytes = await loadFixture("layers", "pdfjs-49-layers.pdf");
 
-    const layers = await (await PDF.load(bytes)).getLayers();
+    const layers = (await PDF.load(bytes)).getLayers();
     console.log(
       `  Source: pdfjs-49-layers.pdf (${(await PDF.load(bytes)).getPageCount()} page, ${layers.length} layers)`,
     );
@@ -346,7 +346,7 @@ describe("visual output tests", () => {
     );
 
     const pdf = await PDF.load(bytes);
-    const result = await pdf.flattenLayers();
+    const result = pdf.flattenLayers();
     const saved = await pdf.save();
     const path = await saveTestOutput("layers/pdfjs-49-layers-flattened.pdf", saved);
     console.log(`  -> Output: ${path}`);
@@ -354,13 +354,13 @@ describe("visual output tests", () => {
 
     expect(saved.length).toBeGreaterThan(0);
     const reloaded = await PDF.load(saved);
-    expect(await reloaded.hasLayers()).toBe(false);
+    expect(reloaded.hasLayers()).toBe(false);
   });
 
   it("outputs PDF.js visibility expressions layer flattened", async () => {
     const bytes = await loadFixture("layers", "pdfjs-visibility-expressions.pdf");
 
-    const layers = await (await PDF.load(bytes)).getLayers();
+    const layers = (await PDF.load(bytes)).getLayers();
     console.log(
       `  Source: pdfjs-visibility-expressions.pdf (${(await PDF.load(bytes)).getPageCount()} page, ${layers.length} layers)`,
     );
@@ -369,7 +369,7 @@ describe("visual output tests", () => {
     }
 
     const pdf = await PDF.load(bytes);
-    const result = await pdf.flattenLayers();
+    const result = pdf.flattenLayers();
     const saved = await pdf.save();
     const path = await saveTestOutput("layers/pdfjs-visibility-expressions-flattened.pdf", saved);
     console.log(`  -> Output: ${path}`);
@@ -377,6 +377,6 @@ describe("visual output tests", () => {
 
     expect(saved.length).toBeGreaterThan(0);
     const reloaded = await PDF.load(saved);
-    expect(await reloaded.hasLayers()).toBe(false);
+    expect(reloaded.hasLayers()).toBe(false);
   });
 });

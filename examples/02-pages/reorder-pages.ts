@@ -23,7 +23,7 @@ async function main() {
   }
 
   // Add page numbers to each page for visual reference
-  const pages = await pdf.getPages();
+  const pages = pdf.getPages();
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i];
     if (page) {

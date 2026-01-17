@@ -249,8 +249,8 @@ export interface SignOptions {
  * Warning emitted during signing.
  */
 export interface SignWarning {
-  /** Warning code */
-  code: "MDP_VIOLATION" | "CHAIN_INCOMPLETE" | string;
+  /** Warning code (e.g., "MDP_VIOLATION", "CHAIN_INCOMPLETE") */
+  code: "MDP_VIOLATION" | "CHAIN_INCOMPLETE" | (string & {});
 
   /** Human-readable message */
   message: string;

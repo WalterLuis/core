@@ -26,7 +26,7 @@ export interface Filter {
    * @param params - Filter-specific parameters from /DecodeParms
    * @returns Decoded bytes
    */
-  decode(data: Uint8Array, params?: PdfDict): Promise<Uint8Array>;
+  decode(data: Uint8Array, params?: PdfDict): Uint8Array;
 
   /**
    * Encode (compress) data through this filter.
@@ -34,5 +34,5 @@ export interface Filter {
    * @param params - Filter-specific parameters
    * @returns Encoded bytes
    */
-  encode(data: Uint8Array, params?: PdfDict): Promise<Uint8Array>;
+  encode(data: Uint8Array, params?: PdfDict): Uint8Array;
 }

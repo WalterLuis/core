@@ -6,6 +6,7 @@
 
 import { PdfDict } from "#src/objects/pdf-dict";
 import { PdfName } from "#src/objects/pdf-name";
+import { PdfNumber } from "#src/objects/pdf-number.ts";
 import type { PdfRef } from "#src/objects/pdf-ref";
 
 import type { ObjectRegistry } from "../../object-registry";
@@ -117,7 +118,7 @@ function getInheritableFieldNumber(dict: PdfDict, key: string, registry: ObjectR
 
     const value = current.get(key);
 
-    if (value?.type === "number") {
+    if (value instanceof PdfNumber) {
       return value.value;
     }
 
@@ -126,7 +127,10 @@ function getInheritableFieldNumber(dict: PdfDict, key: string, registry: ObjectR
     if (!parentRef) {
       break;
     }
-    current = registry.getObject(parentRef) as PdfDict | null;
+
+    const obj = registry.getObject(parentRef);
+
+    current = obj instanceof PdfDict ? obj : null;
   }
 
   return 0;

@@ -18,7 +18,7 @@ async function main() {
   const pdf = await PDF.load(bytes);
 
   // List available attachments
-  const attachments = await pdf.getAttachments();
+  const attachments = pdf.getAttachments();
   console.log(`Found ${attachments.size} attachment(s):`);
 
   for (const [name, info] of attachments) {
@@ -40,7 +40,7 @@ async function main() {
   console.log(`\nExtracting: ${firstAttachmentName}`);
 
   // Extract the attachment data
-  const attachmentData = await pdf.getAttachment(firstAttachmentName);
+  const attachmentData = pdf.getAttachment(firstAttachmentName);
 
   if (!attachmentData) {
     console.log("Failed to extract attachment data.");
@@ -60,7 +60,7 @@ async function main() {
   console.log("\n=== Extracting All Attachments ===");
 
   for (const [name] of attachments) {
-    const data = await pdf.getAttachment(name);
+    const data = pdf.getAttachment(name);
     if (data) {
       const path = await saveOutput(`08-attachments/all/${name}`, data);
       console.log(`Saved: ${path} (${formatBytes(data.length)})`);

@@ -1283,9 +1283,9 @@ describe("Drawing API Integration", () => {
       const gradientCircle = await loadFixture("images", "gradient-circle.png");
 
       // Embed images
-      const redImg = await pdf.embedImage(redSquare);
-      const blueImg = await pdf.embedImage(blueRect);
-      const gradientImg = await pdf.embedImage(gradientCircle);
+      const redImg = pdf.embedImage(redSquare);
+      const blueImg = pdf.embedImage(blueRect);
+      const gradientImg = pdf.embedImage(gradientCircle);
 
       // Title
       page.drawText("PNG Images", {
@@ -1388,9 +1388,9 @@ describe("Drawing API Integration", () => {
       const sample = await loadFixture("images", "sample.jpg");
 
       // Embed images
-      const redImg = await pdf.embedImage(redSquare);
-      const gradientImg = await pdf.embedImage(gradient);
-      const sampleImg = await pdf.embedImage(sample);
+      const redImg = pdf.embedImage(redSquare);
+      const gradientImg = pdf.embedImage(gradient);
+      const sampleImg = pdf.embedImage(sample);
 
       // Title
       page.drawText("JPEG Images", {
@@ -1470,7 +1470,7 @@ describe("Drawing API Integration", () => {
       const greenCircle = await loadFixture("images", "green-circle-alpha.png");
 
       // Embed image
-      const circleImg = await pdf.embedImage(greenCircle);
+      const circleImg = pdf.embedImage(greenCircle);
 
       // Title
       page.drawText("PNG with Alpha Transparency", {
@@ -1573,8 +1573,8 @@ describe("Drawing API Integration", () => {
       const sample = await loadFixture("images", "sample.jpg");
       const gradient = await loadFixture("images", "gradient-circle.png");
 
-      const sampleImg = await pdf.embedImage(sample);
-      const gradientImg = await pdf.embedImage(gradient);
+      const sampleImg = pdf.embedImage(sample);
+      const gradientImg = pdf.embedImage(gradient);
 
       // Title
       page.drawText("Image Opacity", {
@@ -1674,8 +1674,8 @@ describe("Drawing API Integration", () => {
       const sample = await loadFixture("images", "sample.jpg");
       const redSquare = await loadFixture("images", "red-square.png");
 
-      const sampleImg = await pdf.embedImage(sample);
-      const redImg = await pdf.embedImage(redSquare);
+      const sampleImg = pdf.embedImage(sample);
+      const redImg = pdf.embedImage(redSquare);
 
       // Title
       page.drawText("Image Rotation", {
@@ -1800,13 +1800,13 @@ describe("Drawing API Integration", () => {
       const sampleJpg = await loadFixture("images", "sample.jpg");
 
       const images = [
-        { img: await pdf.embedImage(redPng), label: "Red PNG" },
-        { img: await pdf.embedImage(bluePng), label: "Blue PNG" },
-        { img: await pdf.embedImage(gradientPng), label: "Gradient PNG" },
-        { img: await pdf.embedImage(greenAlpha), label: "Alpha PNG" },
-        { img: await pdf.embedImage(redJpg), label: "Red JPEG" },
-        { img: await pdf.embedImage(gradientJpg), label: "Gradient JPEG" },
-        { img: await pdf.embedImage(sampleJpg), label: "Sample JPEG" },
+        { img: pdf.embedImage(redPng), label: "Red PNG" },
+        { img: pdf.embedImage(bluePng), label: "Blue PNG" },
+        { img: pdf.embedImage(gradientPng), label: "Gradient PNG" },
+        { img: pdf.embedImage(greenAlpha), label: "Alpha PNG" },
+        { img: pdf.embedImage(redJpg), label: "Red JPEG" },
+        { img: pdf.embedImage(gradientJpg), label: "Gradient JPEG" },
+        { img: pdf.embedImage(sampleJpg), label: "Sample JPEG" },
       ];
 
       // Header
@@ -1917,8 +1917,8 @@ describe("Drawing API Integration", () => {
       const blueRect = await loadFixture("images", "blue-rectangle.png");
       const sample = await loadFixture("images", "sample.jpg");
 
-      const blueImg = await pdf.embedImage(blueRect);
-      const sampleImg = await pdf.embedImage(sample);
+      const blueImg = pdf.embedImage(blueRect);
+      const sampleImg = pdf.embedImage(sample);
 
       // Title
       page.drawText("Aspect Ratio Handling", {
@@ -2075,7 +2075,7 @@ describe("Drawing API Integration", () => {
 
       // Load and embed just one image
       const sample = await loadFixture("images", "sample.jpg");
-      const sampleImg = await pdf.embedImage(sample);
+      const sampleImg = pdf.embedImage(sample);
 
       // Title
       page.drawText("Image Reuse (Single Embed, Multiple Draws)", {

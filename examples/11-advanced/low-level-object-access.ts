@@ -48,7 +48,7 @@ async function main() {
 
   console.log("\n=== Accessing the Document Catalog ===\n");
 
-  const catalog = await pdf.getCatalog();
+  const catalog = pdf.getCatalog();
   if (catalog) {
     console.log("Catalog entries:");
 
@@ -78,7 +78,7 @@ async function main() {
   const infoRef = trailer.getRef("Info");
 
   if (infoRef) {
-    const info = await pdf.getObject(infoRef);
+    const info = pdf.getObject(infoRef);
     if (info instanceof PdfDict) {
       // Add a custom key (not standard PDF metadata)
       info.set("CustomKey", PdfString.fromString("Custom Value"));
@@ -116,7 +116,7 @@ async function main() {
   console.log(`Registered custom object: ${customRef.objectNumber} ${customRef.generation} R`);
 
   // Verify we can retrieve it
-  const retrieved = await pdf.getObject(customRef);
+  const retrieved = pdf.getObject(customRef);
   if (retrieved instanceof PdfDict) {
     console.log(`Retrieved Type: ${retrieved.getName("Type")?.value}`);
     console.log(`Retrieved Subtype: ${retrieved.getName("Subtype")?.value}`);
@@ -124,7 +124,7 @@ async function main() {
 
   console.log("\n=== Working with Page Objects ===\n");
 
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (page) {
     // Add some content for context
     page.drawText("Low-Level Access Demo", {

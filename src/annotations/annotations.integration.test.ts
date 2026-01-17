@@ -13,7 +13,7 @@ import { describe, expect, it } from "vitest";
 describe("Annotations Integration", () => {
   describe("Text markup annotations", () => {
     it("creates highlight annotations", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage({ width: 612, height: 792 });
 
       // Draw some "text" rectangles to highlight
@@ -65,7 +65,7 @@ describe("Annotations Integration", () => {
     });
 
     it("creates underline annotations", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage({ width: 612, height: 792 });
 
       // Simulated text areas
@@ -99,7 +99,7 @@ describe("Annotations Integration", () => {
     });
 
     it("creates strikeout annotations", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage({ width: 612, height: 792 });
 
       page.drawText("This text is struck out", {
@@ -132,7 +132,7 @@ describe("Annotations Integration", () => {
     });
 
     it("creates squiggly annotations", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage({ width: 612, height: 792 });
 
       page.drawText("This text has a squiggly underline (spelling error?)", {
@@ -156,7 +156,7 @@ describe("Annotations Integration", () => {
 
   describe("Link annotations", () => {
     it("creates external link annotations", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage({ width: 612, height: 792 });
 
       page.drawText("Click here to visit Example.com", {
@@ -192,7 +192,7 @@ describe("Annotations Integration", () => {
     });
 
     it("creates internal link annotations", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page1 = pdf.addPage({ width: 612, height: 792 });
       const page2 = pdf.addPage({ width: 612, height: 792 });
 
@@ -231,7 +231,7 @@ describe("Annotations Integration", () => {
 
   describe("Text annotations (sticky notes)", () => {
     it("creates text annotations with different icons", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage({ width: 612, height: 792 });
 
       const icons = [
@@ -266,7 +266,7 @@ describe("Annotations Integration", () => {
     });
 
     it("creates open text annotation", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage({ width: 612, height: 792 });
 
       page.drawText("This note should appear open by default:", { x: 72, y: 700, size: 12 });
@@ -288,7 +288,7 @@ describe("Annotations Integration", () => {
 
   describe("Shape annotations", () => {
     it("creates line annotations", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage({ width: 612, height: 792 });
 
       // Simple line
@@ -338,7 +338,7 @@ describe("Annotations Integration", () => {
     });
 
     it("creates square annotations", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage({ width: 612, height: 792 });
 
       // Stroke only
@@ -374,7 +374,7 @@ describe("Annotations Integration", () => {
     });
 
     it("creates circle annotations", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage({ width: 612, height: 792 });
 
       // Stroke only
@@ -412,7 +412,7 @@ describe("Annotations Integration", () => {
 
   describe("Stamp annotations", () => {
     it("creates stamp annotations with standard names", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage({ width: 612, height: 792 });
 
       const stamps = [
@@ -452,7 +452,7 @@ describe("Annotations Integration", () => {
 
   describe("Ink annotations", () => {
     it("creates ink annotations (freehand drawing)", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage({ width: 612, height: 792 });
 
       // Simple squiggle
@@ -529,7 +529,7 @@ describe("Annotations Integration", () => {
 
   describe("Combined annotations", () => {
     it("creates a page with multiple annotation types", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage({ width: 612, height: 792 });
 
       // Title
@@ -620,7 +620,7 @@ describe("Annotations Integration", () => {
   describe("Annotation persistence", () => {
     it("preserves annotations after save and reload", async () => {
       // Create PDF with annotations
-      const pdf1 = await PDF.create();
+      const pdf1 = PDF.create();
       const page1 = pdf1.addPage();
 
       page1.addHighlightAnnotation({
@@ -646,8 +646,8 @@ describe("Annotations Integration", () => {
 
       // Reload and verify
       const pdf2 = await PDF.load(bytes);
-      const page2 = await pdf2.getPage(0);
-      const annotations = await page2!.getAnnotations();
+      const page2 = pdf2.getPage(0);
+      const annotations = page2!.getAnnotations();
 
       expect(annotations).toHaveLength(3);
 

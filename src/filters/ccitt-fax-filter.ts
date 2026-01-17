@@ -28,7 +28,7 @@ import type { Filter } from "./filter";
 export class CCITTFaxFilter implements Filter {
   readonly name = "CCITTFaxDecode";
 
-  async decode(data: Uint8Array, params?: PdfDict): Promise<Uint8Array> {
+  decode(data: Uint8Array, params?: PdfDict): Uint8Array {
     // Extract parameters
     const k = params?.getNumber("K")?.value ?? 0;
     const columns = params?.getNumber("Columns")?.value ?? 1728; // Standard fax width
@@ -60,7 +60,7 @@ export class CCITTFaxFilter implements Filter {
     return result;
   }
 
-  async encode(_data: Uint8Array, _params?: PdfDict): Promise<Uint8Array> {
+  encode(_data: Uint8Array, _params?: PdfDict): Uint8Array {
     throw new Error("CCITTFaxDecode: Encoding not implemented");
   }
 

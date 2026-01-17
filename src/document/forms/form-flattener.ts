@@ -64,8 +64,8 @@ export interface FlattenOptions {
  * Interface for AcroForm methods needed by the flattener.
  */
 export interface FlattenableForm {
-  getFields(): Promise<TerminalField[]>;
-  updateAppearances(options?: { forceRegenerate?: boolean }): Promise<void>;
+  getFields(): TerminalField[];
+  updateAppearances(options?: { forceRegenerate?: boolean }): void;
   getDict(): PdfDict;
   hasSignatures: boolean;
 }
@@ -94,10 +94,10 @@ export class FormFlattener {
   /**
    * Flatten all form fields into static page content.
    */
-  async flatten(options: FlattenOptions = {}): Promise<void> {
+  flatten(options: FlattenOptions = {}): void {
     // Apply font/size options if provided
     if (options.font || options.fontSize !== undefined) {
-      const fields = await this.form.getFields();
+      const fields = this.form.getFields();
 
       for (const field of fields) {
         // Skip read-only fields - they keep their existing appearance
@@ -117,17 +117,17 @@ export class FormFlattener {
 
     // Ensure appearances are up-to-date
     if (!options.skipAppearanceUpdate) {
-      await this.form.updateAppearances({
+      this.form.updateAppearances({
         forceRegenerate: options.regenerateAppearances,
       });
     }
 
     // Collect widgets grouped by page
-    const pageWidgets = await this.collectWidgetsByPage();
+    const pageWidgets = this.collectWidgetsByPage();
 
     // Process each page
     for (const { pageRef, widgets } of pageWidgets.values()) {
-      await this.flattenWidgetsOnPage(pageRef, widgets);
+      this.flattenWidgetsOnPage(pageRef, widgets);
     }
 
     // Clear form structure
@@ -150,11 +150,9 @@ export class FormFlattener {
   /**
    * Collect all widgets grouped by their containing page.
    */
-  private async collectWidgetsByPage(): Promise<
-    Map<string, { pageRef: PdfRef; widgets: WidgetAnnotation[] }>
-  > {
+  private collectWidgetsByPage(): Map<string, { pageRef: PdfRef; widgets: WidgetAnnotation[] }> {
     const result = new Map<string, { pageRef: PdfRef; widgets: WidgetAnnotation[] }>();
-    const fields = await this.form.getFields();
+    const fields = this.form.getFields();
 
     for (const field of fields) {
       // Widgets are pre-resolved during field creation (resolveWidgets)
@@ -163,7 +161,7 @@ export class FormFlattener {
 
         // If widget doesn't have /P, try to find its page
         if (!pageRef) {
-          pageRef = await this.findPageForWidget(widget);
+          pageRef = this.findPageForWidget(widget);
         }
 
         if (!pageRef) {
@@ -192,7 +190,7 @@ export class FormFlattener {
    *
    * Uses the PageTree if available for efficient page iteration.
    */
-  private async findPageForWidget(widget: WidgetAnnotation): Promise<PdfRef | null> {
+  private findPageForWidget(widget: WidgetAnnotation): PdfRef | null {
     if (!widget.ref) {
       return null;
     }
@@ -206,7 +204,7 @@ export class FormFlattener {
     const pageRefs = this.pageTree.getPages();
 
     for (const pageRef of pageRefs) {
-      const pageDict = await this.registry.resolve(pageRef);
+      const pageDict = this.registry.resolve(pageRef);
 
       if (!(pageDict instanceof PdfDict)) {
         continue;
@@ -240,8 +238,8 @@ export class FormFlattener {
    *
    * This isolates the original page's graphics state from our flattened fields.
    */
-  private async flattenWidgetsOnPage(pageRef: PdfRef, widgets: WidgetAnnotation[]): Promise<void> {
-    const pageDict = await this.registry.resolve(pageRef);
+  private flattenWidgetsOnPage(pageRef: PdfRef, widgets: WidgetAnnotation[]): void {
+    const pageDict = this.registry.resolve(pageRef);
 
     if (!(pageDict instanceof PdfDict)) {
       return;
@@ -275,7 +273,7 @@ export class FormFlattener {
       }
 
       // Get appearance stream
-      const appearance = await widget.getNormalAppearance(widget.appearanceState ?? undefined);
+      const appearance = widget.getNormalAppearance(widget.appearanceState ?? undefined);
 
       if (!appearance) {
         this.registry.addWarning("Widget without appearance stream skipped during flatten");
@@ -322,7 +320,7 @@ export class FormFlattener {
     }
 
     // Remove widget annotations from page
-    await this.removeAnnotations(pageDict, widgetRefs);
+    this.removeAnnotations(pageDict, widgetRefs);
   }
 
   /**
@@ -336,13 +334,12 @@ export class FormFlattener {
       return false;
     }
 
-    const x1 = (bbox.at(0) as PdfNumber | undefined)?.value ?? 0;
-    const y1 = (bbox.at(1) as PdfNumber | undefined)?.value ?? 0;
-    const x2 = (bbox.at(2) as PdfNumber | undefined)?.value ?? 0;
-    const y2 = (bbox.at(3) as PdfNumber | undefined)?.value ?? 0;
+    const [x1, y1, x2, y2] = bbox
+      .toArray()
+      .map(item => (item instanceof PdfNumber ? item.value : 0));
 
-    const width = Math.abs(x2 - x1);
-    const height = Math.abs(y2 - y1);
+    const width = Math.abs((x2 ?? 0) - (x1 ?? 0));
+    const height = Math.abs((y2 ?? 0) - (y1 ?? 0));
 
     return width > 0 && height > 0;
   }
@@ -496,14 +493,11 @@ export class FormFlattener {
       return Matrix.identity();
     }
 
-    return new Matrix(
-      (matrixArray.at(0) as PdfNumber | undefined)?.value ?? 1,
-      (matrixArray.at(1) as PdfNumber | undefined)?.value ?? 0,
-      (matrixArray.at(2) as PdfNumber | undefined)?.value ?? 0,
-      (matrixArray.at(3) as PdfNumber | undefined)?.value ?? 1,
-      (matrixArray.at(4) as PdfNumber | undefined)?.value ?? 0,
-      (matrixArray.at(5) as PdfNumber | undefined)?.value ?? 0,
-    );
+    const [a, b, c, d, e, f] = matrixArray
+      .toArray()
+      .map(item => (item instanceof PdfNumber ? item.value : 0));
+
+    return new Matrix(a ?? 0, b ?? 0, c ?? 0, d ?? 0, e ?? 0, f ?? 0);
   }
 
   /**
@@ -517,18 +511,17 @@ export class FormFlattener {
       return [0, 0, 1, 1]; // Fallback
     }
 
-    return [
-      (bbox.at(0) as PdfNumber | undefined)?.value ?? 0,
-      (bbox.at(1) as PdfNumber | undefined)?.value ?? 0,
-      (bbox.at(2) as PdfNumber | undefined)?.value ?? 0,
-      (bbox.at(3) as PdfNumber | undefined)?.value ?? 0,
-    ];
+    const [x1, y1, x2, y2] = bbox
+      .toArray()
+      .map(item => (item instanceof PdfNumber ? item.value : 0));
+
+    return [x1 ?? 0, y1 ?? 0, x2 ?? 0, y2 ?? 0];
   }
 
   /**
    * Remove specific annotations from page.
    */
-  private async removeAnnotations(page: PdfDict, toRemove: Set<string>): Promise<void> {
+  private removeAnnotations(page: PdfDict, toRemove: Set<string>): void {
     // Get Annots - may be direct array or a reference to an array
     const annotsEntry = page.get("Annots");
 
@@ -541,7 +534,7 @@ export class FormFlattener {
     if (annotsEntry instanceof PdfArray) {
       annots = annotsEntry;
     } else if (annotsEntry instanceof PdfRef) {
-      const resolved = await this.registry.resolve(annotsEntry);
+      const resolved = this.registry.resolve(annotsEntry);
 
       if (resolved instanceof PdfArray) {
         annots = resolved;

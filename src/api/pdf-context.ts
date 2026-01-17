@@ -111,9 +111,13 @@ export class PDFContext {
   }
 
   /**
-   * Resolve an object by reference (async, fetches if needed).
+   * Resolve an object by reference.
+   *
+   * Synchronously resolves the reference, parsing from the in-memory
+   * buffer if not already cached. All PDF data is loaded at parse time,
+   * so this operation never requires I/O.
    */
-  resolve(ref: PdfRef): Promise<PdfObject | null> {
+  resolve(ref: PdfRef): PdfObject | null {
     return this.registry.resolve(ref);
   }
 

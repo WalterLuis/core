@@ -17,7 +17,7 @@ async function main() {
   const pdf = PDF.create();
   pdf.addPage({ size: "letter" });
 
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (!page) {
     throw new Error("Failed to get page");
   }
@@ -36,7 +36,7 @@ async function main() {
   console.log(`Font file size: ${formatBytes(fontBytes.length)}`);
 
   // Embed the font
-  const otfFont = await pdf.embedFont(fontBytes);
+  const otfFont = pdf.embedFont(fontBytes);
   console.log(`Embedded font: ${otfFont.baseFontName}`);
 
   // Draw text using the OpenType font
@@ -111,7 +111,7 @@ async function main() {
   let ttfFont = otfFont;
   try {
     const ttfBytes = await loadFixture("fonts", "ttf/LiberationSans-Regular.ttf");
-    ttfFont = await pdf.embedFont(ttfBytes);
+    ttfFont = pdf.embedFont(ttfBytes);
     console.log(`Also embedded TTF: ${ttfFont.baseFontName}`);
   } catch {
     console.log("TTF font not found");

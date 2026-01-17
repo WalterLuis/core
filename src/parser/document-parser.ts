@@ -92,22 +92,22 @@ export interface ParsedDocument {
   // ─────────────────────────────────────────────────────────────────────────────
 
   /** Get an object by reference (with caching and decryption) */
-  getObject(ref: PdfRef): Promise<PdfObject | null>;
+  getObject(ref: PdfRef): PdfObject | null;
 
   /** Get the document catalog */
-  getCatalog(): Promise<PdfDict | null>;
+  getCatalog(): PdfDict | null;
 
   /**
    * Get the actual page count by walking the page tree.
    * This is more reliable than trusting /Count metadata for corrupted PDFs.
    */
-  getPageCount(): Promise<number>;
+  getPageCount(): number;
 
   /**
    * Get all page references by walking the page tree.
    * Returns an array of PdfRef for each reachable page, in document order.
    */
-  getPages(): Promise<PdfRef[]>;
+  getPages(): PdfRef[];
 }
 
 // PDF header signature: %PDF-
@@ -156,9 +156,9 @@ export class DocumentParser {
   /**
    * Parse the PDF document.
    */
-  async parse(): Promise<ParsedDocument> {
+  parse(): ParsedDocument {
     try {
-      return await this.parseNormal();
+      return this.parseNormal();
     } catch (error) {
       // Only attempt recovery for recoverable parsing errors
       if (this.options.lenient && error instanceof RecoverableParseError) {
@@ -175,7 +175,7 @@ export class DocumentParser {
   /**
    * Normal parsing path.
    */
-  private async parseNormal(): Promise<ParsedDocument> {
+  private parseNormal(): ParsedDocument {
     // Phase 1: Parse header
     const version = this.parseHeader();
 
@@ -185,7 +185,7 @@ export class DocumentParser {
     const startXRef = xrefParser.findStartXRef();
 
     // Phase 3: Parse XRef chain (follow /Prev)
-    const { xref, trailer } = await this.parseXRefChain(xrefParser, startXRef);
+    const { xref, trailer } = this.parseXRefChain(xrefParser, startXRef);
 
     // Phase 4: Build document with lazy object loading
     return this.buildDocument(version, xref, trailer, false);
@@ -194,7 +194,7 @@ export class DocumentParser {
   /**
    * Recovery parsing using brute-force when normal parsing fails.
    */
-  private async parseWithRecovery(): Promise<ParsedDocument> {
+  private parseWithRecovery(): ParsedDocument {
     // Try to get version even if header is malformed
     let version = DEFAULT_VERSION;
 
@@ -207,7 +207,7 @@ export class DocumentParser {
     // Use brute-force parser to find objects
     const bruteForce = new BruteForceParser(this.scanner);
 
-    const result = await bruteForce.recover();
+    const result = bruteForce.recover();
 
     if (result === null) {
       throw new UnrecoverableParseError("Could not recover PDF structure: no objects found");
@@ -318,10 +318,10 @@ export class DocumentParser {
   /**
    * Parse the XRef chain, following /Prev links for incremental updates.
    */
-  private async parseXRefChain(
+  private parseXRefChain(
     xrefParser: XRefParser,
     startOffset: number,
-  ): Promise<{ xref: Map<number, XRefEntry>; trailer: PdfDict }> {
+  ): { xref: Map<number, XRefEntry>; trailer: PdfDict } {
     const combinedXRef = new Map<number, XRefEntry>();
     let firstTrailer: PdfDict | null = null;
 
@@ -345,7 +345,7 @@ export class DocumentParser {
       visited.add(offset);
 
       try {
-        const xrefData = await xrefParser.parseAt(offset);
+        const xrefData = xrefParser.parseAt(offset);
 
         // Merge entries (first definition wins for each object number)
         for (const [objNum, entry] of xrefData.entries) {
@@ -570,7 +570,7 @@ export class DocumentParser {
       return obj;
     };
 
-    const getObject = async (ref: PdfRef): Promise<PdfObject | null> => {
+    const getObject = (ref: PdfRef): PdfObject | null => {
       const key = `${ref.objectNumber} ${ref.generation}`;
 
       // Check cache
@@ -621,19 +621,20 @@ export class DocumentParser {
           if (!streamParser) {
             // Load the object stream
             const streamRef = PdfRef.of(entry.streamObjNum, 0);
-            const streamObj = await getObject(streamRef);
+            const streamObj = getObject(streamRef);
 
-            if (!streamObj || streamObj.type !== "stream") {
+            if (!streamObj || !(streamObj instanceof PdfStream)) {
               this.warnings.push(`Object stream ${entry.streamObjNum} not found or invalid`);
+
               return null;
             }
 
-            streamParser = new ObjectStreamParser(streamObj as PdfStream);
+            streamParser = new ObjectStreamParser(streamObj);
 
             objectStreamCache.set(entry.streamObjNum, streamParser);
           }
 
-          obj = await streamParser.getObject(entry.indexInStream);
+          obj = streamParser.getObject(entry.indexInStream);
 
           // Objects in object streams don't need individual decryption
           // because the stream itself was decrypted
@@ -650,14 +651,14 @@ export class DocumentParser {
       return obj;
     };
 
-    const getCatalog = async (): Promise<PdfDict | null> => {
+    const getCatalog = (): PdfDict | null => {
       const rootRef = trailer.getRef("Root");
 
       if (!rootRef) {
         return null;
       }
 
-      const root = await getObject(rootRef);
+      const root = getObject(rootRef);
 
       if (!root || (root.type !== "dict" && root.type !== "stream")) {
         return null;
@@ -670,11 +671,11 @@ export class DocumentParser {
      * Walk the page tree and collect all page references.
      * Handles circular references and missing objects gracefully.
      */
-    const getPages = async (): Promise<PdfRef[]> => {
+    const getPages = (): PdfRef[] => {
       const pages: PdfRef[] = [];
       const visited = new Set<string>();
 
-      const walkNode = async (nodeOrRef: PdfObject | null, currentRef?: PdfRef): Promise<void> => {
+      const walkNode = (nodeOrRef: PdfObject | null, currentRef?: PdfRef): void => {
         // Handle references
         if (nodeOrRef instanceof PdfRef) {
           const key = `${nodeOrRef.objectNumber} ${nodeOrRef.generation}`;
@@ -686,9 +687,9 @@ export class DocumentParser {
 
           visited.add(key);
 
-          const resolved = await getObject(nodeOrRef);
+          const resolved = getObject(nodeOrRef);
 
-          await walkNode(resolved, nodeOrRef);
+          walkNode(resolved, nodeOrRef);
           return;
         }
 
@@ -713,9 +714,9 @@ export class DocumentParser {
               const kid = kids.at(i);
 
               if (kid instanceof PdfRef) {
-                await walkNode(kid);
+                walkNode(kid);
               } else if (kid instanceof PdfDict) {
-                await walkNode(kid);
+                walkNode(kid);
               }
               // Skip null/invalid kids silently
             }
@@ -725,7 +726,7 @@ export class DocumentParser {
       };
 
       // Start from the catalog's Pages reference
-      const catalog = await getCatalog();
+      const catalog = getCatalog();
 
       if (!catalog) {
         return pages;
@@ -734,14 +735,14 @@ export class DocumentParser {
       const pagesRef = catalog.getRef("Pages");
 
       if (pagesRef) {
-        await walkNode(pagesRef);
+        walkNode(pagesRef);
       }
 
       return pages;
     };
 
-    const getPageCount = async (): Promise<number> => {
-      const pages = await getPages();
+    const getPageCount = (): number => {
+      const pages = getPages();
 
       return pages.length;
     };

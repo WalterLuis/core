@@ -19,7 +19,7 @@ async function main() {
   const pdfEn = PDF.create();
   pdfEn.addPage({ size: "letter" });
 
-  const pageEn = await pdfEn.getPage(0);
+  const pageEn = pdfEn.getPage(0);
   if (pageEn) {
     pageEn.drawText("English Document", {
       x: 200,
@@ -59,7 +59,7 @@ async function main() {
   const pdfDe = PDF.create();
   pdfDe.addPage({ size: "a4" }); // Use A4 for European document
 
-  const pageDe = await pdfDe.getPage(0);
+  const pageDe = pdfDe.getPage(0);
   if (pageDe) {
     pageDe.drawText("Deutsches Dokument", {
       x: 180,
@@ -99,7 +99,7 @@ async function main() {
   const pdfJa = PDF.create();
   pdfJa.addPage({ size: "a4" });
 
-  const pageJa = await pdfJa.getPage(0);
+  const pageJa = pdfJa.getPage(0);
   if (pageJa) {
     pageJa.drawText("Japanese Document", {
       x: 200,

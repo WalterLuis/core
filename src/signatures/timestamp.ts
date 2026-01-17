@@ -259,8 +259,10 @@ export class HttpTimestampAuthority implements TimestampAuthority {
           if (
             firstString &&
             "valueBlock" in firstString &&
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion
             "value" in (firstString as any).valueBlock
           ) {
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion
             errorMessage += `: ${(firstString as any).valueBlock.value}`;
           }
         }

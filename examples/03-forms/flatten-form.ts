@@ -24,7 +24,7 @@ async function main() {
   const pdf = await PDF.load(bytes);
 
   // Get the form
-  const form = await pdf.getForm();
+  const form = pdf.getForm();
   if (!form) {
     console.log("This PDF does not contain a form.");
     return;
@@ -42,7 +42,7 @@ async function main() {
   for (const field of textFields) {
     if (!field.isReadOnly()) {
       try {
-        await field.setValue(`Filled: ${field.name}`);
+        field.setValue(`Filled: ${field.name}`);
         console.log(`  Filled "${field.name}"`);
       } catch {
         // Some fields may have restrictions
@@ -54,7 +54,7 @@ async function main() {
   for (const cb of checkboxes) {
     if (!cb.isReadOnly()) {
       try {
-        await cb.check();
+        cb.check();
         console.log(`  Checked "${cb.name}"`);
       } catch {
         // Ignore errors
@@ -66,7 +66,7 @@ async function main() {
   console.log("\n=== Flattening Form ===");
   console.log("Converting form fields to static content...");
 
-  await form.flatten();
+  form.flatten();
 
   console.log("Form flattened successfully!");
 
@@ -75,7 +75,7 @@ async function main() {
   console.log(`Has form: ${pdf.hasForm()}`);
 
   // The form should now be empty or removed
-  const formAfter = await pdf.getForm();
+  const formAfter = pdf.getForm();
   if (formAfter) {
     console.log(`Field count: ${formAfter.fieldCount}`);
   } else {
@@ -97,7 +97,7 @@ async function main() {
   console.log(`Page count: ${verifyPdf.getPageCount()}`);
 
   if (verifyPdf.hasForm()) {
-    const verifyForm = await verifyPdf.getForm();
+    const verifyForm = verifyPdf.getForm();
     console.log(`Remaining fields: ${verifyForm?.fieldCount ?? 0}`);
   } else {
     console.log("No form found (completely flattened)");

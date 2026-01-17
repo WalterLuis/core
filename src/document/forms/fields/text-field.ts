@@ -95,7 +95,7 @@ export class TextField extends TerminalField {
    * @param value The new text value
    * @throws {Error} if field is read-only
    */
-  async setValue(value: string): Promise<void> {
+  setValue(value: string): void {
     this.assertWritable();
 
     // Truncate if maxLength is set
@@ -106,6 +106,6 @@ export class TextField extends TerminalField {
     this.needsAppearanceUpdate = true;
 
     // Regenerate appearance immediately
-    await this.applyChange();
+    this.applyChange();
   }
 }

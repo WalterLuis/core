@@ -12,8 +12,12 @@ import type { XRefEntry } from "#src/parser/xref-parser";
 /**
  * Function to resolve objects not yet in the registry.
  * Called when resolve() encounters an unknown reference.
+ *
+ * This is synchronous because all PDF data is loaded into memory
+ * at parse time. The resolver simply parses objects on demand from
+ * the in-memory buffer.
  */
-export type ObjectResolver = (ref: PdfRef) => Promise<PdfObject | null>;
+export type ObjectResolver = (ref: PdfRef) => PdfObject | null;
 
 /**
  * Registry for managing PDF objects and their references.
@@ -173,7 +177,7 @@ export class ObjectRegistry {
    * @param ref - The reference to resolve
    * @returns The object, or null if not found
    */
-  async resolve(ref: PdfRef): Promise<PdfObject | null> {
+  resolve(ref: PdfRef): PdfObject | null {
     // Check registry first
     const existing = this.getObject(ref);
 
@@ -183,7 +187,7 @@ export class ObjectRegistry {
 
     // Use resolver if available
     if (this.resolver) {
-      const obj = await this.resolver(ref);
+      const obj = this.resolver(ref);
 
       if (obj !== null) {
         this.addLoaded(ref, obj);

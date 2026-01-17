@@ -16,7 +16,7 @@ async function main() {
   const pdf = PDF.create();
   pdf.addPage({ size: "letter" });
 
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (page) {
     page.drawText("Document with Attachments", {
       x: 170,
@@ -58,7 +58,7 @@ async function main() {
 
   // Add JSON attachment
   console.log("Adding JSON attachment...");
-  await pdf.addAttachment("data.json", jsonBytes, {
+  pdf.addAttachment("data.json", jsonBytes, {
     description: "Sample JSON data file",
     mimeType: "application/json",
   });
@@ -76,7 +76,7 @@ Purpose: Demonstration of PDF attachments
   const textBytes = new TextEncoder().encode(textContent);
 
   console.log("Adding text attachment...");
-  await pdf.addAttachment("README.txt", textBytes, {
+  pdf.addAttachment("README.txt", textBytes, {
     description: "Documentation file",
     mimeType: "text/plain",
   });
@@ -92,7 +92,7 @@ Purpose: Demonstration of PDF attachments
   const csvBytes = new TextEncoder().encode(csvContent);
 
   console.log("Adding CSV attachment...");
-  await pdf.addAttachment("report.csv", csvBytes, {
+  pdf.addAttachment("report.csv", csvBytes, {
     description: "Report data in CSV format",
     mimeType: "text/csv",
   });
@@ -100,7 +100,7 @@ Purpose: Demonstration of PDF attachments
 
   // Verify attachments
   console.log("\n=== Attached Files ===");
-  const attachments = await pdf.getAttachments();
+  const attachments = pdf.getAttachments();
 
   for (const [name, info] of attachments) {
     const sizeStr = info.size !== undefined ? formatBytes(info.size) : "unknown";

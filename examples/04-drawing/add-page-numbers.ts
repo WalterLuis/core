@@ -19,7 +19,7 @@ async function main() {
   // Add 10 pages with some content
   for (let i = 1; i <= 10; i++) {
     pdf.addPage({ size: "letter" });
-    const page = await pdf.getPage(i - 1);
+    const page = pdf.getPage(i - 1);
     if (!page) {
       continue;
     }
@@ -55,7 +55,7 @@ async function main() {
   // === Style 1: Simple page numbers (centered at bottom) ===
   console.log("\nAdding page numbers...");
 
-  const pages = await pdf.getPages();
+  const pages = pdf.getPages();
 
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i];
@@ -95,7 +95,7 @@ async function main() {
 
   for (let i = 1; i <= 5; i++) {
     pdf2.addPage({ size: "letter" });
-    const page = await pdf2.getPage(i - 1);
+    const page = pdf2.getPage(i - 1);
     if (page) {
       page.drawText(`Section ${i}`, {
         x: 72,
@@ -107,7 +107,7 @@ async function main() {
   }
 
   const totalPages2 = pdf2.getPageCount();
-  const pages2 = await pdf2.getPages();
+  const pages2 = pdf2.getPages();
 
   for (let i = 0; i < pages2.length; i++) {
     const page = pages2[i];
@@ -144,7 +144,7 @@ async function main() {
 
   for (let i = 1; i <= 5; i++) {
     pdf3.addPage({ size: "letter" });
-    const page = await pdf3.getPage(i - 1);
+    const page = pdf3.getPage(i - 1);
     if (page) {
       page.drawText(`Section ${i}`, {
         x: 72,
@@ -155,7 +155,7 @@ async function main() {
     }
   }
 
-  const pages3 = await pdf3.getPages();
+  const pages3 = pdf3.getPages();
   const margin = 72;
 
   for (let i = 0; i < pages3.length; i++) {

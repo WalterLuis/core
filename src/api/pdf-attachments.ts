@@ -62,20 +62,20 @@ export class PDFAttachments {
    * }
    * ```
    */
-  async list(): Promise<Map<string, AttachmentInfo>> {
+  list(): Map<string, AttachmentInfo> {
     const result = new Map<string, AttachmentInfo>();
-    const tree = await this.ctx.catalog.getEmbeddedFilesTree();
+    const tree = this.ctx.catalog.getEmbeddedFilesTree();
 
     if (!tree) {
       return result;
     }
 
-    for await (const [name, value] of tree.entries()) {
+    for (const [name, value] of tree.entries()) {
       if (!(value instanceof PdfDict)) {
         continue;
       }
 
-      const info = await parseFileSpec(value, name, ref => this.ctx.registry.resolve(ref));
+      const info = parseFileSpec(value, name, ref => this.ctx.registry.resolve(ref));
 
       if (info) {
         result.set(name, info);
@@ -105,20 +105,20 @@ export class PDFAttachments {
    * }
    * ```
    */
-  async get(name: string): Promise<Uint8Array | null> {
-    const tree = await this.ctx.catalog.getEmbeddedFilesTree();
+  get(name: string): Uint8Array | null {
+    const tree = this.ctx.catalog.getEmbeddedFilesTree();
 
     if (!tree) {
       return null;
     }
 
-    const fileSpec = await tree.get(name);
+    const fileSpec = tree.get(name);
 
     if (!(fileSpec instanceof PdfDict)) {
       return null;
     }
 
-    const stream = await getEmbeddedFileStream(fileSpec, ref => this.ctx.registry.resolve(ref));
+    const stream = getEmbeddedFileStream(fileSpec, ref => this.ctx.registry.resolve(ref));
 
     if (!stream) {
       return null;
@@ -140,8 +140,8 @@ export class PDFAttachments {
    * }
    * ```
    */
-  async has(name: string): Promise<boolean> {
-    const tree = await this.ctx.catalog.getEmbeddedFilesTree();
+  has(name: string): boolean {
+    const tree = this.ctx.catalog.getEmbeddedFilesTree();
 
     if (!tree) {
       return false;
@@ -173,9 +173,9 @@ export class PDFAttachments {
    * await pdf.attachments.add("report.pdf", newBytes, { overwrite: true });
    * ```
    */
-  async add(name: string, data: Uint8Array, options: AddAttachmentOptions = {}): Promise<void> {
+  add(name: string, data: Uint8Array, options: AddAttachmentOptions = {}): void {
     // Check if attachment already exists
-    if (!options.overwrite && (await this.has(name))) {
+    if (!options.overwrite && this.has(name)) {
       throw new Error(`Attachment "${name}" already exists. Use { overwrite: true } to replace.`);
     }
 
@@ -189,10 +189,10 @@ export class PDFAttachments {
 
     // Collect all existing attachments
     const existingAttachments: Array<[string, PdfRef]> = [];
-    const tree = await this.ctx.catalog.getEmbeddedFilesTree();
+    const tree = this.ctx.catalog.getEmbeddedFilesTree();
 
     if (tree) {
-      for await (const [key, value] of tree.entries()) {
+      for (const [key, value] of tree.entries()) {
         if (key === name && options.overwrite) {
           // Skip the one we're replacing
           continue;
@@ -212,7 +212,7 @@ export class PDFAttachments {
 
     // Build new name tree and set it
     const newNameTree = buildNameTree(existingAttachments);
-    await this.ctx.catalog.setEmbeddedFilesTree(newNameTree);
+    this.ctx.catalog.setEmbeddedFilesTree(newNameTree);
   }
 
   /**
@@ -229,22 +229,22 @@ export class PDFAttachments {
    * }
    * ```
    */
-  async remove(name: string): Promise<boolean> {
-    const tree = await this.ctx.catalog.getEmbeddedFilesTree();
+  remove(name: string): boolean {
+    const tree = this.ctx.catalog.getEmbeddedFilesTree();
 
     if (!tree) {
       return false;
     }
 
     // Check if it exists
-    if (!(await tree.has(name))) {
+    if (!tree.has(name)) {
       return false;
     }
 
     // Collect all attachments except the one to remove
     const remainingAttachments: Array<[string, PdfRef]> = [];
 
-    for await (const [key, value] of tree.entries()) {
+    for (const [key, value] of tree.entries()) {
       if (key === name) {
         continue; // Skip the one we're removing
       }
@@ -258,11 +258,11 @@ export class PDFAttachments {
 
     if (remainingAttachments.length === 0) {
       // No attachments left - remove /EmbeddedFiles entry
-      await this.ctx.catalog.removeEmbeddedFilesTree();
+      this.ctx.catalog.removeEmbeddedFilesTree();
     } else {
       // Build new tree with remaining attachments
       const newNameTree = buildNameTree(remainingAttachments);
-      await this.ctx.catalog.setEmbeddedFilesTree(newNameTree);
+      this.ctx.catalog.setEmbeddedFilesTree(newNameTree);
     }
 
     return true;

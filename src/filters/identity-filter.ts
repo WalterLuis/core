@@ -14,11 +14,11 @@ import type { Filter } from "./filter";
 export const identityFilter: Filter = {
   name: "Identity",
 
-  async decode(data: Uint8Array, _params?: PdfDict): Promise<Uint8Array> {
+  decode(data: Uint8Array, _params?: PdfDict): Uint8Array {
     return data;
   },
 
-  async encode(data: Uint8Array, _params?: PdfDict): Promise<Uint8Array> {
+  encode(data: Uint8Array, _params?: PdfDict): Uint8Array {
     return data;
   },
 };

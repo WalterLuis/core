@@ -12,7 +12,7 @@ import { PdfName } from "#src/objects/pdf-name";
 import type { PdfRef } from "#src/objects/pdf-ref";
 
 import { PDFMarkupAnnotation } from "./markup";
-import type { FileAttachmentIcon } from "./types";
+import { isFileAttachmentIcon, type FileAttachmentIcon } from "./types";
 
 /**
  * File attachment annotation - embedded file icon.
@@ -28,10 +28,8 @@ export class PDFFileAttachmentAnnotation extends PDFMarkupAnnotation {
       return "PushPin";
     }
 
-    const validIcons: FileAttachmentIcon[] = ["Graph", "Paperclip", "PushPin", "Tag"];
-
-    if (validIcons.includes(name.value as FileAttachmentIcon)) {
-      return name.value as FileAttachmentIcon;
+    if (isFileAttachmentIcon(name.value)) {
+      return name.value;
     }
 
     return "PushPin";
@@ -57,7 +55,7 @@ export class PDFFileAttachmentAnnotation extends PDFMarkupAnnotation {
   /**
    * Get the file specification dictionary.
    */
-  async getFileSpec(): Promise<PdfDict | null> {
+  getFileSpec(): PdfDict | null {
     const fsRef = this.fileSpecRef;
 
     if (!fsRef) {
@@ -67,10 +65,10 @@ export class PDFFileAttachmentAnnotation extends PDFMarkupAnnotation {
       return fsDict ?? null;
     }
 
-    const resolved = await this.registry.resolve(fsRef);
+    const resolved = this.registry.resolve(fsRef);
 
     if (resolved && resolved.type === "dict") {
-      return resolved as PdfDict;
+      return resolved;
     }
 
     return null;
@@ -79,8 +77,8 @@ export class PDFFileAttachmentAnnotation extends PDFMarkupAnnotation {
   /**
    * Get the file name from the file specification.
    */
-  async getFileName(): Promise<string | null> {
-    const fs = await this.getFileSpec();
+  getFileName(): string | null {
+    const fs = this.getFileSpec();
 
     if (!fs) {
       return null;

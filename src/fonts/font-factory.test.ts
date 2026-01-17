@@ -225,31 +225,29 @@ describe("real PDF font parsing", () => {
     const bytes = await loadFixture("text", "rot0.pdf");
     const scanner = new Scanner(bytes);
     const parser = new DocumentParser(scanner);
-    const doc = await parser.parse();
+    const doc = parser.parse();
 
     // Get the page
-    const pages = await doc.getPages();
+    const pages = doc.getPages();
     expect(pages.length).toBe(1);
 
-    const pageDict = (await doc.getObject(pages[0]!)) as PdfDict;
+    const pageDict = doc.getObject(pages[0]) as PdfDict;
     expect(pageDict).toBeInstanceOf(PdfDict);
 
     // Get Resources -> Font -> F1
     const resourcesRef = pageDict.get("Resources");
-    const resourcesDict = resourcesRef
-      ? ((await doc.getObject(resourcesRef as PdfRef)) as PdfDict)
-      : null;
+    const resourcesDict = resourcesRef ? (doc.getObject(resourcesRef as PdfRef) as PdfDict) : null;
 
     expect(resourcesDict).toBeInstanceOf(PdfDict);
 
     const fontDictRef = resourcesDict?.get("Font");
-    const fontDict = fontDictRef ? ((await doc.getObject(fontDictRef as PdfRef)) as PdfDict) : null;
+    const fontDict = fontDictRef ? (doc.getObject(fontDictRef as PdfRef) as PdfDict) : null;
 
     expect(fontDict).toBeInstanceOf(PdfDict);
 
     // Get F1 font
     const f1Ref = fontDict?.get("F1");
-    const f1Dict = f1Ref ? ((await doc.getObject(f1Ref as PdfRef)) as PdfDict) : null;
+    const f1Dict = f1Ref ? (doc.getObject(f1Ref as PdfRef) as PdfDict) : null;
 
     expect(f1Dict).toBeInstanceOf(PdfDict);
 
@@ -274,19 +272,17 @@ describe("real PDF font parsing", () => {
     const bytes = await loadFixture("text", "openoffice-test-document.pdf");
     const scanner = new Scanner(bytes);
     const parser = new DocumentParser(scanner);
-    const doc = await parser.parse();
+    const doc = parser.parse();
 
     // Get the first page
-    const pages = await doc.getPages();
+    const pages = doc.getPages();
     expect(pages.length).toBeGreaterThan(0);
 
-    const pageDict = (await doc.getObject(pages[0]!)) as PdfDict;
+    const pageDict = doc.getObject(pages[0]) as PdfDict;
 
     // Navigate to font resources
     const resourcesRef = pageDict.get("Resources");
-    const resourcesDict = resourcesRef
-      ? ((await doc.getObject(resourcesRef as PdfRef)) as PdfDict)
-      : null;
+    const resourcesDict = resourcesRef ? (doc.getObject(resourcesRef as PdfRef) as PdfDict) : null;
 
     if (!resourcesDict) {
       // Some PDFs have inline resources
@@ -300,14 +296,14 @@ describe("real PDF font parsing", () => {
 
     const fontDict =
       fontDictRef instanceof PdfRef
-        ? ((await doc.getObject(fontDictRef)) as PdfDict)
+        ? (doc.getObject(fontDictRef) as PdfDict)
         : (fontDictRef as PdfDict);
 
     // Find first font
     let firstFontDict: PdfDict | null = null;
     for (const [, value] of fontDict) {
       const resolved =
-        value instanceof PdfRef ? ((await doc.getObject(value)) as PdfDict) : (value as PdfDict);
+        value instanceof PdfRef ? (doc.getObject(value) as PdfDict) : (value as PdfDict);
       if (resolved instanceof PdfDict) {
         firstFontDict = resolved;
         break;
@@ -393,13 +389,13 @@ describe("real PDF font parsing", () => {
     const bytes = await loadFixture("text", "yaddatest.pdf");
     const scanner = new Scanner(bytes);
     const parser = new DocumentParser(scanner);
-    const doc = await parser.parse();
+    const doc = parser.parse();
 
     // Get the first page
-    const pages = await doc.getPages();
+    const pages = doc.getPages();
     expect(pages.length).toBeGreaterThan(0);
 
-    const pageDict = (await doc.getObject(pages[0]!)) as PdfDict;
+    const pageDict = doc.getObject(pages[0]) as PdfDict;
 
     // This PDF has inline resources in the page dict
     const resources = pageDict.getDict("Resources");
@@ -410,7 +406,7 @@ describe("real PDF font parsing", () => {
 
     // Get F1 font
     const f1Ref = fontDict?.get("F1");
-    const f1Dict = f1Ref ? ((await doc.getObject(f1Ref as PdfRef)) as PdfDict) : null;
+    const f1Dict = f1Ref ? (doc.getObject(f1Ref as PdfRef) as PdfDict) : null;
 
     expect(f1Dict).toBeInstanceOf(PdfDict);
 
@@ -427,13 +423,13 @@ describe("real PDF font parsing", () => {
     const bytes = await loadFixture("xref", "hello3.pdf");
     const scanner = new Scanner(bytes);
     const parser = new DocumentParser(scanner);
-    const doc = await parser.parse();
+    const doc = parser.parse();
 
     // Get the first page
-    const pages = await doc.getPages();
+    const pages = doc.getPages();
     expect(pages.length).toBeGreaterThan(0);
 
-    const pageDict = (await doc.getObject(pages[0]!)) as PdfDict;
+    const pageDict = doc.getObject(pages[0]) as PdfDict;
 
     // Navigate to font resources
     const resources = pageDict.getDict("Resources");
@@ -446,7 +442,7 @@ describe("real PDF font parsing", () => {
     const c2Ref = fontDict?.get("C2_0");
     expect(c2Ref).toBeDefined();
 
-    const c2Dict = (await doc.getObject(c2Ref as PdfRef)) as PdfDict;
+    const c2Dict = doc.getObject(c2Ref as PdfRef) as PdfDict;
     expect(c2Dict).toBeInstanceOf(PdfDict);
     expect(c2Dict.getName("Subtype")?.value).toBe("Type0");
 
@@ -456,7 +452,7 @@ describe("real PDF font parsing", () => {
     expect(descendantsArray).toBeDefined();
 
     const cidFontRef = descendantsArray?.at(0);
-    const cidFontDict = (await doc.getObject(cidFontRef as PdfRef)) as PdfDict;
+    const cidFontDict = doc.getObject(cidFontRef as PdfRef) as PdfDict;
 
     // Parse the font with resolver
     const font = parseFont(c2Dict, {

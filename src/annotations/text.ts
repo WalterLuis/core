@@ -17,7 +17,7 @@ import { PdfString } from "#src/objects/pdf-string";
 
 import { rectToArray } from "./base";
 import { PDFMarkupAnnotation } from "./markup";
-import type { TextAnnotationIcon, TextAnnotationOptions } from "./types";
+import { isTextAnnotationIcon, type TextAnnotationIcon, type TextAnnotationOptions } from "./types";
 
 /**
  * Text annotation state (for review workflows).
@@ -31,10 +31,26 @@ export type TextAnnotationState =
   | "Completed"
   | "None";
 
+export const isTextAnnotationState = (state: unknown): state is TextAnnotationState => {
+  return (
+    state === "Marked" ||
+    state === "Unmarked" ||
+    state === "Accepted" ||
+    state === "Rejected" ||
+    state === "Cancelled" ||
+    state === "Completed" ||
+    state === "None"
+  );
+};
+
 /**
  * Text annotation state model.
  */
 export type TextAnnotationStateModel = "Marked" | "Review";
+
+export const isTextAnnotationStateModel = (model: unknown): model is TextAnnotationStateModel => {
+  return model === "Marked" || model === "Review";
+};
 
 /**
  * Text annotation - sticky note/comment.
@@ -52,7 +68,7 @@ export class PDFTextAnnotation extends PDFMarkupAnnotation {
       Type: PdfName.of("Annot"),
       Subtype: PdfName.of("Text"),
       Rect: new PdfArray(rectToArray(rect)),
-      C: new PdfArray(colorComponents.map(PdfNumber.of)),
+      C: new PdfArray(colorComponents.map(n => PdfNumber.of(n))),
       F: PdfNumber.of(4), // Print flag
     });
 
@@ -103,18 +119,8 @@ export class PDFTextAnnotation extends PDFMarkupAnnotation {
     }
 
     // Validate against known icons
-    const validIcons: TextAnnotationIcon[] = [
-      "Comment",
-      "Key",
-      "Note",
-      "Help",
-      "NewParagraph",
-      "Paragraph",
-      "Insert",
-    ];
-
-    if (validIcons.includes(name.value as TextAnnotationIcon)) {
-      return name.value as TextAnnotationIcon;
+    if (isTextAnnotationIcon(name.value)) {
+      return name.value;
     }
 
     return "Note";
@@ -132,9 +138,9 @@ export class PDFTextAnnotation extends PDFMarkupAnnotation {
    * State of the annotation (for review workflows).
    */
   get state(): TextAnnotationState | null {
-    const state = this.dict.getName("State");
+    const state = this.dict.getName("State")?.value;
 
-    return (state?.value as TextAnnotationState) ?? null;
+    return isTextAnnotationState(state) ? state : null;
   }
 
   /**
@@ -149,9 +155,9 @@ export class PDFTextAnnotation extends PDFMarkupAnnotation {
    * State model for the annotation.
    */
   get stateModel(): TextAnnotationStateModel | null {
-    const model = this.dict.getName("StateModel");
+    const model = this.dict.getName("StateModel")?.value;
 
-    return (model?.value as TextAnnotationStateModel) ?? null;
+    return isTextAnnotationStateModel(model) ? model : null;
   }
 
   /**

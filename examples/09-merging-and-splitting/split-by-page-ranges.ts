@@ -27,7 +27,7 @@ async function main() {
 
   for (let i = 1; i <= totalPages; i++) {
     pdf.addPage({ size: "letter" });
-    const page = await pdf.getPage(i - 1);
+    const page = pdf.getPage(i - 1);
     if (page) {
       // Find which chapter this page belongs to
       const chapter = chapters.find(c => c.pages.includes(i));

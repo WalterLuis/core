@@ -67,11 +67,11 @@ describe("DSSBuilder", () => {
       const ltvData = createMockLtvData({ certificates: [cert] });
       await builder.addLtvData(ltvData);
 
-      const dssRef = await builder.build();
+      const dssRef = builder.build();
       expect(dssRef).toBeInstanceOf(PdfRef);
 
       // Resolve and check structure
-      const dss = await registry.resolve(dssRef);
+      const dss = registry.resolve(dssRef);
       expect(dss).toBeInstanceOf(PdfDict);
       expect((dss as PdfDict).get("Type")).toEqual(PdfName.of("DSS"));
 
@@ -91,8 +91,8 @@ describe("DSSBuilder", () => {
       });
       await builder.addLtvData(ltvData);
 
-      const dssRef = await builder.build();
-      const dss = (await registry.resolve(dssRef)) as PdfDict;
+      const dssRef = builder.build();
+      const dss = registry.resolve(dssRef) as PdfDict;
 
       expect((dss.get("Certs") as PdfArray).length).toBe(2);
       expect((dss.get("OCSPs") as PdfArray).length).toBe(1);
@@ -112,8 +112,8 @@ describe("DSSBuilder", () => {
         }),
       );
 
-      const dssRef = await builder.build();
-      const dss = (await registry.resolve(dssRef)) as PdfDict;
+      const dssRef = builder.build();
+      const dss = registry.resolve(dssRef) as PdfDict;
 
       // Only one cert, despite adding same cert twice
       expect((dss.get("Certs") as PdfArray).length).toBe(1);
@@ -130,8 +130,8 @@ describe("DSSBuilder", () => {
       });
       await builder.addLtvData(ltvData);
 
-      const dssRef = await builder.build();
-      const dss = (await registry.resolve(dssRef)) as PdfDict;
+      const dssRef = builder.build();
+      const dss = registry.resolve(dssRef) as PdfDict;
 
       const vri = dss.get("VRI") as PdfDict;
       expect(vri).toBeInstanceOf(PdfDict);
@@ -149,8 +149,8 @@ describe("DSSBuilder", () => {
       const ltvData = createMockLtvData({ certificates: [createTestData(1)] });
       await builder.addLtvData(ltvData);
 
-      const dssRef = await builder.build();
-      const dss = (await registry.resolve(dssRef)) as PdfDict;
+      const dssRef = builder.build();
+      const dss = registry.resolve(dssRef) as PdfDict;
 
       expect(dss.get("VRI")).toBeUndefined();
     });
@@ -168,8 +168,8 @@ describe("DSSBuilder", () => {
       });
       await builder.addLtvData(ltvData);
 
-      const dssRef = await builder.build();
-      const dss = (await registry.resolve(dssRef)) as PdfDict;
+      const dssRef = builder.build();
+      const dss = registry.resolve(dssRef) as PdfDict;
       const vri = dss.get("VRI") as PdfDict;
       const vriKey = await computeVriKey(cmsBytes);
       const vriEntry = vri.get(vriKey) as PdfDict;
@@ -187,8 +187,8 @@ describe("DSSBuilder", () => {
       expect(builder).toBeDefined();
 
       // Building should create empty DSS (Type only)
-      const dssRef = await builder.build();
-      const dss = (await registry.resolve(dssRef)) as PdfDict;
+      const dssRef = builder.build();
+      const dss = registry.resolve(dssRef) as PdfDict;
       expect(dss.get("Certs")).toBeUndefined();
     });
 
@@ -212,8 +212,8 @@ describe("DSSBuilder", () => {
       const newCert = createTestData(60);
       await builder.addLtvData(createMockLtvData({ certificates: [newCert] }));
 
-      const dssRef = await builder.build();
-      const dss = (await registry.resolve(dssRef)) as PdfDict;
+      const dssRef = builder.build();
+      const dss = registry.resolve(dssRef) as PdfDict;
 
       // Should have both certs
       expect((dss.get("Certs") as PdfArray).length).toBe(2);
@@ -251,8 +251,8 @@ describe("DSSBuilder", () => {
         }),
       );
 
-      const dssRef = await builder.build();
-      const dss = (await registry.resolve(dssRef)) as PdfDict;
+      const dssRef = builder.build();
+      const dss = registry.resolve(dssRef) as PdfDict;
       const newVri = dss.get("VRI") as PdfDict;
 
       // Should have both old and new VRI entries
@@ -280,8 +280,8 @@ describe("DSSBuilder", () => {
       const builder = await DSSBuilder.fromCatalog(catalog, registry);
       await builder.addLtvData(createMockLtvData({ certificates: [existingCert] }));
 
-      const dssRef = await builder.build();
-      const dss = (await registry.resolve(dssRef)) as PdfDict;
+      const dssRef = builder.build();
+      const dss = registry.resolve(dssRef) as PdfDict;
       const certsArray = dss.get("Certs") as PdfArray;
 
       // Should have only one cert (deduplicated)
@@ -311,8 +311,8 @@ describe("DSSBuilder", () => {
       const builder = await DSSBuilder.fromCatalog(catalog, registry);
       await builder.addLtvData(createMockLtvData({ certificates: [createTestData(60)] }));
 
-      const newDssRef = await builder.build();
-      const dss = (await registry.resolve(newDssRef)) as PdfDict;
+      const newDssRef = builder.build();
+      const dss = registry.resolve(newDssRef) as PdfDict;
 
       expect((dss.get("Certs") as PdfArray).length).toBe(2);
     });
@@ -333,8 +333,8 @@ describe("DSSBuilder", () => {
       // Try to add again with different cert - should not overwrite VRI
       await builder.addLtvData(createMockLtvData({ cmsBytes, certificates: [cert2] }));
 
-      const dssRef = await builder.build();
-      const dss = (await registry.resolve(dssRef)) as PdfDict;
+      const dssRef = builder.build();
+      const dss = registry.resolve(dssRef) as PdfDict;
       const vri = dss.get("VRI") as PdfDict;
       const vriKey = await computeVriKey(cmsBytes);
       const vriEntry = vri.get(vriKey) as PdfDict;
@@ -361,8 +361,8 @@ describe("DSSBuilder", () => {
         }),
       );
 
-      const dssRef = await builder.build();
-      const dss = (await registry.resolve(dssRef)) as PdfDict;
+      const dssRef = builder.build();
+      const dss = registry.resolve(dssRef) as PdfDict;
       const vri = dss.get("VRI") as PdfDict;
 
       // Should have VRI entry for main CMS and timestamp
@@ -382,12 +382,12 @@ describe("DSSBuilder", () => {
       const cert = createTestData(42, 150);
       await builder.addLtvData(createMockLtvData({ certificates: [cert] }));
 
-      const dssRef = await builder.build();
-      const dss = (await registry.resolve(dssRef)) as PdfDict;
+      const dssRef = builder.build();
+      const dss = registry.resolve(dssRef) as PdfDict;
       const certsArray = dss.get("Certs") as PdfArray;
       const certRef = certsArray.at(0) as PdfRef;
-      const certStream = (await registry.resolve(certRef)) as PdfStream;
-      const data = await certStream.getDecodedData();
+      const certStream = registry.resolve(certRef) as PdfStream;
+      const data = certStream.getDecodedData();
 
       expect(data).toEqual(cert);
     });
@@ -401,8 +401,8 @@ describe("DSSBuilder", () => {
 
       await builder.addLtvData(createMockLtvData({ certificates: [cert] }));
 
-      const dssRef = await builder.build();
-      const dss = (await registry.resolve(dssRef)) as PdfDict;
+      const dssRef = builder.build();
+      const dss = registry.resolve(dssRef) as PdfDict;
       const vri = dss.get("VRI") as PdfDict;
 
       // The VRI entry should reference the cert by hash

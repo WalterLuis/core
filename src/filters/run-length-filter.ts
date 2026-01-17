@@ -18,7 +18,7 @@ import type { Filter } from "./filter";
 export class RunLengthFilter implements Filter {
   readonly name = "RunLengthDecode";
 
-  async decode(data: Uint8Array, _params?: PdfDict): Promise<Uint8Array> {
+  decode(data: Uint8Array, _params?: PdfDict): Uint8Array {
     const output = new ByteWriter();
     let i = 0;
 
@@ -51,7 +51,7 @@ export class RunLengthFilter implements Filter {
     return output.toBytes();
   }
 
-  async encode(data: Uint8Array, _params?: PdfDict): Promise<Uint8Array> {
+  encode(data: Uint8Array, _params?: PdfDict): Uint8Array {
     const output = new ByteWriter();
     let i = 0;
 

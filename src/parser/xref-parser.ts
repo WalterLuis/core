@@ -82,7 +82,7 @@ export class XRefParser {
    * Parse xref at given byte offset.
    * Auto-detects table vs stream format.
    */
-  async parseAt(offset: number): Promise<XRefData> {
+  parseAt(offset: number): XRefData {
     this.scanner.moveTo(offset);
 
     // Peek to detect format
@@ -177,7 +177,7 @@ export class XRefParser {
    * - /W [w1 w2 w3] - byte widths for type, offset, generation fields
    * - /Index [first count ...] - object number ranges (optional, defaults to [0 Size])
    */
-  async parseStream(): Promise<XRefData> {
+  parseStream(): XRefData {
     // Parse the indirect object containing the xref stream
     const parser = new IndirectObjectParser(this.scanner);
     const indirectObj = parser.parseObject();
@@ -255,7 +255,7 @@ export class XRefParser {
     }
 
     // Decode the stream data
-    const decodedData = await stream.getDecodedData();
+    const decodedData = stream.getDecodedData();
 
     // Parse entries from binary data
     const entries = new Map<number, XRefEntry>();

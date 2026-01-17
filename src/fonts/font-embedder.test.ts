@@ -31,7 +31,7 @@ describe("createFontObjects", () => {
     // Encode some text to track glyph usage
     font.encodeText("Hello World");
 
-    const result = await createFontObjects(font, { subsetTag: "ABCDEF" });
+    const result = createFontObjects(font, { subsetTag: "ABCDEF" });
 
     // Check Type0 dict
     expect(result.type0Dict.getName("Type")?.value).toBe("Font");
@@ -72,7 +72,7 @@ describe("createFontObjects", () => {
 
     font.encodeText("Test");
 
-    await createFontObjects(font, { subsetTag: "XYZABC" });
+    createFontObjects(font, { subsetTag: "XYZABC" });
 
     expect(font.subsetTag).toBe("XYZABC");
     expect(font.baseFontName).toContain("XYZABC+");
@@ -84,7 +84,7 @@ describe("createFontObjects", () => {
 
     font.encodeText("ABC");
 
-    const result = await createFontObjects(font);
+    const result = createFontObjects(font);
 
     const ascent = result.descriptorDict.getNumber("Ascent")?.value;
     const descent = result.descriptorDict.getNumber("Descent")?.value;
@@ -99,7 +99,7 @@ describe("createFontObjects", () => {
 
     font.encodeText("Hi");
 
-    const result = await createFontObjects(font);
+    const result = createFontObjects(font);
 
     const toUnicodeData = result.toUnicodeStream.data;
     const text = new TextDecoder().decode(toUnicodeData);
@@ -117,7 +117,7 @@ describe("registerFontObjects", () => {
 
     font.encodeText("Test");
 
-    const result = await createFontObjects(font);
+    const result = createFontObjects(font);
 
     // Mock register function
     let nextObjNum = 1;

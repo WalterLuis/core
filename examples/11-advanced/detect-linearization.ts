@@ -28,7 +28,7 @@ async function main() {
   const pdf = PDF.create();
   for (let i = 1; i <= 3; i++) {
     pdf.addPage({ size: "letter" });
-    const page = await pdf.getPage(i - 1);
+    const page = pdf.getPage(i - 1);
     if (page) {
       page.drawText(`Page ${i}`, {
         x: 250,

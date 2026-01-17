@@ -82,11 +82,11 @@ export const DEFAULT_HIGHLIGHT_COLOR = { r: 153 / 255, g: 193 / 255, b: 218 / 25
  * Parses the content stream to find colors, fonts, and border widths
  * so they can be reused when regenerating the appearance.
  */
-export async function extractAppearanceStyle(stream: PdfStream): Promise<ExtractedAppearanceStyle> {
+export function extractAppearanceStyle(stream: PdfStream): ExtractedAppearanceStyle {
   const style: ExtractedAppearanceStyle = {};
 
   try {
-    const data = await stream.getDecodedData();
+    const data = stream.getDecodedData();
 
     const content = new TextDecoder().decode(data);
 

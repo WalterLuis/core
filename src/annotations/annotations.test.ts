@@ -17,15 +17,15 @@ import type { PDFHighlightAnnotation } from "./text-markup";
 describe("PDFAnnotations", () => {
   describe("getAnnotations()", () => {
     it("returns empty array for page with no annotations", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
-      const annotations = await page.getAnnotations();
+      const annotations = page.getAnnotations();
 
       expect(annotations).toEqual([]);
     });
 
     it("returns annotations after adding them", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       page.addHighlightAnnotation({
@@ -33,22 +33,22 @@ describe("PDFAnnotations", () => {
         color: rgb(1, 1, 0),
       });
 
-      const annotations = await page.getAnnotations();
+      const annotations = page.getAnnotations();
 
       expect(annotations).toHaveLength(1);
       expect(annotations[0].type).toBe("Highlight");
     });
 
     it("caches annotations on repeated calls", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       page.addHighlightAnnotation({
         rect: { x: 100, y: 700, width: 200, height: 14 },
       });
 
-      const first = await page.getAnnotations();
-      const second = await page.getAnnotations();
+      const first = page.getAnnotations();
+      const second = page.getAnnotations();
 
       expect(first).toBe(second); // Same array instance
     });
@@ -56,7 +56,7 @@ describe("PDFAnnotations", () => {
 
   describe("Highlight annotations", () => {
     it("creates highlight annotation with rect", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const highlight = page.addHighlightAnnotation({
@@ -65,7 +65,7 @@ describe("PDFAnnotations", () => {
         opacity: 0.5,
         contents: "Test comment",
         title: "Test Author",
-      }) as PDFHighlightAnnotation;
+      });
 
       expect(highlight.type).toBe("Highlight");
       expect(highlight.quadPoints).toHaveLength(1);
@@ -76,7 +76,7 @@ describe("PDFAnnotations", () => {
     });
 
     it("creates highlight with multiple rects", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const highlight = page.addHighlightAnnotation({
@@ -85,13 +85,13 @@ describe("PDFAnnotations", () => {
           { x: 100, y: 680, width: 250, height: 14 },
         ],
         color: rgb(1, 1, 0),
-      }) as PDFHighlightAnnotation;
+      });
 
       expect(highlight.quadPoints).toHaveLength(2);
     });
 
     it("creates highlight with raw quadPoints", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const quad = [100, 714, 300, 714, 100, 700, 300, 700];
@@ -99,19 +99,19 @@ describe("PDFAnnotations", () => {
       const highlight = page.addHighlightAnnotation({
         quadPoints: [quad],
         color: rgb(1, 1, 0),
-      }) as PDFHighlightAnnotation;
+      });
 
       expect(highlight.quadPoints).toHaveLength(1);
       expect(highlight.quadPoints[0]).toEqual(quad);
     });
 
     it("getBounds() returns bounding box of quads", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const highlight = page.addHighlightAnnotation({
         rect: { x: 100, y: 700, width: 200, height: 14 },
-      }) as PDFHighlightAnnotation;
+      });
 
       const bounds = highlight.getBounds();
 
@@ -124,7 +124,7 @@ describe("PDFAnnotations", () => {
 
   describe("Underline annotations", () => {
     it("creates underline annotation", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const underline = page.addUnderlineAnnotation({
@@ -138,7 +138,7 @@ describe("PDFAnnotations", () => {
 
   describe("StrikeOut annotations", () => {
     it("creates strikeout annotation", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const strikeout = page.addStrikeOutAnnotation({
@@ -152,7 +152,7 @@ describe("PDFAnnotations", () => {
 
   describe("Squiggly annotations", () => {
     it("creates squiggly annotation", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const squiggly = page.addSquigglyAnnotation({
@@ -166,27 +166,27 @@ describe("PDFAnnotations", () => {
 
   describe("Link annotations", () => {
     it("creates link annotation with URI", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const link = page.addLinkAnnotation({
         rect: { x: 100, y: 600, width: 200, height: 20 },
         uri: "https://example.com",
-      }) as PDFLinkAnnotation;
+      });
 
       expect(link.type).toBe("Link");
       expect(link.uri).toBe("https://example.com");
     });
 
     it("creates link annotation with internal destination", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page1 = pdf.addPage();
       const page2 = pdf.addPage();
 
       const link = page1.addLinkAnnotation({
         rect: { x: 100, y: 600, width: 200, height: 20 },
         destination: { page: page2, type: "Fit" },
-      }) as PDFLinkAnnotation;
+      });
 
       expect(link.type).toBe("Link");
       expect(link.destination).toBeTruthy();
@@ -195,7 +195,7 @@ describe("PDFAnnotations", () => {
     });
 
     it("creates link with border", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const link = page.addLinkAnnotation({
@@ -211,7 +211,7 @@ describe("PDFAnnotations", () => {
 
   describe("Text annotations (sticky notes)", () => {
     it("creates text annotation", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const text = page.addTextAnnotation({
@@ -221,7 +221,7 @@ describe("PDFAnnotations", () => {
         color: rgb(1, 1, 0),
         icon: "Comment",
         open: true,
-      }) as PDFTextAnnotation;
+      });
 
       expect(text.type).toBe("Text");
       expect(text.contents).toBe("This is a comment");
@@ -231,12 +231,12 @@ describe("PDFAnnotations", () => {
     });
 
     it("defaults to Note icon", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const text = page.addTextAnnotation({
         rect: { x: 100, y: 500, width: 24, height: 24 },
-      }) as PDFTextAnnotation;
+      });
 
       expect(text.icon).toBe("Note"); // Default
     });
@@ -244,7 +244,7 @@ describe("PDFAnnotations", () => {
 
   describe("Line annotations", () => {
     it("creates line annotation", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const line = page.addLineAnnotation({
@@ -260,7 +260,7 @@ describe("PDFAnnotations", () => {
     });
 
     it("creates line with arrow endings", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const line = page.addLineAnnotation({
@@ -277,7 +277,7 @@ describe("PDFAnnotations", () => {
 
   describe("Square annotations", () => {
     it("creates square annotation", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const square = page.addSquareAnnotation({
@@ -293,7 +293,7 @@ describe("PDFAnnotations", () => {
 
   describe("Circle annotations", () => {
     it("creates circle annotation", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const circle = page.addCircleAnnotation({
@@ -308,7 +308,7 @@ describe("PDFAnnotations", () => {
 
   describe("Stamp annotations", () => {
     it("creates stamp annotation", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const stamp = page.addStampAnnotation({
@@ -321,7 +321,7 @@ describe("PDFAnnotations", () => {
     });
 
     it("defaults to Draft stamp", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const stamp = page.addStampAnnotation({
@@ -334,7 +334,7 @@ describe("PDFAnnotations", () => {
 
   describe("Ink annotations", () => {
     it("creates ink annotation", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const ink = page.addInkAnnotation({
@@ -361,7 +361,7 @@ describe("PDFAnnotations", () => {
 
   describe("Type-specific getters", () => {
     it("returns only highlights from getHighlightAnnotations()", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       page.addHighlightAnnotation({
@@ -377,9 +377,9 @@ describe("PDFAnnotations", () => {
         uri: "https://example.com",
       });
 
-      const highlights = await page.getHighlightAnnotations();
-      const underlines = await page.getUnderlineAnnotations();
-      const links = await page.getLinkAnnotations();
+      const highlights = page.getHighlightAnnotations();
+      const underlines = page.getUnderlineAnnotations();
+      const links = page.getLinkAnnotations();
 
       expect(highlights).toHaveLength(1);
       expect(underlines).toHaveLength(1);
@@ -389,7 +389,7 @@ describe("PDFAnnotations", () => {
 
   describe("removeAnnotation()", () => {
     it("removes a specific annotation", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const highlight = page.addHighlightAnnotation({
@@ -400,16 +400,16 @@ describe("PDFAnnotations", () => {
         rect: { x: 100, y: 680, width: 200, height: 14 },
       });
 
-      expect(await page.getAnnotations()).toHaveLength(2);
+      expect(page.getAnnotations()).toHaveLength(2);
 
-      await page.removeAnnotation(highlight);
+      page.removeAnnotation(highlight);
 
-      expect(await page.getAnnotations()).toHaveLength(1);
-      expect((await page.getAnnotations())[0].type).toBe("Underline");
+      expect(page.getAnnotations()).toHaveLength(1);
+      expect(page.getAnnotations()[0].type).toBe("Underline");
     });
 
     it("removes a direct (non-ref) annotation dict entry", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const directAnnot = PdfDict.of({
@@ -425,19 +425,19 @@ describe("PDFAnnotations", () => {
 
       page.dict.set("Annots", new PdfArray([directAnnot]));
 
-      const annotations = await page.getAnnotations();
+      const annotations = page.getAnnotations();
       expect(annotations).toHaveLength(1);
       expect(annotations[0].ref).toBeNull();
 
-      await page.removeAnnotation(annotations[0]);
+      page.removeAnnotation(annotations[0]);
 
-      expect(await page.getAnnotations()).toHaveLength(0);
+      expect(page.getAnnotations()).toHaveLength(0);
     });
   });
 
   describe("removeAnnotations()", () => {
     it("removes all annotations without filter", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       page.addHighlightAnnotation({
@@ -448,15 +448,15 @@ describe("PDFAnnotations", () => {
         rect: { x: 100, y: 680, width: 200, height: 14 },
       });
 
-      expect(await page.getAnnotations()).toHaveLength(2);
+      expect(page.getAnnotations()).toHaveLength(2);
 
-      await page.removeAnnotations();
+      page.removeAnnotations();
 
-      expect(await page.getAnnotations()).toHaveLength(0);
+      expect(page.getAnnotations()).toHaveLength(0);
     });
 
     it("removes only annotations of specified type", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       page.addHighlightAnnotation({
@@ -471,18 +471,18 @@ describe("PDFAnnotations", () => {
         rect: { x: 100, y: 680, width: 200, height: 14 },
       });
 
-      expect(await page.getAnnotations()).toHaveLength(3);
+      expect(page.getAnnotations()).toHaveLength(3);
 
-      await page.removeAnnotations({ type: "Highlight" });
+      page.removeAnnotations({ type: "Highlight" });
 
-      expect(await page.getAnnotations()).toHaveLength(1);
-      expect((await page.getAnnotations())[0].type).toBe("Underline");
+      expect(page.getAnnotations()).toHaveLength(1);
+      expect(page.getAnnotations()[0].type).toBe("Underline");
     });
   });
 
   describe("Annotation modification", () => {
     it("tracks modifications via setters", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const highlight = page.addHighlightAnnotation({
@@ -498,7 +498,7 @@ describe("PDFAnnotations", () => {
     });
 
     it("allows changing color", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const highlight = page.addHighlightAnnotation({
@@ -523,7 +523,7 @@ describe("PDFAnnotations", () => {
 
   describe("Save and reload", () => {
     it("preserves annotations after save and reload", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       page.addHighlightAnnotation({
@@ -540,11 +540,11 @@ describe("PDFAnnotations", () => {
       // Save and reload
       const bytes = await pdf.save();
       const reloaded = await PDF.load(bytes);
-      const reloadedPage = await reloaded.getPage(0);
+      const reloadedPage = reloaded.getPage(0);
 
       expect(reloadedPage).toBeTruthy();
 
-      const annotations = await reloadedPage!.getAnnotations();
+      const annotations = reloadedPage!.getAnnotations();
 
       expect(annotations).toHaveLength(2);
 
@@ -561,7 +561,7 @@ describe("PDFAnnotations", () => {
 
   describe("AnnotationFlags", () => {
     it("checks and sets flags correctly", async () => {
-      const pdf = await PDF.create();
+      const pdf = PDF.create();
       const page = pdf.addPage();
 
       const highlight = page.addHighlightAnnotation({

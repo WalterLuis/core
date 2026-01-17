@@ -236,7 +236,7 @@ class Type1Parser {
       } else if (token.kind === TokenKind.INTEGER) {
         numbers.push(token.intValue());
       } else {
-        throw new Error(`Expected INTEGER or REAL but got ${token} at array position ${i}`);
+        throw new Error(`Expected INTEGER or REAL but got ${token.kind} at array position ${i}`);
       }
     }
 
@@ -815,7 +815,7 @@ class Type1Parser {
       return;
     }
 
-    throw new Error(`Found ${token} but expected ND`);
+    throw new Error(`Found ${token.kind}:${token.text} but expected ND`);
   }
 
   /**
@@ -838,7 +838,7 @@ class Type1Parser {
       return;
     }
 
-    throw new Error(`Found ${token} but expected NP`);
+    throw new Error(`Found ${token.kind}:${token.text} but expected NP`);
   }
 
   /**
@@ -849,11 +849,11 @@ class Type1Parser {
     const token = this.lexer.nextToken();
 
     if (token === null || token.kind !== kind) {
-      throw new Error(`Found ${token} but expected ${kind}`);
+      throw new Error(`Found ${token?.kind ?? "null"}:${token?.text ?? ""} but expected ${kind}`);
     }
 
     if (name !== undefined && token.text !== name) {
-      throw new Error(`Found ${token} but expected ${name}`);
+      throw new Error(`Found ${token.kind}:${token.text} but expected ${name}`);
     }
 
     return token;

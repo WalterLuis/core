@@ -18,13 +18,14 @@ import { AppearanceGenerator, extractAppearanceStyle } from "./appearance-genera
 import { FieldTree } from "./field-tree";
 import {
   type AcroFormLike,
-  type CheckboxField,
+  ButtonField,
+  CheckboxField,
   createFormField,
-  type DropdownField,
-  type ListBoxField,
-  type RadioField,
+  DropdownField,
+  ListBoxField,
+  RadioField,
   type TerminalField,
-  type TextField,
+  TextField,
 } from "./fields";
 import { type FlattenOptions, FormFlattener } from "./form-flattener";
 import { type ExistingFont, type FormFont, parseExistingFont } from "./form-font";
@@ -62,12 +63,8 @@ export class AcroForm implements AcroFormLike {
    * @param registry The object registry for resolving references
    * @param pageTree Optional page tree for efficient page lookups during flattening
    */
-  static async load(
-    catalog: PdfDict,
-    registry: ObjectRegistry,
-    pageTree?: PDFPageTree,
-  ): Promise<AcroForm | null> {
-    const acroFormEntry = catalog.get("AcroForm");
+  static load(catalog: PdfDict, registry: ObjectRegistry, pageTree?: PDFPageTree): AcroForm | null {
+    let acroFormEntry = catalog.get("AcroForm");
 
     if (!acroFormEntry) {
       return null;
@@ -76,12 +73,10 @@ export class AcroForm implements AcroFormLike {
     let dict: PdfDict | null = null;
 
     if (acroFormEntry instanceof PdfRef) {
-      const resolved = await registry.resolve(acroFormEntry);
+      acroFormEntry = registry.resolve(acroFormEntry) ?? undefined;
+    }
 
-      if (resolved instanceof PdfDict) {
-        dict = resolved;
-      }
-    } else if (acroFormEntry instanceof PdfDict) {
+    if (acroFormEntry instanceof PdfDict) {
       dict = acroFormEntry;
     }
 
@@ -95,20 +90,22 @@ export class AcroForm implements AcroFormLike {
   /**
    * Default resources dictionary (fonts, etc.).
    */
-  async getDefaultResources(): Promise<PdfDict | null> {
-    const dr = this.dict.get("DR");
+  getDefaultResources(): PdfDict | null {
+    let dr = this.dict.get("DR");
 
     if (!dr) {
       return null;
     }
 
     if (dr instanceof PdfRef) {
-      const resolved = await this.registry.resolve(dr);
-
-      return resolved instanceof PdfDict ? resolved : null;
+      dr = this.registry.resolve(dr) ?? undefined;
     }
 
-    return dr instanceof PdfDict ? dr : null;
+    if (dr instanceof PdfDict) {
+      return dr;
+    }
+
+    return null;
   }
 
   /**
@@ -163,7 +160,7 @@ export class AcroForm implements AcroFormLike {
    * Get all terminal fields (flattened).
    * Non-terminal fields (containers) are not included.
    */
-  async getFields(): Promise<TerminalField[]> {
+  getFields(): TerminalField[] {
     if (this.fieldsCache) {
       return this.fieldsCache;
     }
@@ -175,7 +172,7 @@ export class AcroForm implements AcroFormLike {
     }
 
     const visited = new Set<string>();
-    const fields = await this.collectFields(fieldsArray, visited, "");
+    const fields = this.collectFields(fieldsArray, visited, "");
 
     this.fieldsCache = fields;
 
@@ -186,8 +183,8 @@ export class AcroForm implements AcroFormLike {
    * Get field by fully-qualified name.
    * Returns null if not found.
    */
-  async getField(name: string): Promise<TerminalField | null> {
-    const fields = await this.getFields();
+  getField(name: string): TerminalField | null {
+    const fields = this.getFields();
 
     return fields.find(f => f.name === name) ?? null;
   }
@@ -195,9 +192,10 @@ export class AcroForm implements AcroFormLike {
   /**
    * Get all fields of a specific type.
    */
-  async getFieldsOfType<T extends TerminalField>(type: T["type"]): Promise<T[]> {
-    const fields = await this.getFields();
+  getFieldsOfType<T extends TerminalField>(type: T["type"]): T[] {
+    const fields = this.getFields();
 
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return fields.filter(f => f.type === type) as unknown as T[];
   }
 
@@ -232,7 +230,7 @@ export class AcroForm implements AcroFormLike {
    * }
    * ```
    */
-  async getFieldTree(): Promise<FieldTree> {
+  getFieldTree(): FieldTree {
     return FieldTree.load(this, this.registry);
   }
 
@@ -341,13 +339,11 @@ export class AcroForm implements AcroFormLike {
       const fontObj = fonts.get(fontName);
 
       if (fontObj) {
-        const existingFont = parseExistingFont(
-          fontName,
-          fontObj as PdfDict | PdfRef,
-          this.registry,
-        );
+        if (fontObj instanceof PdfDict || fontObj instanceof PdfRef) {
+          const existingFont = parseExistingFont(fontName, fontObj, this.registry);
 
-        this.existingFontsCache.set(fontName, existingFont);
+          this.existingFontsCache.set(fontName, existingFont);
+        }
       }
     }
   }
@@ -364,7 +360,7 @@ export class AcroForm implements AcroFormLike {
    *
    * @internal
    */
-  async updateFieldAppearance(field: TerminalField): Promise<void> {
+  updateFieldAppearance(field: TerminalField): void {
     // Skip read-only fields during regeneration (preserve existing appearance)
     if (field.isReadOnly()) {
       return;
@@ -372,87 +368,70 @@ export class AcroForm implements AcroFormLike {
 
     const generator = new AppearanceGenerator(this, this.registry);
 
-    switch (field.type) {
-      case "text": {
-        const textField = field as TextField;
+    if (field instanceof TextField) {
+      for (const widget of field.getWidgets()) {
+        const existingAppearance = widget.getNormalAppearance();
+        const existingStyle = existingAppearance
+          ? extractAppearanceStyle(existingAppearance)
+          : undefined;
 
-        for (const widget of textField.getWidgets()) {
-          const existingAppearance = await widget.getNormalAppearance();
-          const existingStyle = existingAppearance
-            ? await extractAppearanceStyle(existingAppearance)
-            : undefined;
+        const stream = generator.generateTextAppearance(field, widget, existingStyle);
 
-          const stream = generator.generateTextAppearance(textField, widget, existingStyle);
-          widget.setNormalAppearance(stream);
+        widget.setNormalAppearance(stream);
+      }
+    }
+
+    if (field instanceof CheckboxField) {
+      for (const widget of field.getWidgets()) {
+        const onValue = widget.getOnValue() ?? "Yes";
+
+        // Skip if all state appearances exist
+        if (widget.hasAppearancesForStates([onValue, "Off"])) {
+          continue;
         }
 
-        break;
+        const { on, off } = generator.generateCheckboxAppearance(field, widget, onValue);
+
+        widget.setNormalAppearance(on, onValue);
+        widget.setNormalAppearance(off, "Off");
       }
+    }
 
-      case "checkbox": {
-        const checkboxField = field as CheckboxField;
+    if (field instanceof RadioField) {
+      for (const widget of field.getWidgets()) {
+        const value = widget.getOnValue() ?? "Choice";
 
-        for (const widget of checkboxField.getWidgets()) {
-          const onValue = widget.getOnValue() ?? "Yes";
-
-          // Skip if all state appearances exist
-          if (widget.hasAppearancesForStates([onValue, "Off"])) {
-            continue;
-          }
-
-          const { on, off } = generator.generateCheckboxAppearance(checkboxField, widget, onValue);
-          widget.setNormalAppearance(on, onValue);
-          widget.setNormalAppearance(off, "Off");
+        // Skip if all state appearances exist
+        if (widget.hasAppearancesForStates([value, "Off"])) {
+          continue;
         }
 
-        break;
+        const { selected, off } = generator.generateRadioAppearance(field, widget, value);
+
+        widget.setNormalAppearance(selected, value);
+        widget.setNormalAppearance(off, "Off");
       }
+    }
 
-      case "radio": {
-        const radioField = field as RadioField;
+    if (field instanceof DropdownField) {
+      for (const widget of field.getWidgets()) {
+        const stream = generator.generateDropdownAppearance(field, widget);
 
-        for (const widget of radioField.getWidgets()) {
-          const value = widget.getOnValue() ?? "Choice";
-
-          // Skip if all state appearances exist
-          if (widget.hasAppearancesForStates([value, "Off"])) {
-            continue;
-          }
-
-          const { selected, off } = generator.generateRadioAppearance(radioField, widget, value);
-          widget.setNormalAppearance(selected, value);
-          widget.setNormalAppearance(off, "Off");
-        }
-
-        break;
+        widget.setNormalAppearance(stream);
       }
+    }
 
-      case "dropdown": {
-        const dropdownField = field as DropdownField;
+    if (field instanceof ListBoxField) {
+      for (const widget of field.getWidgets()) {
+        const stream = generator.generateListBoxAppearance(field, widget);
 
-        for (const widget of dropdownField.getWidgets()) {
-          const stream = generator.generateDropdownAppearance(dropdownField, widget);
-          widget.setNormalAppearance(stream);
-        }
-
-        break;
+        widget.setNormalAppearance(stream);
       }
+    }
 
-      case "listbox": {
-        const listboxField = field as ListBoxField;
-
-        for (const widget of listboxField.getWidgets()) {
-          const stream = generator.generateListBoxAppearance(listboxField, widget);
-          widget.setNormalAppearance(stream);
-        }
-
-        break;
-      }
-
-      case "button": {
-        // NEVER regenerate button appearances
-        break;
-      }
+    if (field instanceof ButtonField) {
+      // NEVER regenerate button appearances
+      // No action required
     }
 
     // Clear NeedAppearances flag
@@ -467,10 +446,10 @@ export class AcroForm implements AcroFormLike {
    *
    * @param options.forceRegenerate Force regeneration even if appearances exist
    */
-  async updateAppearances(options: { forceRegenerate?: boolean } = {}): Promise<void> {
+  updateAppearances(options: { forceRegenerate?: boolean } = {}): void {
     const generator = new AppearanceGenerator(this, this.registry);
 
-    const fields = await this.getFields();
+    const fields = this.getFields();
 
     for (const field of fields) {
       if (!field.needsAppearanceUpdate) {
@@ -485,106 +464,84 @@ export class AcroForm implements AcroFormLike {
 
       const forceRegen = options.forceRegenerate ?? false;
 
-      switch (field.type) {
-        case "text": {
-          const textField = field as TextField;
+      if (field instanceof TextField) {
+        for (const widget of field.getWidgets()) {
+          // Extract existing styling before regenerating
+          // This preserves colors, fonts, borders from the original appearance
+          const existingAppearance = widget.getNormalAppearance();
+          const existingStyle = existingAppearance
+            ? extractAppearanceStyle(existingAppearance)
+            : undefined;
 
-          for (const widget of textField.getWidgets()) {
-            // Extract existing styling before regenerating
-            // This preserves colors, fonts, borders from the original appearance
-            const existingAppearance = await widget.getNormalAppearance();
-            const existingStyle = existingAppearance
-              ? await extractAppearanceStyle(existingAppearance)
-              : undefined;
+          const stream = generator.generateTextAppearance(field, widget, existingStyle);
 
-            const stream = generator.generateTextAppearance(textField, widget, existingStyle);
-            widget.setNormalAppearance(stream);
+          widget.setNormalAppearance(stream);
+        }
+      }
+
+      if (field instanceof CheckboxField) {
+        for (const widget of field.getWidgets()) {
+          const onValue = widget.getOnValue() ?? "Yes";
+
+          // Skip if all state appearances exist and not forcing regeneration
+          // Existing appearances are usually better than generated ones
+          if (!forceRegen && widget.hasAppearancesForStates([onValue, "Off"])) {
+            continue;
           }
 
-          break;
+          const { on, off } = generator.generateCheckboxAppearance(field, widget, onValue);
+
+          widget.setNormalAppearance(on, onValue);
+          widget.setNormalAppearance(off, "Off");
         }
+      }
 
-        case "checkbox": {
-          const checkboxField = field as CheckboxField;
+      if (field instanceof RadioField) {
+        for (const widget of field.getWidgets()) {
+          const value = widget.getOnValue() ?? "Choice";
 
-          for (const widget of checkboxField.getWidgets()) {
-            const onValue = widget.getOnValue() ?? "Yes";
-
-            // Skip if all state appearances exist and not forcing regeneration
-            // Existing appearances are usually better than generated ones
-            if (!forceRegen && widget.hasAppearancesForStates([onValue, "Off"])) {
-              continue;
-            }
-
-            const { on, off } = generator.generateCheckboxAppearance(
-              checkboxField,
-              widget,
-              onValue,
-            );
-            widget.setNormalAppearance(on, onValue);
-            widget.setNormalAppearance(off, "Off");
+          // Skip if all state appearances exist and not forcing regeneration
+          if (!forceRegen && widget.hasAppearancesForStates([value, "Off"])) {
+            continue;
           }
 
-          break;
+          const { selected, off } = generator.generateRadioAppearance(field, widget, value);
+
+          widget.setNormalAppearance(selected, value);
+          widget.setNormalAppearance(off, "Off");
         }
+      }
 
-        case "radio": {
-          const radioField = field as RadioField;
-
-          for (const widget of radioField.getWidgets()) {
-            const value = widget.getOnValue() ?? "Choice";
-
-            // Skip if all state appearances exist and not forcing regeneration
-            if (!forceRegen && widget.hasAppearancesForStates([value, "Off"])) {
-              continue;
-            }
-
-            const { selected, off } = generator.generateRadioAppearance(radioField, widget, value);
-            widget.setNormalAppearance(selected, value);
-            widget.setNormalAppearance(off, "Off");
+      if (field instanceof DropdownField) {
+        for (const widget of field.getWidgets()) {
+          // Skip if appearance exists and not forcing regeneration
+          if (!forceRegen && widget.hasNormalAppearance()) {
+            continue;
           }
 
-          break;
+          const stream = generator.generateDropdownAppearance(field, widget);
+
+          widget.setNormalAppearance(stream);
         }
+      }
 
-        case "dropdown": {
-          const dropdownField = field as DropdownField;
-
-          for (const widget of dropdownField.getWidgets()) {
-            // Skip if appearance exists and not forcing regeneration
-            if (!forceRegen && widget.hasNormalAppearance()) {
-              continue;
-            }
-
-            const stream = generator.generateDropdownAppearance(dropdownField, widget);
-            widget.setNormalAppearance(stream);
+      if (field instanceof ListBoxField) {
+        for (const widget of field.getWidgets()) {
+          // Skip if appearance exists and not forcing regeneration
+          if (!forceRegen && widget.hasNormalAppearance()) {
+            continue;
           }
 
-          break;
+          const stream = generator.generateListBoxAppearance(field, widget);
+
+          widget.setNormalAppearance(stream);
         }
+      }
 
-        case "listbox": {
-          const listboxField = field as ListBoxField;
-
-          for (const widget of listboxField.getWidgets()) {
-            // Skip if appearance exists and not forcing regeneration
-            if (!forceRegen && widget.hasNormalAppearance()) {
-              continue;
-            }
-
-            const stream = generator.generateListBoxAppearance(listboxField, widget);
-            widget.setNormalAppearance(stream);
-          }
-
-          break;
-        }
-
-        case "button": {
-          // NEVER regenerate button appearances - they have custom artwork
-          // that we cannot faithfully reproduce. Button appearances are
-          // created by the PDF author and should be preserved.
-          break;
-        }
+      if (field instanceof ButtonField) {
+        // NEVER regenerate button appearances - they have custom artwork
+        // that we cannot faithfully reproduce. Button appearances are
+        // created by the PDF author and should be preserved.
       }
 
       field.needsAppearanceUpdate = false;
@@ -597,8 +554,8 @@ export class AcroForm implements AcroFormLike {
   /**
    * Mark all fields as needing appearance update.
    */
-  async markAllNeedAppearanceUpdate(): Promise<void> {
-    const fields = await this.getFields();
+  markAllNeedAppearanceUpdate(): void {
+    const fields = this.getFields();
 
     for (const field of fields) {
       field.needsAppearanceUpdate = true;
@@ -608,21 +565,18 @@ export class AcroForm implements AcroFormLike {
   /**
    * Collect all terminal fields from a /Kids or /Fields array.
    */
-  private async collectFields(
-    kids: PdfArray,
-    visited: Set<string>,
-    parentName: string,
-  ): Promise<TerminalField[]> {
+  private collectFields(kids: PdfArray, visited: Set<string>, parentName: string): TerminalField[] {
     const fields: TerminalField[] = [];
 
     for (let i = 0; i < kids.length; i++) {
-      const item = kids.at(i);
+      let item = kids.at(i);
       const ref = item instanceof PdfRef ? item : null;
       const refKey = ref ? `${ref.objectNumber} ${ref.generation}` : "";
 
       // Detect circular references
       if (refKey && visited.has(refKey)) {
         this.registry.addWarning(`Circular reference in form field tree: ${refKey}`);
+
         continue;
       }
 
@@ -634,12 +588,10 @@ export class AcroForm implements AcroFormLike {
       let dict: PdfDict | null = null;
 
       if (item instanceof PdfRef) {
-        const resolved = await this.registry.resolve(item);
+        item = this.registry.resolve(item) ?? undefined;
+      }
 
-        if (resolved instanceof PdfDict) {
-          dict = resolved;
-        }
-      } else if (item instanceof PdfDict) {
+      if (item instanceof PdfDict) {
         dict = item;
       }
 
@@ -657,10 +609,10 @@ export class AcroForm implements AcroFormLike {
 
       // Check if terminal or non-terminal
 
-      if (await this.isTerminalField(dict)) {
+      if (this.isTerminalField(dict)) {
         const field = createFormField(dict, ref, this.registry, this, fullName);
 
-        await field.resolveWidgets();
+        field.resolveWidgets();
 
         fields.push(field);
       } else {
@@ -668,7 +620,7 @@ export class AcroForm implements AcroFormLike {
         const childKids = dict.getArray("Kids");
 
         if (childKids) {
-          fields.push(...(await this.collectFields(childKids, visited, fullName)));
+          fields.push(...this.collectFields(childKids, visited, fullName));
         }
       }
     }
@@ -683,7 +635,7 @@ export class AcroForm implements AcroFormLike {
    * - It has no /Kids, OR
    * - Its /Kids contain widgets (no /T) rather than child fields (have /T)
    */
-  private async isTerminalField(dict: PdfDict): Promise<boolean> {
+  private isTerminalField(dict: PdfDict): boolean {
     const kids = dict.getArray("Kids");
 
     if (!kids || kids.length === 0) {
@@ -692,7 +644,7 @@ export class AcroForm implements AcroFormLike {
 
     // Check the first kid - if it has /T, these are child fields (non-terminal)
     // If it has no /T, these are widgets (terminal)
-    const firstKid = kids.at(0);
+    let firstKid = kids.at(0);
 
     if (!firstKid) {
       return true;
@@ -701,12 +653,10 @@ export class AcroForm implements AcroFormLike {
     let firstKidDict: PdfDict | null = null;
 
     if (firstKid instanceof PdfRef) {
-      const resolved = await this.registry.resolve(firstKid);
+      firstKid = this.registry.resolve(firstKid) ?? undefined;
+    }
 
-      if (resolved instanceof PdfDict) {
-        firstKidDict = resolved;
-      }
-    } else if (firstKid instanceof PdfDict) {
+    if (firstKid instanceof PdfDict) {
       firstKidDict = firstKid;
     }
 
@@ -834,9 +784,10 @@ export class AcroForm implements AcroFormLike {
    *
    * @param options Flattening options
    */
-  async flatten(options: FlattenOptions = {}): Promise<void> {
+  flatten(options: FlattenOptions = {}): void {
     const flattener = new FormFlattener(this, this.registry, this.pageTree);
-    await flattener.flatten(options);
+
+    flattener.flatten(options);
 
     // Clear field cache after flattening
     this.fieldsCache = null;

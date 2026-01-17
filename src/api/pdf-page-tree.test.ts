@@ -12,7 +12,7 @@ import { PDFPageTree } from "./pdf-page-tree";
  * Create a resolver that looks up objects in a map.
  */
 function createResolver(objects: Map<string, PdfObject>) {
-  return async (ref: PdfRef): Promise<PdfObject | null> => {
+  return (ref: PdfRef): PdfObject | null => {
     const key = `${ref.objectNumber}:${ref.generation}`;
     return objects.get(key) ?? null;
   };
@@ -66,7 +66,7 @@ describe("PageTree", () => {
         ["3:0", page],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       expect(tree.getPageCount()).toBe(1);
       expect(tree.getPages()).toEqual([pageRef]);
@@ -88,7 +88,7 @@ describe("PageTree", () => {
         ["5:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       expect(tree.getPageCount()).toBe(3);
       expect(tree.getPages()).toEqual([page1Ref, page2Ref, page3Ref]);
@@ -124,7 +124,7 @@ describe("PageTree", () => {
         ["5:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       expect(tree.getPageCount()).toBe(3);
       // Pages should be in document order: 3, 4, 5
@@ -154,7 +154,7 @@ describe("PageTree", () => {
         ["4:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       expect(tree.getPageCount()).toBe(1);
       expect(tree.getPage(0)).toBe(pageRef);
@@ -177,7 +177,7 @@ describe("PageTree", () => {
         ["2:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       // Should not hang, should find the page
       expect(tree.getPageCount()).toBe(1);
@@ -202,7 +202,7 @@ describe("PageTree", () => {
         ["2:0", page],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       // Should skip the typeless node
       expect(tree.getPageCount()).toBe(0);
@@ -218,7 +218,7 @@ describe("PageTree", () => {
 
       const objects = new Map<string, PdfObject>([["1:0", root]]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       expect(tree.getPageCount()).toBe(0);
     });
@@ -236,7 +236,7 @@ describe("PageTree", () => {
         // 99:0 is missing
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       // Should find the valid page, skip the missing one
       expect(tree.getPageCount()).toBe(1);
@@ -254,7 +254,7 @@ describe("PageTree", () => {
         ["2:0", PdfNumber.of(42)], // Not a dict!
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       expect(tree.getPageCount()).toBe(0);
     });
@@ -271,7 +271,7 @@ describe("PageTree", () => {
         ["2:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       const pages1 = tree.getPages();
       const pages2 = tree.getPages();
@@ -298,7 +298,7 @@ describe("PageTree", () => {
         ["2:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       expect(tree.getPage(-1)).toBeNull();
       expect(tree.getPage(-100)).toBeNull();
@@ -314,7 +314,7 @@ describe("PageTree", () => {
         ["2:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       expect(tree.getPage(1)).toBeNull();
       expect(tree.getPage(100)).toBeNull();
@@ -339,7 +339,7 @@ describe("PageTree", () => {
         ["3:0", page1],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       const newPageRef = PdfRef.of(10, 0);
       const newPage = createPage();
@@ -367,7 +367,7 @@ describe("PageTree", () => {
         ["3:0", page1],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       const newPageRef = PdfRef.of(10, 0);
       const newPage = createPage();
@@ -390,7 +390,7 @@ describe("PageTree", () => {
         ["4:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       const newPageRef = PdfRef.of(10, 0);
       const newPage = createPage();
@@ -412,7 +412,7 @@ describe("PageTree", () => {
         ["3:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       const newPageRef = PdfRef.of(10, 0);
       const newPage = createPage();
@@ -432,7 +432,7 @@ describe("PageTree", () => {
         ["3:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       expect(tree.warnings.length).toBe(0);
 
@@ -457,7 +457,7 @@ describe("PageTree", () => {
         ["4:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       const removed = tree.removePage(0);
 
@@ -479,7 +479,7 @@ describe("PageTree", () => {
         ["4:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       const removed = tree.removePage(1);
 
@@ -498,7 +498,7 @@ describe("PageTree", () => {
         ["3:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       tree.removePage(0);
 
@@ -516,7 +516,7 @@ describe("PageTree", () => {
         ["3:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       expect(() => tree.removePage(5)).toThrow(RangeError);
       expect(() => tree.removePage(-1)).toThrow(RangeError);
@@ -544,7 +544,7 @@ describe("PageTree", () => {
         ["5:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       tree.movePage(0, 2);
 
@@ -567,7 +567,7 @@ describe("PageTree", () => {
         ["5:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       tree.movePage(2, 0);
 
@@ -586,7 +586,7 @@ describe("PageTree", () => {
         ["4:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       // Should not generate warning since no actual modification
       tree.movePage(1, 1);
@@ -605,7 +605,7 @@ describe("PageTree", () => {
         ["3:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       expect(() => tree.movePage(5, 0)).toThrow(RangeError);
       expect(() => tree.movePage(-1, 0)).toThrow(RangeError);
@@ -621,7 +621,7 @@ describe("PageTree", () => {
         ["3:0", createPage()],
       ]);
 
-      const tree = await PDFPageTree.load(rootRef, createResolver(objects));
+      const tree = PDFPageTree.load(rootRef, createResolver(objects));
 
       expect(() => tree.movePage(0, 5)).toThrow(RangeError);
       expect(() => tree.movePage(0, -1)).toThrow(RangeError);

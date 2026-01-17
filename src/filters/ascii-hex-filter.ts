@@ -21,7 +21,7 @@ export class ASCIIHexFilter implements Filter {
   private static readonly END_MARKER = 0x3e;
   private static readonly NIBBLE_MASK = 0x0f;
 
-  async decode(data: Uint8Array, _params?: PdfDict): Promise<Uint8Array> {
+  decode(data: Uint8Array, _params?: PdfDict): Uint8Array {
     const output = new ByteWriter();
 
     let high: number | null = null;
@@ -59,7 +59,7 @@ export class ASCIIHexFilter implements Filter {
     return output.toBytes();
   }
 
-  async encode(data: Uint8Array, _params?: PdfDict): Promise<Uint8Array> {
+  encode(data: Uint8Array, _params?: PdfDict): Uint8Array {
     const hexChars = "0123456789ABCDEF";
 
     // Each byte becomes 2 hex chars, plus '>' terminator

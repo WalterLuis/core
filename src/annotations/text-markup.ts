@@ -251,7 +251,7 @@ function createTextMarkupDict(
       PdfNumber.of(maxY),
     ]),
     QuadPoints: new PdfArray(flatQuadPoints),
-    C: new PdfArray(colorComponents.map(PdfNumber.of)),
+    C: new PdfArray(colorComponents.map(n => PdfNumber.of(n))),
     F: PdfNumber.of(4), // Print flag
   });
 

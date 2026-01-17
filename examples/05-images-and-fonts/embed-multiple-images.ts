@@ -17,7 +17,7 @@ async function main() {
   const pdf = PDF.create();
   pdf.addPage({ size: "letter", orientation: "landscape" });
 
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (!page) {
     throw new Error("Failed to get page");
   }
@@ -51,7 +51,7 @@ async function main() {
   for (const imgFile of imageFiles) {
     try {
       const bytes = await loadFixture(imgFile.category, imgFile.file);
-      const image = await pdf.embedImage(bytes);
+      const image = pdf.embedImage(bytes);
       images.push({ image, label: imgFile.label });
       console.log(`  Loaded: ${imgFile.file} (${image.width}x${image.height})`);
     } catch (_error) {
@@ -160,7 +160,7 @@ async function main() {
 
   // Add a second page with a different layout
   pdf.addPage({ size: "letter" });
-  const page2 = await pdf.getPage(1);
+  const page2 = pdf.getPage(1);
 
   if (page2 && images.length > 0) {
     page2.drawText("Alternative Layout - Filmstrip", {

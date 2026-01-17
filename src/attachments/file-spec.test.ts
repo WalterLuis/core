@@ -155,7 +155,7 @@ describe("getEmbeddedFileStream", () => {
     const ef = PdfDict.of({ F: streamRef });
     const fileSpec = PdfDict.of({ EF: ef });
 
-    const resolver = async (ref: PdfRef) => {
+    const resolver = (ref: PdfRef) => {
       if (ref.objectNumber === 10) {
         return stream;
       }
@@ -163,20 +163,20 @@ describe("getEmbeddedFileStream", () => {
       return null;
     };
 
-    const result = await getEmbeddedFileStream(fileSpec, resolver);
+    const result = getEmbeddedFileStream(fileSpec, resolver);
     expect(result).toBe(stream);
   });
 
-  it("returns null when /EF is missing", async () => {
+  it("returns null when /EF is missing", () => {
     const fileSpec = PdfDict.of({
       F: PdfString.fromString("external.pdf"),
     });
 
-    const result = await getEmbeddedFileStream(fileSpec, async () => null);
+    const result = getEmbeddedFileStream(fileSpec, () => null);
     expect(result).toBeNull();
   });
 
-  it("resolves /EF reference", async () => {
+  it("resolves /EF reference", () => {
     const streamData = new Uint8Array([1, 2, 3]);
     const stream = new PdfStream([], streamData);
     const streamRef = PdfRef.of(10, 0);
@@ -190,15 +190,15 @@ describe("getEmbeddedFileStream", () => {
       [10, stream],
     ]);
 
-    const resolver = async (ref: PdfRef) => objects.get(ref.objectNumber) ?? null;
+    const resolver = (ref: PdfRef) => objects.get(ref.objectNumber) ?? null;
 
-    const result = await getEmbeddedFileStream(fileSpec, resolver);
+    const result = getEmbeddedFileStream(fileSpec, resolver);
     expect(result).toBe(stream);
   });
 });
 
 describe("parseFileSpec", () => {
-  it("parses complete file spec", async () => {
+  it("parses complete file spec", () => {
     const streamData = new Uint8Array([1, 2, 3, 4, 5]);
     const params = PdfDict.of({
       Size: PdfNumber.of(5),
@@ -225,7 +225,7 @@ describe("parseFileSpec", () => {
       EF: ef,
     });
 
-    const resolver = async (ref: PdfRef) => {
+    const resolver = (ref: PdfRef) => {
       if (ref.objectNumber === 10) {
         return stream;
       }
@@ -233,7 +233,7 @@ describe("parseFileSpec", () => {
       return null;
     };
 
-    const info = await parseFileSpec(fileSpec, "doc-key", resolver);
+    const info = parseFileSpec(fileSpec, "doc-key", resolver);
 
     expect(info).not.toBeNull();
     expect(info?.name).toBe("doc-key");
@@ -245,23 +245,23 @@ describe("parseFileSpec", () => {
     expect(info?.modifiedAt?.toISOString()).toBe("2024-01-16T14:00:00.000Z");
   });
 
-  it("returns null for external file references", async () => {
+  it("returns null for external file references", () => {
     const fileSpec = PdfDict.of({
       F: PdfString.fromString("external.pdf"),
       // No /EF - this is an external reference
     });
 
-    const info = await parseFileSpec(fileSpec, "ext", async () => null);
+    const info = parseFileSpec(fileSpec, "ext", () => null);
     expect(info).toBeNull();
   });
 
-  it("handles minimal file spec", async () => {
+  it("handles minimal file spec", () => {
     const stream = new PdfStream([], new Uint8Array([1, 2, 3]));
     const streamRef = PdfRef.of(10, 0);
     const ef = PdfDict.of({ F: streamRef });
     const fileSpec = PdfDict.of({ EF: ef });
 
-    const resolver = async (ref: PdfRef) => {
+    const resolver = (ref: PdfRef) => {
       if (ref.objectNumber === 10) {
         return stream;
       }
@@ -269,7 +269,7 @@ describe("parseFileSpec", () => {
       return null;
     };
 
-    const info = await parseFileSpec(fileSpec, "minimal", resolver);
+    const info = parseFileSpec(fileSpec, "minimal", resolver);
 
     expect(info).not.toBeNull();
     expect(info?.name).toBe("minimal");

@@ -19,6 +19,7 @@ export function toArrayBuffer(data: Uint8Array): ArrayBuffer {
     return data.buffer;
   }
 
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
 }
 

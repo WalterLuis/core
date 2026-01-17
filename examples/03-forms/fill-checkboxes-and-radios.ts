@@ -18,7 +18,7 @@ async function main() {
   const pdf = await PDF.load(bytes);
 
   // Get the form
-  const form = await pdf.getForm();
+  const form = pdf.getForm();
   if (!form) {
     console.log("This PDF does not contain a form.");
     return;
@@ -44,11 +44,11 @@ async function main() {
       try {
         if (checkbox.isChecked()) {
           // Uncheck it
-          await checkbox.uncheck();
+          checkbox.uncheck();
           console.log(`  -> Unchecked`);
         } else {
           // Check it
-          await checkbox.check();
+          checkbox.check();
           console.log(`  -> Checked`);
         }
       } catch (error) {
@@ -87,7 +87,7 @@ async function main() {
         const newOption = options.find(opt => opt !== currentValue) ?? options[0];
 
         try {
-          await radioGroup.setValue(newOption ?? null);
+          radioGroup.setValue(newOption ?? null);
           console.log(`  -> Selected: ${newOption}`);
         } catch (error) {
           console.log(`  Error: ${error instanceof Error ? error.message : String(error)}`);
@@ -107,7 +107,7 @@ async function main() {
   // Verify changes
   console.log("\n=== Verification ===");
   const verifyPdf = await PDF.load(savedBytes);
-  const verifyForm = await verifyPdf.getForm();
+  const verifyForm = verifyPdf.getForm();
 
   if (verifyForm) {
     console.log("\nCheckbox states:");

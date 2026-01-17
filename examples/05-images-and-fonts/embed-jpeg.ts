@@ -21,7 +21,7 @@ async function main() {
   const pdf = PDF.create();
   pdf.addPage({ size: "letter" });
 
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (!page) {
     throw new Error("Failed to get page");
   }
@@ -36,7 +36,7 @@ async function main() {
 
   // Embed the JPEG image
   console.log("Embedding image...");
-  const image = await pdf.embedJpeg(jpegBytes);
+  const image = pdf.embedJpeg(jpegBytes);
 
   console.log(`Image dimensions: ${image.width} x ${image.height} pixels`);
 
@@ -96,7 +96,7 @@ async function main() {
 
   // Add page 2 with more examples
   pdf.addPage({ size: "letter" });
-  const page2 = await pdf.getPage(1);
+  const page2 = pdf.getPage(1);
   if (page2) {
     page2.drawText("Multiple Images on Page 2", {
       x: 180,

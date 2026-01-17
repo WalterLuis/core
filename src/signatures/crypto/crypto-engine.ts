@@ -39,6 +39,7 @@ export const LEGACY_PBE_OIDS = {
 /** Check if an algorithm OID is a legacy PBE that we handle */
 export function isLegacyPbeOid(oid: string): boolean {
   return Object.values(LEGACY_PBE_OIDS).includes(
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     oid as (typeof LEGACY_PBE_OIDS)[keyof typeof LEGACY_PBE_OIDS],
   );
 }
@@ -250,5 +251,6 @@ export function getCryptoEngine(): CryptoEngine {
 export function installCryptoEngine(): void {
   const engine = getCryptoEngine();
 
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   pkijs.setEngine(engine.name, engine as unknown as pkijs.ICryptoEngine);
 }

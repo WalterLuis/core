@@ -11,7 +11,7 @@ import { buildNameTree, NameTree, type Resolver } from "./name-tree";
  * Create a simple resolver that looks up objects in a map.
  */
 function createResolver(objects: Map<string, PdfObject>): Resolver {
-  return async (ref: PdfRef) => {
+  return (ref: PdfRef) => {
     const key = `${ref.objectNumber}:${ref.generation}`;
     return objects.get(key) ?? null;
   };
@@ -19,17 +19,17 @@ function createResolver(objects: Map<string, PdfObject>): Resolver {
 
 describe("NameTree", () => {
   describe("flat tree (leaf only)", () => {
-    it("returns null for empty tree", async () => {
+    it("returns null for empty tree", () => {
       const root = new PdfDict();
       root.set("Names", new PdfArray());
 
-      const tree = new NameTree(root, async () => null);
+      const tree = new NameTree(root, () => null);
 
-      expect(await tree.get("anything")).toBeNull();
-      expect(await tree.has("anything")).toBe(false);
+      expect(tree.get("anything")).toBeNull();
+      expect(tree.has("anything")).toBe(false);
     });
 
-    it("finds value by key", async () => {
+    it("finds value by key", () => {
       const value = PdfDict.of({ Type: PdfString.fromString("Test") });
       const root = new PdfDict();
       root.set(
@@ -42,22 +42,22 @@ describe("NameTree", () => {
         ]),
       );
 
-      const tree = new NameTree(root, async () => null);
+      const tree = new NameTree(root, () => null);
 
-      const result = await tree.get("apple");
+      const result = tree.get("apple");
       expect(result).toBe(value);
     });
 
-    it("returns null for missing key", async () => {
+    it("returns null for missing key", () => {
       const root = new PdfDict();
       root.set("Names", new PdfArray([PdfString.fromString("apple"), PdfDict.of({})]));
 
-      const tree = new NameTree(root, async () => null);
+      const tree = new NameTree(root, () => null);
 
-      expect(await tree.get("orange")).toBeNull();
+      expect(tree.get("orange")).toBeNull();
     });
 
-    it("resolves references", async () => {
+    it("resolves references", () => {
       const ref = PdfRef.of(10, 0);
       const resolved = PdfDict.of({ Resolved: PdfString.fromString("yes") });
       const objects = new Map<string, PdfObject>([["10:0", resolved]]);
@@ -67,11 +67,11 @@ describe("NameTree", () => {
 
       const tree = new NameTree(root, createResolver(objects));
 
-      const result = await tree.get("doc");
+      const result = tree.get("doc");
       expect(result).toBe(resolved);
     });
 
-    it("uses binary search for lookup", async () => {
+    it("uses binary search for lookup", () => {
       // Create a sorted list of many entries
       const entries: PdfObject[] = [];
 
@@ -84,23 +84,23 @@ describe("NameTree", () => {
       const root = new PdfDict();
       root.set("Names", new PdfArray(entries));
 
-      const tree = new NameTree(root, async () => null);
+      const tree = new NameTree(root, () => null);
 
       // Should find items via binary search
-      const result50 = (await tree.get("key050")) as PdfDict;
+      const result50 = tree.get("key050") as PdfDict;
       expect(result50.getString("index")?.asString()).toBe("50");
 
-      const result0 = (await tree.get("key000")) as PdfDict;
+      const result0 = tree.get("key000") as PdfDict;
       expect(result0.getString("index")?.asString()).toBe("0");
 
-      const result99 = (await tree.get("key099")) as PdfDict;
+      const result99 = tree.get("key099") as PdfDict;
       expect(result99.getString("index")?.asString()).toBe("99");
 
       // Should return null for missing
-      expect(await tree.get("key100")).toBeNull();
+      expect(tree.get("key100")).toBeNull();
     });
 
-    it("iterates all entries", async () => {
+    it("iterates all entries", () => {
       const root = new PdfDict();
       root.set(
         "Names",
@@ -114,28 +114,28 @@ describe("NameTree", () => {
         ]),
       );
 
-      const tree = new NameTree(root, async () => null);
+      const tree = new NameTree(root, () => null);
 
       const keys: string[] = [];
-      for await (const [key] of tree.entries()) {
+      for (const [key] of tree.entries()) {
         keys.push(key);
       }
 
       expect(keys).toEqual(["a", "b", "c"]);
     });
 
-    it("caches getAll() result", async () => {
+    it("caches getAll() result", () => {
       const root = new PdfDict();
       root.set("Names", new PdfArray([PdfString.fromString("x"), PdfDict.of({})]));
 
-      const tree = new NameTree(root, async () => null);
+      const tree = new NameTree(root, () => null);
 
       expect(tree.isLoaded).toBe(false);
 
-      const map1 = await tree.getAll();
+      const map1 = tree.getAll();
       expect(tree.isLoaded).toBe(true);
 
-      const map2 = await tree.getAll();
+      const map2 = tree.getAll();
       expect(map1).toBe(map2); // Same instance
 
       tree.clearCache();
@@ -144,7 +144,7 @@ describe("NameTree", () => {
   });
 
   describe("hierarchical tree", () => {
-    it("navigates Kids to find leaf", async () => {
+    it("navigates Kids to find leaf", () => {
       // Create a two-level tree:
       // Root: /Kids [ref1, ref2]
       // ref1 (kid1): /Names [a->v1, b->v2], /Limits [a, b]
@@ -182,14 +182,14 @@ describe("NameTree", () => {
 
       const tree = new NameTree(root, createResolver(objects));
 
-      expect(await tree.get("a")).toBe(v1);
-      expect(await tree.get("b")).toBe(v2);
-      expect(await tree.get("c")).toBe(v3);
-      expect(await tree.get("d")).toBe(v4);
-      expect(await tree.get("e")).toBeNull();
+      expect(tree.get("a")).toBe(v1);
+      expect(tree.get("b")).toBe(v2);
+      expect(tree.get("c")).toBe(v3);
+      expect(tree.get("d")).toBe(v4);
+      expect(tree.get("e")).toBeNull();
     });
 
-    it("uses binary search on Kids using Limits", async () => {
+    it("uses binary search on Kids using Limits", () => {
       // Create tree with many kids to force binary search
       const kids: PdfRef[] = [];
       const objects = new Map<string, PdfObject>();
@@ -224,17 +224,17 @@ describe("NameTree", () => {
       const tree = new NameTree(root, createResolver(objects));
 
       // Should find via binary search
-      const result55 = (await tree.get("key055")) as PdfDict;
+      const result55 = tree.get("key055") as PdfDict;
       expect(result55?.getString("idx")?.asString()).toBe("55");
 
-      const result0 = (await tree.get("key000")) as PdfDict;
+      const result0 = tree.get("key000") as PdfDict;
       expect(result0?.getString("idx")?.asString()).toBe("0");
 
-      const result99 = (await tree.get("key099")) as PdfDict;
+      const result99 = tree.get("key099") as PdfDict;
       expect(result99?.getString("idx")?.asString()).toBe("99");
     });
 
-    it("iterates all entries from hierarchical tree", async () => {
+    it("iterates all entries from hierarchical tree", () => {
       const kid1 = new PdfDict();
       kid1.set("Names", new PdfArray([PdfString.fromString("a"), PdfDict.of({})]));
 
@@ -255,14 +255,14 @@ describe("NameTree", () => {
       const tree = new NameTree(root, createResolver(objects));
 
       const keys: string[] = [];
-      for await (const [key] of tree.entries()) {
+      for (const [key] of tree.entries()) {
         keys.push(key);
       }
 
       expect(keys).toEqual(["a", "b"]);
     });
 
-    it("detects circular references", async () => {
+    it("detects circular references", () => {
       // Create a tree that references itself
       const ref1 = PdfRef.of(1, 0);
       const root = new PdfDict();
@@ -279,7 +279,7 @@ describe("NameTree", () => {
 
       // Should not hang - cycle detection should stop it
       const keys: string[] = [];
-      for await (const [key] of tree.entries()) {
+      for (const [key] of tree.entries()) {
         keys.push(key);
       }
 
@@ -289,22 +289,22 @@ describe("NameTree", () => {
   });
 
   describe("has()", () => {
-    it("returns true for existing key", async () => {
+    it("returns true for existing key", () => {
       const root = new PdfDict();
       root.set("Names", new PdfArray([PdfString.fromString("test"), PdfDict.of({})]));
 
-      const tree = new NameTree(root, async () => null);
+      const tree = new NameTree(root, () => null);
 
-      expect(await tree.has("test")).toBe(true);
+      expect(tree.has("test")).toBe(true);
     });
 
-    it("returns false for missing key", async () => {
+    it("returns false for missing key", () => {
       const root = new PdfDict();
       root.set("Names", new PdfArray([PdfString.fromString("test"), PdfDict.of({})]));
 
-      const tree = new NameTree(root, async () => null);
+      const tree = new NameTree(root, () => null);
 
-      expect(await tree.has("missing")).toBe(false);
+      expect(tree.has("missing")).toBe(false);
     });
   });
 });
@@ -341,7 +341,7 @@ describe("buildNameTree", () => {
     expect(names.at(5)).toBe(ref3);
   });
 
-  it("creates tree that can be read back", async () => {
+  it("creates tree that can be read back", () => {
     const v1 = PdfDict.of({ id: PdfString.fromString("1") });
     const v2 = PdfDict.of({ id: PdfString.fromString("2") });
 
@@ -360,8 +360,8 @@ describe("buildNameTree", () => {
 
     const nameTree = new NameTree(tree, createResolver(objects));
 
-    expect(await nameTree.get("first")).toBe(v1);
-    expect(await nameTree.get("second")).toBe(v2);
-    expect(await nameTree.get("third")).toBeNull();
+    expect(nameTree.get("first")).toBe(v1);
+    expect(nameTree.get("second")).toBe(v2);
+    expect(nameTree.get("third")).toBeNull();
   });
 });

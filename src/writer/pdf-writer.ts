@@ -106,7 +106,7 @@ function writeIndirectObject(writer: ByteWriter, ref: PdfRef, obj: PdfObject): v
  * Streams that already have filters are returned unchanged - this includes
  * image formats (DCTDecode, JPXDecode, etc.) that are already compressed.
  */
-async function prepareObjectForWrite(obj: PdfObject, compress: boolean): Promise<PdfObject> {
+function prepareObjectForWrite(obj: PdfObject, compress: boolean): PdfObject {
   // Only process streams
   if (!(obj instanceof PdfStream)) {
     return obj;
@@ -128,7 +128,7 @@ async function prepareObjectForWrite(obj: PdfObject, compress: boolean): Promise
   }
 
   // Compress with FlateDecode
-  const compressed = await FilterPipeline.encode(obj.data, { name: "FlateDecode" });
+  const compressed = FilterPipeline.encode(obj.data, { name: "FlateDecode" });
 
   // Only use compression if it actually reduces size
   if (compressed.length >= obj.data.length) {
@@ -262,10 +262,7 @@ function encryptStreamDict(stream: PdfStream, ctx: EncryptionContext): PdfStream
  * %%EOF
  * ```
  */
-export async function writeComplete(
-  registry: ObjectRegistry,
-  options: WriteOptions,
-): Promise<WriteResult> {
+export function writeComplete(registry: ObjectRegistry, options: WriteOptions): WriteResult {
   const writer = new ByteWriter();
   const compress = options.compressStreams ?? true;
 
@@ -290,7 +287,7 @@ export async function writeComplete(
   // Write objects and record offsets
   for (const [ref, obj] of allObjects) {
     // Prepare object (compress streams if needed)
-    let prepared = await prepareObjectForWrite(obj, compress);
+    let prepared = prepareObjectForWrite(obj, compress);
 
     // Apply encryption if security handler is provided
     // Skip encrypting the /Encrypt dictionary itself
@@ -385,10 +382,10 @@ export async function writeComplete(
  * %%EOF
  * ```
  */
-export async function writeIncremental(
+export function writeIncremental(
   registry: ObjectRegistry,
   options: IncrementalWriteOptions,
-): Promise<WriteResult> {
+): WriteResult {
   // Collect changes
   const changes = collectChanges(registry);
 
@@ -417,7 +414,7 @@ export async function writeIncremental(
 
   // Write modified objects
   for (const [ref, obj] of changes.modified) {
-    let prepared = await prepareObjectForWrite(obj, compress);
+    let prepared = prepareObjectForWrite(obj, compress);
 
     // Apply encryption if security handler is provided
     // Skip encrypting the /Encrypt dictionary itself
@@ -439,7 +436,7 @@ export async function writeIncremental(
 
   // Write new objects
   for (const [ref, obj] of changes.created) {
-    let prepared = await prepareObjectForWrite(obj, compress);
+    let prepared = prepareObjectForWrite(obj, compress);
 
     // Apply encryption if security handler is provided
     // Skip encrypting the /Encrypt dictionary itself

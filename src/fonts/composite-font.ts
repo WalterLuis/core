@@ -213,13 +213,14 @@ export function parseCompositeFont(
 
     if (firstDescendant?.type === "ref" && options.resolveRef) {
       const cidFontDict = options.resolveRef(firstDescendant);
+
       if (cidFontDict?.type === "dict") {
-        cidFont = parseCIDFont(cidFontDict as PdfDict, options);
+        cidFont = parseCIDFont(cidFontDict, options);
       } else {
         cidFont = createDefaultCIDFont(baseFontName);
       }
     } else if (firstDescendant?.type === "dict") {
-      cidFont = parseCIDFont(firstDescendant as PdfDict, options);
+      cidFont = parseCIDFont(firstDescendant, options);
     } else {
       cidFont = createDefaultCIDFont(baseFontName);
     }

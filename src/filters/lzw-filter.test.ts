@@ -12,7 +12,7 @@ describe("LZWFilter", () => {
       // Clear (256) + 'A' (65) + 'B' (66) + code for "AB" (258) + 'A' + EOD (257)
       const compressed = new Uint8Array([0x80, 0x0b, 0x60, 0x50, 0x22, 0x0c, 0x0c, 0x85, 0x01]);
 
-      const result = await filter.decode(compressed);
+      const result = filter.decode(compressed);
 
       // Result should be decompressible
       expect(result.length).toBeGreaterThan(0);
@@ -24,7 +24,7 @@ describe("LZWFilter", () => {
       const compressed = new Uint8Array([0x80, 0x0b, 0x60, 0x50, 0x20, 0x0c, 0x00]);
 
       // Should not throw
-      const result = await filter.decode(compressed);
+      const result = filter.decode(compressed);
 
       expect(result).toBeInstanceOf(Uint8Array);
     });
@@ -37,7 +37,7 @@ describe("LZWFilter", () => {
       // Packed: 10000000 01000000 01xxxxxx
       const compressed = new Uint8Array([0x80, 0x40, 0x40]);
 
-      const result = await filter.decode(compressed);
+      const result = filter.decode(compressed);
 
       expect(result.length).toBe(0);
     });
@@ -48,7 +48,7 @@ describe("LZWFilter", () => {
       // In 9-bit codes: 100000000 01000001 100000001
       const compressed = new Uint8Array([0x80, 0x0b, 0x02, 0x01]);
 
-      const result = await filter.decode(compressed);
+      const result = filter.decode(compressed);
 
       // Should decode to at least one byte
       expect(result.length).toBeGreaterThanOrEqual(0);
@@ -59,7 +59,7 @@ describe("LZWFilter", () => {
     it("throws not implemented error", async () => {
       const data = new TextEncoder().encode("Hello");
 
-      await expect(filter.encode(data)).rejects.toThrow("not implemented");
+      expect(() => filter.encode(data)).toThrow("not implemented");
     });
   });
 

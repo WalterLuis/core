@@ -25,7 +25,7 @@ async function main() {
   console.log(`Page Count: ${pdf.getPageCount()}`);
 
   // Get the page to show its dimensions
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (page) {
     console.log(`\nPage 1 Dimensions:`);
     console.log(`  Width: ${page.width} points (${(page.width / 72).toFixed(2)} inches)`);

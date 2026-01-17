@@ -25,13 +25,13 @@ async function main() {
   console.log(`   Pages: ${pdf.getPageCount()}`);
 
   // Extract text from the first page
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (!page) {
     throw new Error("Failed to get page");
   }
 
   console.log("\n2. Extracting text from page 1...");
-  const pageText = await page.extractText();
+  const pageText = page.extractText();
 
   // Basic info
   console.log(`\n   Page dimensions: ${pageText.width} x ${pageText.height} pt`);
@@ -65,7 +65,7 @@ async function main() {
 
   // Extract text from all pages (document-wide)
   console.log("\n5. Document-wide text extraction:");
-  const allPages = await pdf.extractText();
+  const allPages = pdf.extractText();
   console.log(`   Extracted text from ${allPages.length} page(s)`);
 
   let totalChars = 0;

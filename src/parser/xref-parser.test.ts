@@ -261,7 +261,7 @@ trailer
   });
 
   describe("parseAt", () => {
-    it("auto-detects table format at offset", async () => {
+    it("auto-detects table format at offset", () => {
       const input = `padding here
 xref
 0 1
@@ -270,15 +270,15 @@ trailer
 << /Size 1 /Root 1 0 R >>
 `;
       const p = parser(input);
-      const result = await p.parseAt(13); // offset to "xref"
+      const result = p.parseAt(13); // offset to "xref"
 
       expect(result.entries.size).toBe(1);
     });
 
-    it("throws for invalid format at offset", async () => {
+    it("throws for invalid format at offset", () => {
       const p = parser("random garbage here");
 
-      await expect(p.parseAt(0)).rejects.toThrow();
+      expect(() => p.parseAt(0)).toThrow();
     });
   });
 
@@ -415,7 +415,7 @@ trailer
 
       const scanner = new Scanner(bytes);
       const p = new XRefParser(scanner);
-      const result = await p.parseStream();
+      const result = p.parseStream();
 
       expect(result.entries.size).toBe(3);
 
@@ -449,7 +449,7 @@ trailer
 
       const scanner = new Scanner(bytes);
       const p = new XRefParser(scanner);
-      const result = await p.parseStream();
+      const result = p.parseStream();
 
       expect(result.entries.size).toBe(3);
 
@@ -481,7 +481,7 @@ trailer
 
       const scanner = new Scanner(bytes);
       const p = new XRefParser(scanner);
-      const result = await p.parseStream();
+      const result = p.parseStream();
 
       expect(result.entries.size).toBe(4);
       expect(result.entries.has(0)).toBe(true);
@@ -503,7 +503,7 @@ trailer
 
       const scanner = new Scanner(bytes);
       const p = new XRefParser(scanner);
-      const result = await p.parseStream();
+      const result = p.parseStream();
 
       const entry1 = result.entries.get(1);
       expect(entry1?.type).toBe("uncompressed");
@@ -542,7 +542,7 @@ trailer
 
       const scanner = new Scanner(bytes);
       const p = new XRefParser(scanner);
-      const result = await p.parseStream();
+      const result = p.parseStream();
 
       // Both entries should be type 1 (uncompressed)
       const entry0 = result.entries.get(0);
@@ -579,12 +579,12 @@ trailer
 
       const scanner = new Scanner(bytes);
       const p = new XRefParser(scanner);
-      const result = await p.parseStream();
+      const result = p.parseStream();
 
       expect(result.prev).toBe(12345);
     });
 
-    it("parseAt auto-detects stream format", async () => {
+    it("parseAt auto-detects stream format", () => {
       const bytes = createXRefStream([
         { objNum: 0, type: 0, field2: 0, field3: 65535 },
         { objNum: 1, type: 1, field2: 100, field3: 0 },
@@ -592,7 +592,7 @@ trailer
 
       const scanner = new Scanner(bytes);
       const p = new XRefParser(scanner);
-      const result = await p.parseAt(0);
+      const result = p.parseAt(0);
 
       expect(result.entries.size).toBe(2);
     });

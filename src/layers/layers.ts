@@ -39,10 +39,10 @@ function refKey(ref: PdfRef): string {
 /**
  * Parse the default configuration from OCProperties.D
  */
-async function parseDefaultConfig(
+function parseDefaultConfig(
   dDict: PdfObject | null | undefined,
-  resolve: (ref: PdfRef) => Promise<PdfObject | null>,
-): Promise<DefaultConfig> {
+  resolve: (ref: PdfRef) => PdfObject | null,
+): DefaultConfig {
   const result: DefaultConfig = {
     baseState: "ON",
     onRefs: new Set(),
@@ -55,14 +55,14 @@ async function parseDefaultConfig(
   }
 
   let dict: PdfDict | null = null;
+  let resolved: PdfObject | undefined = dDict;
 
-  if (dDict instanceof PdfRef) {
-    const resolved = await resolve(dDict);
-    if (resolved instanceof PdfDict) {
-      dict = resolved;
-    }
-  } else if (dDict instanceof PdfDict) {
-    dict = dDict;
+  if (resolved instanceof PdfRef) {
+    resolved = resolve(resolved) ?? undefined;
+  }
+
+  if (resolved instanceof PdfDict) {
+    dict = resolved;
   }
 
   if (!dict) {
@@ -71,8 +71,10 @@ async function parseDefaultConfig(
 
   // BaseState
   const baseState = dict.get("BaseState");
+
   if (baseState instanceof PdfName) {
     const nameValue = baseState.value;
+
     if (nameValue === "OFF" || nameValue === "Unchanged") {
       result.baseState = nameValue;
     }
@@ -80,6 +82,7 @@ async function parseDefaultConfig(
 
   // ON array
   const onArray = dict.get("ON");
+
   if (onArray instanceof PdfArray) {
     for (const item of onArray) {
       if (item instanceof PdfRef) {
@@ -90,6 +93,7 @@ async function parseDefaultConfig(
 
   // OFF array
   const offArray = dict.get("OFF");
+
   if (offArray instanceof PdfArray) {
     for (const item of offArray) {
       if (item instanceof PdfRef) {
@@ -100,6 +104,7 @@ async function parseDefaultConfig(
 
   // Locked array
   const lockedArray = dict.get("Locked");
+
   if (lockedArray instanceof PdfArray) {
     for (const item of lockedArray) {
       if (item instanceof PdfRef) {
@@ -117,14 +122,14 @@ async function parseDefaultConfig(
  * Performs a thorough check that verifies OCProperties exists and
  * contains at least one valid OCG entry.
  */
-export async function hasLayers(ctx: PDFContext): Promise<boolean> {
+export function hasLayers(ctx: PDFContext): boolean {
   const catalog = ctx.catalog.getDict();
 
   if (!catalog) {
     return false;
   }
 
-  let ocProperties = catalog.get("OCProperties");
+  let ocProperties: PdfObject | null | undefined = catalog.get("OCProperties");
 
   if (!ocProperties) {
     return false;
@@ -133,7 +138,7 @@ export async function hasLayers(ctx: PDFContext): Promise<boolean> {
   let ocPropsDict: PdfDict | null = null;
 
   if (ocProperties instanceof PdfRef) {
-    ocProperties = (await ctx.resolve(ocProperties)) ?? undefined;
+    ocProperties = ctx.resolve(ocProperties) ?? undefined;
   }
 
   if (ocProperties instanceof PdfDict) {
@@ -144,7 +149,7 @@ export async function hasLayers(ctx: PDFContext): Promise<boolean> {
     return false;
   }
 
-  let ocgs = ocPropsDict.get("OCGs");
+  let ocgs: PdfObject | null | undefined = ocPropsDict.get("OCGs");
 
   if (!ocgs) {
     return false;
@@ -153,7 +158,7 @@ export async function hasLayers(ctx: PDFContext): Promise<boolean> {
   let ocgsArray: PdfArray | null = null;
 
   if (ocgs instanceof PdfRef) {
-    ocgs = (await ctx.resolve(ocgs)) ?? undefined;
+    ocgs = ctx.resolve(ocgs) ?? undefined;
   }
 
   if (ocgs instanceof PdfArray) {
@@ -173,14 +178,14 @@ export async function hasLayers(ctx: PDFContext): Promise<boolean> {
  * Returns layer metadata including name, visibility state,
  * intent, and locked status based on the default configuration.
  */
-export async function getLayers(ctx: PDFContext): Promise<LayerInfo[]> {
+export function getLayers(ctx: PDFContext): LayerInfo[] {
   const catalog = ctx.catalog.getDict();
 
   if (!catalog) {
     return [];
   }
 
-  let ocProperties = catalog.get("OCProperties");
+  let ocProperties: PdfObject | null | undefined = catalog.get("OCProperties");
 
   if (!ocProperties) {
     return [];
@@ -189,7 +194,7 @@ export async function getLayers(ctx: PDFContext): Promise<LayerInfo[]> {
   let ocPropsDict: PdfDict | null = null;
 
   if (ocProperties instanceof PdfRef) {
-    ocProperties = (await ctx.resolve(ocProperties)) ?? undefined;
+    ocProperties = ctx.resolve(ocProperties) ?? undefined;
   }
 
   if (ocProperties instanceof PdfDict) {
@@ -201,7 +206,7 @@ export async function getLayers(ctx: PDFContext): Promise<LayerInfo[]> {
   }
 
   // Get OCGs array
-  let ocgs = ocPropsDict.get("OCGs");
+  let ocgs: PdfObject | null | undefined = ocPropsDict.get("OCGs");
 
   if (!ocgs) {
     return [];
@@ -210,7 +215,7 @@ export async function getLayers(ctx: PDFContext): Promise<LayerInfo[]> {
   let ocgsArray: PdfArray | null = null;
 
   if (ocgs instanceof PdfRef) {
-    ocgs = (await ctx.resolve(ocgs)) ?? undefined;
+    ocgs = ctx.resolve(ocgs) ?? undefined;
   }
 
   if (ocgs instanceof PdfArray) {
@@ -222,7 +227,7 @@ export async function getLayers(ctx: PDFContext): Promise<LayerInfo[]> {
   }
 
   // Parse default config
-  const defaultConfig = await parseDefaultConfig(ocPropsDict.get("D"), ref => ctx.resolve(ref));
+  const defaultConfig = parseDefaultConfig(ocPropsDict.get("D"), ref => ctx.resolve(ref));
 
   const layers: LayerInfo[] = [];
 
@@ -231,7 +236,7 @@ export async function getLayers(ctx: PDFContext): Promise<LayerInfo[]> {
       continue;
     }
 
-    const ocg = await ctx.resolve(item);
+    const ocg = ctx.resolve(item);
 
     if (!(ocg instanceof PdfDict)) {
       continue;
@@ -246,8 +251,8 @@ export async function getLayers(ctx: PDFContext): Promise<LayerInfo[]> {
     } else if (nameObj instanceof PdfName) {
       name = nameObj.value;
     } else if (nameObj) {
-      // Fallback for other types
-      name = String(nameObj);
+      // Fallback for other types - use type for debugging
+      name = `[${nameObj.type}]`;
     }
 
     // Get intent
@@ -298,14 +303,14 @@ export async function getLayers(ctx: PDFContext): Promise<LayerInfo[]> {
  *
  * @throws {Error} if structure is malformed
  */
-export async function validateOCGStructure(ctx: PDFContext): Promise<void> {
+export function validateOCGStructure(ctx: PDFContext): void {
   const catalog = ctx.catalog.getDict();
 
   if (!catalog) {
     throw new Error("Malformed PDF: No catalog");
   }
 
-  let ocProperties = catalog.get("OCProperties");
+  let ocProperties: PdfObject | null | undefined = catalog.get("OCProperties");
 
   if (!ocProperties) {
     return; // No layers is valid
@@ -314,7 +319,7 @@ export async function validateOCGStructure(ctx: PDFContext): Promise<void> {
   let ocPropsDict: PdfDict | null = null;
 
   if (ocProperties instanceof PdfRef) {
-    ocProperties = (await ctx.resolve(ocProperties)) ?? undefined;
+    ocProperties = ctx.resolve(ocProperties) ?? undefined;
   }
 
   if (ocProperties instanceof PdfDict) {
@@ -325,13 +330,13 @@ export async function validateOCGStructure(ctx: PDFContext): Promise<void> {
     throw new Error("Malformed PDF: OCProperties is not a dictionary");
   }
 
-  let ocgs = ocPropsDict.get("OCGs");
+  let ocgs: PdfObject | null | undefined = ocPropsDict.get("OCGs");
 
   if (ocgs !== undefined) {
     let ocgsArray: PdfArray | null = null;
 
     if (ocgs instanceof PdfRef) {
-      ocgs = (await ctx.resolve(ocgs)) ?? undefined;
+      ocgs = ctx.resolve(ocgs) ?? undefined;
     }
 
     if (ocgs instanceof PdfArray) {
@@ -343,13 +348,13 @@ export async function validateOCGStructure(ctx: PDFContext): Promise<void> {
     }
   }
 
-  let defaultConfig = ocPropsDict.get("D");
+  let defaultConfig: PdfObject | null | undefined = ocPropsDict.get("D");
 
   if (defaultConfig !== undefined) {
     let dDict: PdfDict | null = null;
 
     if (defaultConfig instanceof PdfRef) {
-      defaultConfig = (await ctx.resolve(defaultConfig)) ?? undefined;
+      defaultConfig = ctx.resolve(defaultConfig) ?? undefined;
     }
 
     if (defaultConfig instanceof PdfDict) {
@@ -369,7 +374,7 @@ export async function validateOCGStructure(ctx: PDFContext): Promise<void> {
  * content unconditionally visible and removes the layer toggle UI from
  * PDF viewers. No content is deleted - layers that were OFF become visible.
  */
-export async function flattenLayers(ctx: PDFContext): Promise<FlattenLayersResult> {
+export function flattenLayers(ctx: PDFContext): FlattenLayersResult {
   const catalog = ctx.catalog.getDict();
 
   if (!catalog) {
@@ -383,7 +388,7 @@ export async function flattenLayers(ctx: PDFContext): Promise<FlattenLayersResul
   }
 
   // Count layers before flattening (getLayers is lenient, returns [] for malformed)
-  const layers = await getLayers(ctx);
+  const layers = getLayers(ctx);
   const layerCount = layers.length;
 
   // Remove OCProperties regardless of structure validity.

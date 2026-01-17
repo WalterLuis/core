@@ -123,7 +123,7 @@ export class PDFSignature {
     const resolved = this.resolveOptions(options);
 
     // Check for MDP violations
-    const mdpWarning = await this.checkMdpViolation();
+    const mdpWarning = this.checkMdpViolation();
 
     if (mdpWarning) {
       warnings.push(mdpWarning);
@@ -164,7 +164,7 @@ export class PDFSignature {
     const signatureRef = this.pdf.context.registry.register(signatureDict);
 
     // Find or create signature field
-    await this.findOrCreateSignatureField({
+    this.findOrCreateSignatureField({
       fieldName: resolved.fieldName,
       pageRef: firstPageRef,
       signatureRef,
@@ -282,14 +282,14 @@ export class PDFSignature {
   /**
    * Find or create a signature field.
    */
-  private async findOrCreateSignatureField(options: {
+  private findOrCreateSignatureField(options: {
     fieldName?: string;
     pageRef: PdfRef;
     signatureRef: PdfRef;
-  }): Promise<void> {
+  }): void {
     const { fieldName, pageRef, signatureRef } = options;
 
-    const form = await this.pdf.getOrCreateForm();
+    const form = this.pdf.getOrCreateForm();
 
     const existingNames = new Set<string>();
 
@@ -348,8 +348,8 @@ export class PDFSignature {
   /**
    * Check for MDP (certification signature) violations.
    */
-  private async checkMdpViolation(): Promise<SignWarning | null> {
-    const form = await this.pdf.getForm();
+  private checkMdpViolation(): SignWarning | null {
+    const form = this.pdf.getForm();
 
     if (!form) {
       return null;
@@ -391,7 +391,7 @@ export class PDFSignature {
     const registry = this.pdf.context.registry;
 
     // Get catalog
-    const catalogDict = await this.pdf.getCatalog();
+    const catalogDict = this.pdf.getCatalog();
 
     if (!catalogDict) {
       throw new Error("Document has no catalog");
@@ -404,7 +404,7 @@ export class PDFSignature {
     await dssBuilder.addLtvData(ltvData);
 
     // Build and register DSS
-    const dssRef = await dssBuilder.build();
+    const dssRef = dssBuilder.build();
     catalogDict.set("DSS", dssRef);
 
     // Save and reload

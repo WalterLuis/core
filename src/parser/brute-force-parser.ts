@@ -2,7 +2,7 @@ import { DIGIT_0, DIGIT_9, isDelimiter, isWhitespace } from "#src/helpers/chars"
 import type { Scanner } from "#src/io/scanner";
 import { PdfDict } from "#src/objects/pdf-dict";
 import { PdfRef } from "#src/objects/pdf-ref";
-import type { PdfStream } from "#src/objects/pdf-stream";
+import { PdfStream } from "#src/objects/pdf-stream";
 
 import { IndirectObjectParser } from "./indirect-object-parser";
 import { ObjectParser } from "./object-parser";
@@ -120,7 +120,7 @@ export class BruteForceParser {
    * Scan file and build recovered xref.
    * Returns null if no objects found or no valid root.
    */
-  async recover(): Promise<RecoveredDocument | null> {
+  recover(): RecoveredDocument | null {
     const entries = this.scanForObjects();
 
     if (entries.length === 0) {
@@ -138,7 +138,7 @@ export class BruteForceParser {
 
     // Extract objects from object streams (crucial for PDFs that store
     // Catalog/Pages inside compressed streams)
-    const compressedEntries = await this.extractFromObjectStreams(entries);
+    const compressedEntries = this.extractFromObjectStreams(entries);
 
     for (const entry of compressedEntries) {
       xref.setCompressed(entry.objNum, entry.streamObjNum, entry.indexInStream);
@@ -421,11 +421,11 @@ export class BruteForceParser {
       const parser = new IndirectObjectParser(this.scanner);
       const result = parser.parseObjectAt(offset);
 
-      if (result.value.type !== "stream") {
-        return null;
+      if (result.value instanceof PdfStream) {
+        return result.value;
       }
 
-      return result.value as PdfStream;
+      return null;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.warnings.push(`Failed to parse object ${objNum} ${genNum} as stream: ${message}`);
@@ -437,7 +437,7 @@ export class BruteForceParser {
    * Find object streams among the scanned entries and extract their contents.
    * This is crucial for PDFs where Catalog/Pages are stored inside object streams.
    */
-  private async extractFromObjectStreams(entries: ObjectEntry[]): Promise<CompressedObjectEntry[]> {
+  private extractFromObjectStreams(entries: ObjectEntry[]): CompressedObjectEntry[] {
     const compressed: CompressedObjectEntry[] = [];
 
     for (const entry of entries) {
@@ -460,14 +460,14 @@ export class BruteForceParser {
         const objectStreamParser = new ObjectStreamParser(stream);
 
         // Parse the stream (decompresses and builds index)
-        await objectStreamParser.parse();
+        objectStreamParser.parse();
 
         const count = objectStreamParser.objectCount;
 
         for (let i = 0; i < count; i++) {
           try {
             const objNum = objectStreamParser.getObjectNumber(i);
-            const obj = await objectStreamParser.getObject(i);
+            const obj = objectStreamParser.getObject(i);
 
             if (objNum === null) {
               continue;

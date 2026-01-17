@@ -26,7 +26,7 @@ export class DCTFilter implements Filter {
    * - Decoded by canvas.drawImage()
    * - Passed to an external JPEG library for pixel access
    */
-  async decode(data: Uint8Array, _params?: PdfDict): Promise<Uint8Array> {
+  decode(data: Uint8Array, _params?: PdfDict): Uint8Array {
     // Validate JPEG header (optional, for error detection)
     if (data.length >= 2) {
       // JPEG starts with FFD8 (SOI marker)
@@ -45,7 +45,7 @@ export class DCTFilter implements Filter {
    *
    * For actual JPEG encoding from raw pixels, use an external library.
    */
-  async encode(data: Uint8Array, _params?: PdfDict): Promise<Uint8Array> {
+  encode(data: Uint8Array, _params?: PdfDict): Uint8Array {
     // Assume data is already JPEG encoded
     return data;
   }
@@ -56,7 +56,7 @@ export class DCTFilter implements Filter {
  *
  * @example
  * ```typescript
- * const jpegData = await stream.getDecodedData();
+ * const jpegData = stream.getDecodedData();
  * const url = createJpegBlobUrl(jpegData);
  * img.src = url;
  * // Later: URL.revokeObjectURL(url);

@@ -21,7 +21,7 @@ export class LZWFilter implements Filter {
   private static readonly CLEAR_CODE = 256;
   private static readonly EOD_CODE = 257;
 
-  async decode(data: Uint8Array, params?: PdfDict): Promise<Uint8Array> {
+  decode(data: Uint8Array, params?: PdfDict): Uint8Array {
     const earlyChange = params?.getNumber("EarlyChange")?.value ?? 1;
     const result = this.lzwDecode(data, earlyChange);
 
@@ -37,7 +37,7 @@ export class LZWFilter implements Filter {
     return result;
   }
 
-  async encode(_data: Uint8Array, _params?: PdfDict): Promise<Uint8Array> {
+  encode(_data: Uint8Array, _params?: PdfDict): Uint8Array {
     // LZW encoding is rarely needed (FlateDecode is preferred)
     throw new Error("LZW encoding not implemented");
   }

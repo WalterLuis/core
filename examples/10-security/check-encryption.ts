@@ -17,7 +17,7 @@ async function main() {
 
   const pdf = PDF.create();
   pdf.addPage({ size: "letter" });
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (page) {
     page.drawText("Test Document", {
       x: 200,
@@ -49,7 +49,7 @@ async function main() {
     console.log("  console.log('Encrypted:', encryptedPdf.isEncrypted);");
     console.log("  console.log('Authenticated:', encryptedPdf.isAuthenticated);");
   } catch (err) {
-    console.log(`Error: ${err}`);
+    console.log(`Error: ${String(err)}`);
   }
 
   console.log("\n=== Summary ===");

@@ -90,3 +90,6 @@ export class TrueTypeFontProgram implements FontProgram {
     return this.data;
   }
 }
+
+export const isTrueTypeFontProgram = (program: FontProgram): program is TrueTypeFontProgram =>
+  program.type === "truetype";

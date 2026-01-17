@@ -22,7 +22,7 @@ async function main() {
   }
 
   // Label source pages
-  const sourcePages = await sourcePdf.getPages();
+  const sourcePages = sourcePdf.getPages();
   for (let i = 0; i < sourcePages.length; i++) {
     const page = sourcePages[i];
     if (page) {
@@ -52,7 +52,7 @@ async function main() {
   }
 
   // Label target pages
-  const targetPages = await targetPdf.getPages();
+  const targetPages = targetPdf.getPages();
   for (let i = 0; i < targetPages.length; i++) {
     const page = targetPages[i];
     if (page) {
@@ -99,7 +99,7 @@ async function main() {
   }
 
   // Label these pages
-  const targetPages2 = await targetPdf2.getPages();
+  const targetPages2 = targetPdf2.getPages();
   for (let i = 0; i < targetPages2.length; i++) {
     const page = targetPages2[i];
     if (page) {

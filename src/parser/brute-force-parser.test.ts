@@ -173,7 +173,7 @@ endobj`;
   describe("recover", () => {
     it("returns null for empty file", async () => {
       const p = parser("");
-      const result = await p.recover();
+      const result = p.recover();
 
       expect(result).toBeNull();
     });
@@ -182,7 +182,7 @@ endobj`;
       const p = parser(`%PDF-1.4
 Just garbage
 %%EOF`);
-      const result = await p.recover();
+      const result = p.recover();
 
       expect(result).toBeNull();
     });
@@ -196,7 +196,7 @@ endobj
 << /Type /Pages /Kids [] /Count 0 >>
 endobj
 `);
-      const result = await p.recover();
+      const result = p.recover();
 
       expect(result).not.toBeNull();
       expect(result!.trailer.Root.objectNumber).toBe(1);
@@ -212,7 +212,7 @@ endobj
 << /Type /Catalog /Pages 1 0 R >>
 endobj
 `);
-      const result = await p.recover();
+      const result = p.recover();
 
       expect(result).not.toBeNull();
       expect(result!.trailer.Root.objectNumber).toBe(2);
@@ -227,7 +227,7 @@ endobj
 << /Type /Page /Parent 1 0 R >>
 endobj
 `);
-      const result = await p.recover();
+      const result = p.recover();
 
       expect(result).not.toBeNull();
       expect(result!.trailer.Root.objectNumber).toBe(1);
@@ -242,7 +242,7 @@ endobj
 << /Type /Pages /Kids [] /Count 0 >>
 endobj`;
       const p = parser(input);
-      const result = await p.recover();
+      const result = p.recover();
 
       expect(result).not.toBeNull();
       expect(result!.xref.getOffset(1, 0)).toBe(0);
@@ -256,7 +256,7 @@ endobj`;
 << /Type /Pages /Kids [] /Count 0 >>
 endobj
 `);
-      const result = await p.recover();
+      const result = p.recover();
 
       expect(result).not.toBeNull();
       expect(result!.warnings.length).toBeGreaterThan(0);
@@ -267,7 +267,7 @@ endobj
       const p = parser(`
 1 0 obj
 << /Type /Cata`);
-      const result = await p.recover();
+      const result = p.recover();
 
       // Should still return a result (with fallback to null root or partial)
       // The key is that we collect warnings about the truncation
@@ -282,7 +282,7 @@ endobj
 endobj
 2 0 obj
 << /Type /Cata`);
-      const result = await p.recover();
+      const result = p.recover();
 
       // Should recover with Pages as root since Catalog is truncated
       expect(result).not.toBeNull();
@@ -301,7 +301,7 @@ endobj
 << /Type /Catalog >>
 endobj
 `);
-      const result = await p.recover();
+      const result = p.recover();
 
       expect(result!.xref.getOffset(999, 0)).toBeUndefined();
     });
@@ -311,7 +311,7 @@ endobj
 << /Type /Catalog >>
 endobj`;
       const p = parser(input);
-      const result = await p.recover();
+      const result = p.recover();
 
       expect(result!.xref.getOffset(1, 0)).toBe(0);
     });

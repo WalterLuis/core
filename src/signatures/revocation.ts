@@ -359,7 +359,9 @@ export class DefaultRevocationProvider implements RevocationProvider {
         return false;
       }
 
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       const seq = asn1.result as Sequence;
+
       if (!(seq instanceof Sequence) || seq.valueBlock.value.length < 1) {
         return false;
       }
@@ -372,6 +374,7 @@ export class DefaultRevocationProvider implements RevocationProvider {
       }
 
       // Get the status value
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       const statusValue = (statusElement as any).valueBlock?.valueDec ?? -1;
 
       // Only status 0 (successful) is valid

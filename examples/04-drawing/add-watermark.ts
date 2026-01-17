@@ -18,7 +18,7 @@ async function main() {
   const watermarkPdf = PDF.create();
   watermarkPdf.addPage({ size: "letter" });
 
-  const watermarkPage = await watermarkPdf.getPage(0);
+  const watermarkPage = watermarkPdf.getPage(0);
   if (!watermarkPage) {
     throw new Error("Failed to get watermark page");
   }
@@ -40,7 +40,7 @@ async function main() {
   // Add several pages with content
   for (let i = 1; i <= 5; i++) {
     mainPdf.addPage({ size: "letter" });
-    const page = await mainPdf.getPage(i - 1);
+    const page = mainPdf.getPage(i - 1);
     if (!page) {
       continue;
     }
@@ -85,7 +85,7 @@ async function main() {
 
   // Apply watermark to all pages
   console.log("Applying watermark to all pages...");
-  const pages = await mainPdf.getPages();
+  const pages = mainPdf.getPages();
 
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i];
@@ -119,7 +119,7 @@ async function main() {
 
   for (let i = 1; i <= 3; i++) {
     textWatermarkPdf.addPage({ size: "letter" });
-    const page = await textWatermarkPdf.getPage(i - 1);
+    const page = textWatermarkPdf.getPage(i - 1);
     if (!page) {
       continue;
     }

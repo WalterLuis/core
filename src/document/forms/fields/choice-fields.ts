@@ -34,8 +34,10 @@ function parseChoiceOptions(
 
       options.push({
         value:
+          // oxlint-disable-next-line typescript/no-base-to-string
           exportVal instanceof PdfString ? exportVal.asString() : (exportVal?.toString() ?? ""),
         display:
+          // oxlint-disable-next-line typescript/no-base-to-string
           displayVal instanceof PdfString ? displayVal.asString() : (displayVal?.toString() ?? ""),
       });
     } else if (item instanceof PdfString) {
@@ -137,7 +139,7 @@ export class DropdownField extends TerminalField {
    * @param value The value to select
    * @throws {Error} if field is read-only or value is invalid (for non-editable dropdowns)
    */
-  async setValue(value: string): Promise<void> {
+  setValue(value: string): void {
     this.assertWritable();
 
     // Validate (unless editable)
@@ -153,7 +155,7 @@ export class DropdownField extends TerminalField {
     this.needsAppearanceUpdate = true;
 
     // Regenerate appearance immediately
-    await this.applyChange();
+    this.applyChange();
   }
 }
 
@@ -270,7 +272,7 @@ export class ListBoxField extends TerminalField {
    * @param values Array of values to select
    * @throws {Error} if field is read-only, multiple selection not allowed, or values are invalid
    */
-  async setValue(values: string[]): Promise<void> {
+  setValue(values: string[]): void {
     this.assertWritable();
 
     if (!this.isMultiSelect && values.length > 1) {
@@ -312,6 +314,6 @@ export class ListBoxField extends TerminalField {
     this.needsAppearanceUpdate = true;
 
     // Regenerate appearance immediately
-    await this.applyChange();
+    this.applyChange();
   }
 }

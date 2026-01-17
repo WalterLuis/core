@@ -40,17 +40,17 @@
 
 import { AcroForm } from "#src/document/forms/acro-form";
 import {
-  type ButtonField,
-  type CheckboxField,
+  ButtonField,
+  CheckboxField,
   createFormField,
-  type DropdownField,
+  DropdownField,
   FieldFlags,
   type FormField,
-  type ListBoxField,
-  type RadioField,
-  type SignatureField,
+  ListBoxField,
+  RadioField,
+  SignatureField,
   TerminalField,
-  type TextField,
+  TextField,
 } from "#src/document/forms/fields";
 import type { FlattenOptions } from "#src/document/forms/form-flattener";
 import type { EmbeddedFont } from "#src/fonts/embedded-font";
@@ -251,14 +251,14 @@ export class PDFForm {
    * @param ctx The PDF context
    * @returns PDFForm instance, or null if no form exists
    */
-  static async load(ctx: PDFContext): Promise<PDFForm | null> {
-    const acroForm = await AcroForm.load(ctx.catalog.getDict(), ctx.registry, ctx.pages);
+  static load(ctx: PDFContext): PDFForm | null {
+    const acroForm = AcroForm.load(ctx.catalog.getDict(), ctx.registry, ctx.pages);
 
     if (!acroForm) {
       return null;
     }
 
-    const fields = await acroForm.getFields();
+    const fields = acroForm.getFields();
 
     return new PDFForm(acroForm, ctx, fields);
   }
@@ -298,7 +298,7 @@ export class PDFForm {
   getTextField(name: string): TextField | undefined {
     const field = this.fieldsByName.get(name);
 
-    return field?.type === "text" ? (field as TextField) : undefined;
+    return field instanceof TextField ? field : undefined;
   }
 
   /**
@@ -308,7 +308,8 @@ export class PDFForm {
    */
   getCheckbox(name: string): CheckboxField | undefined {
     const field = this.fieldsByName.get(name);
-    return field?.type === "checkbox" ? (field as CheckboxField) : undefined;
+
+    return field instanceof CheckboxField ? field : undefined;
   }
 
   /**
@@ -318,7 +319,8 @@ export class PDFForm {
    */
   getRadioGroup(name: string): RadioField | undefined {
     const field = this.fieldsByName.get(name);
-    return field?.type === "radio" ? (field as RadioField) : undefined;
+
+    return field instanceof RadioField ? field : undefined;
   }
 
   /**
@@ -328,7 +330,8 @@ export class PDFForm {
    */
   getDropdown(name: string): DropdownField | undefined {
     const field = this.fieldsByName.get(name);
-    return field?.type === "dropdown" ? (field as DropdownField) : undefined;
+
+    return field instanceof DropdownField ? field : undefined;
   }
 
   /**
@@ -338,7 +341,8 @@ export class PDFForm {
    */
   getListBox(name: string): ListBoxField | undefined {
     const field = this.fieldsByName.get(name);
-    return field?.type === "listbox" ? (field as ListBoxField) : undefined;
+
+    return field instanceof ListBoxField ? field : undefined;
   }
 
   /**
@@ -348,7 +352,8 @@ export class PDFForm {
    */
   getSignatureField(name: string): SignatureField | undefined {
     const field = this.fieldsByName.get(name);
-    return field?.type === "signature" ? (field as SignatureField) : undefined;
+
+    return field instanceof SignatureField ? field : undefined;
   }
 
   /**
@@ -358,7 +363,8 @@ export class PDFForm {
    */
   getButton(name: string): ButtonField | undefined {
     const field = this.fieldsByName.get(name);
-    return field?.type === "button" ? (field as ButtonField) : undefined;
+
+    return field instanceof ButtonField ? field : undefined;
   }
 
   /**
@@ -372,49 +378,49 @@ export class PDFForm {
    * Get all text fields.
    */
   getTextFields(): TextField[] {
-    return this.allFields.filter(f => f.type === "text") as TextField[];
+    return this.allFields.filter(f => f instanceof TextField);
   }
 
   /**
    * Get all checkboxes.
    */
   getCheckboxes(): CheckboxField[] {
-    return this.allFields.filter(f => f.type === "checkbox") as CheckboxField[];
+    return this.allFields.filter(f => f instanceof CheckboxField);
   }
 
   /**
    * Get all radio button groups.
    */
   getRadioGroups(): RadioField[] {
-    return this.allFields.filter(f => f.type === "radio") as RadioField[];
+    return this.allFields.filter(f => f instanceof RadioField);
   }
 
   /**
    * Get all dropdowns.
    */
   getDropdowns(): DropdownField[] {
-    return this.allFields.filter(f => f.type === "dropdown") as DropdownField[];
+    return this.allFields.filter(f => f instanceof DropdownField);
   }
 
   /**
    * Get all list boxes.
    */
   getListBoxes(): ListBoxField[] {
-    return this.allFields.filter(f => f.type === "listbox") as ListBoxField[];
+    return this.allFields.filter(f => f instanceof ListBoxField);
   }
 
   /**
    * Get all signature fields.
    */
   getSignatureFields(): SignatureField[] {
-    return this.allFields.filter(f => f.type === "signature") as SignatureField[];
+    return this.allFields.filter(f => f instanceof SignatureField);
   }
 
   /**
    * Get all buttons.
    */
   getButtons(): ButtonField[] {
-    return this.allFields.filter(f => f.type === "button") as ButtonField[];
+    return this.allFields.filter(f => f instanceof ButtonField);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -459,6 +465,7 @@ export class PDFForm {
     this._acroForm.addField(fieldRef);
 
     // Create the SignatureField instance
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const field = createFormField(
       fieldDict,
       fieldRef,
@@ -555,6 +562,7 @@ export class PDFForm {
     this._acroForm.addField(fieldRef);
 
     // Create the TextField instance
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const field = createFormField(
       fieldDict,
       fieldRef,
@@ -639,6 +647,7 @@ export class PDFForm {
     this._acroForm.addField(fieldRef);
 
     // Create the CheckboxField instance
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const field = createFormField(
       fieldDict,
       fieldRef,
@@ -722,6 +731,7 @@ export class PDFForm {
     this._acroForm.addField(fieldRef);
 
     // Create the RadioField instance
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const field = createFormField(
       fieldDict,
       fieldRef,
@@ -805,6 +815,7 @@ export class PDFForm {
     this._acroForm.addField(fieldRef);
 
     // Create the DropdownField instance
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const field = createFormField(
       fieldDict,
       fieldRef,
@@ -920,6 +931,7 @@ export class PDFForm {
     this._acroForm.addField(fieldRef);
 
     // Create the ListBoxField instance
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const field = createFormField(
       fieldDict,
       fieldRef,
@@ -1068,7 +1080,10 @@ export class PDFForm {
    * // result.skipped: ["nonexistent"]
    * ```
    */
-  async fill(values: Record<string, FieldValue>): Promise<{ filled: string[]; skipped: string[] }> {
+  fill(values: Record<string, FieldValue>): {
+    filled: string[];
+    skipped: string[];
+  } {
     const filled: string[] = [];
     const skipped: string[] = [];
 
@@ -1081,7 +1096,7 @@ export class PDFForm {
         continue;
       }
 
-      await this.setFieldValue(field, value);
+      this.setFieldValue(field, value);
 
       filled.push(name);
     }
@@ -1092,10 +1107,10 @@ export class PDFForm {
   /**
    * Reset all fields to their default values.
    */
-  async resetAll(): Promise<void> {
+  resetAll(): void {
     for (const field of this.allFields) {
       if (field instanceof TerminalField) {
-        await field.resetValue();
+        field.resetValue();
       }
     }
   }
@@ -1110,6 +1125,7 @@ export class PDFForm {
   get properties(): FormProperties {
     return {
       defaultAppearance: this._acroForm.defaultAppearance,
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
       defaultAlignment: this._acroForm.defaultQuadding as TextAlignment,
       needAppearances: this._acroForm.needAppearances,
       hasSignatures: this._acroForm.hasSignatures,
@@ -1155,8 +1171,8 @@ export class PDFForm {
    * Call this if the form structure has been modified externally
    * (e.g., fields added or removed via low-level API).
    */
-  async reloadFields(): Promise<void> {
-    const fields = await this._acroForm.getFields();
+  reloadFields(): void {
+    const fields = this._acroForm.getFields();
 
     this.allFields = fields;
     this.fieldsByName = new Map(fields.map(f => [f.name, f]));
@@ -1168,8 +1184,8 @@ export class PDFForm {
    * This regenerates the visual appearance of fields whose values have changed.
    * Called automatically during `flatten()`.
    */
-  async updateAppearances(): Promise<void> {
-    await this._acroForm.updateAppearances();
+  updateAppearances(): void {
+    this._acroForm.updateAppearances();
   }
 
   /**
@@ -1191,8 +1207,8 @@ export class PDFForm {
    * const bytes = await pdf.save();
    * ```
    */
-  async flatten(options: FlattenOptions = {}): Promise<void> {
-    await this._acroForm.flatten(options);
+  flatten(options: FlattenOptions = {}): void {
+    this._acroForm.flatten(options);
 
     // Remove AcroForm from catalog to fully eliminate form interactivity
     this._ctx.catalog.removeAcroForm();
@@ -1226,62 +1242,73 @@ export class PDFForm {
   /**
    * Set a field's value with type checking.
    */
-  private async setFieldValue(field: FormField, value: FieldValue): Promise<void> {
-    switch (field.type) {
-      case "text":
-        if (typeof value !== "string") {
-          throw new TypeError(
-            `Text field "${field.name}" requires string value, got ${typeof value}`,
-          );
-        }
+  private setFieldValue(field: FormField, value: FieldValue): void {
+    if (field instanceof TextField) {
+      if (typeof value !== "string") {
+        throw new TypeError(
+          `Text field "${field.name}" requires string value, got ${typeof value}`,
+        );
+      }
 
-        await (field as TextField).setValue(value);
-        break;
+      field.setValue(value);
 
-      case "checkbox":
-        if (typeof value === "boolean") {
-          if (value) {
-            await (field as CheckboxField).check();
-          } else {
-            await (field as CheckboxField).uncheck();
-          }
-        } else if (typeof value === "string") {
-          await (field as CheckboxField).setValue(value);
-        } else {
-          throw new TypeError(`Checkbox "${field.name}" requires boolean or string value`);
-        }
-        break;
-
-      case "radio":
-        if (typeof value !== "string" && value !== null) {
-          throw new TypeError(`Radio field "${field.name}" requires string or null value`);
-        }
-
-        await (field as RadioField).setValue(value);
-        break;
-
-      case "dropdown":
-        if (typeof value !== "string") {
-          throw new TypeError(`Dropdown "${field.name}" requires string value`);
-        }
-
-        await (field as DropdownField).setValue(value);
-        break;
-
-      case "listbox":
-        if (!Array.isArray(value)) {
-          throw new TypeError(`Listbox "${field.name}" requires string[] value`);
-        }
-
-        await (field as ListBoxField).setValue(value);
-        break;
-
-      case "signature":
-      case "button":
-        throw new Error(`Cannot set value on ${field.type} field "${field.name}"`);
-
-      default:
-        throw new Error(`Unknown field type for "${field.name}"`);
+      return;
     }
+
+    if (field instanceof CheckboxField) {
+      if (typeof value === "boolean") {
+        if (value) {
+          field.check();
+        } else {
+          field.uncheck();
+        }
+
+        return;
+      }
+
+      if (typeof value === "string") {
+        field.setValue(value);
+
+        return;
+      }
+
+      throw new TypeError(`Checkbox "${field.name}" requires boolean or string value`);
+    }
+
+    if (field instanceof RadioField) {
+      if (typeof value !== "string" && value !== null) {
+        throw new TypeError(`Radio field "${field.name}" requires string or null value`);
+      }
+
+      field.setValue(value);
+
+      return;
+    }
+
+    if (field instanceof DropdownField) {
+      if (typeof value !== "string") {
+        throw new TypeError(`Dropdown "${field.name}" requires string value`);
+      }
+
+      field.setValue(value);
+
+      return;
+    }
+
+    if (field instanceof ListBoxField) {
+      if (!Array.isArray(value)) {
+        throw new TypeError(`Listbox "${field.name}" requires string[] value`);
+      }
+
+      field.setValue(value);
+
+      return;
+    }
+
+    if (field instanceof SignatureField || field instanceof ButtonField) {
+      throw new Error(`Cannot set value on ${field.type} field "${field.name}"`);
+    }
+
+    throw new Error(`Unknown field type for "${field.name}"`);
   }
 }

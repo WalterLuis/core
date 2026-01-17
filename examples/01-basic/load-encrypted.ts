@@ -35,7 +35,7 @@ async function main() {
   console.log(`Page Count: ${pdf.getPageCount()}`);
 
   // Show the page content is now accessible
-  const page = await pdf.getPage(0);
+  const page = pdf.getPage(0);
   if (page) {
     console.log(`\nPage 1 Size: ${page.width} x ${page.height} points`);
   }
