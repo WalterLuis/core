@@ -514,11 +514,7 @@ export class AnnotationFlattener {
    * Wrap existing page content in q...Q and append new content.
    */
   private wrapAndAppendContent(page: PdfDict, newContent: Uint8Array): void {
-    let existing = page.get("Contents");
-
-    if (existing instanceof PdfRef) {
-      existing = this.registry.resolve(existing) ?? undefined;
-    }
+    const existing = page.get("Contents");
 
     // Create prefix stream with "q\n"
     const prefixBytes = new Uint8Array([0x71, 0x0a]); // "q\n"
@@ -540,12 +536,19 @@ export class AnnotationFlattener {
       return;
     }
 
-    if (existing instanceof PdfArray) {
+    // If Contents is an indirect reference, resolve to check if it's an array
+    let resolved = existing;
+
+    if (existing instanceof PdfRef) {
+      resolved = this.registry.resolve(existing) ?? existing;
+    }
+
+    if (resolved instanceof PdfArray) {
       // Array of content streams - insert prefix at start, suffix at end
       const items: PdfRef[] = [];
 
-      for (let i = 0; i < existing.length; i++) {
-        const item = existing.at(i);
+      for (let i = 0; i < resolved.length; i++) {
+        const item = resolved.at(i);
 
         if (item instanceof PdfRef) {
           items.push(item);
@@ -560,6 +563,7 @@ export class AnnotationFlattener {
     }
 
     // Single stream or ref - convert to array with prefix and suffix
+    // Use the original reference (not resolved object) to keep it as a ref
     page.set("Contents", PdfArray.of(prefixRef, existing, suffixRef));
   }
 
