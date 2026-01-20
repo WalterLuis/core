@@ -2730,7 +2730,6 @@ export class PDF {
     const blocker = this.canSaveIncrementally();
 
     // Check if incremental is requested but not possible
-
     if (wantsIncremental && blocker !== null) {
       this.ctx.registry.addWarning(
         `Incremental save not possible (${blocker}), performing full save`,
@@ -2846,11 +2845,7 @@ export class PDF {
       return result;
     }
 
-    // For full save with changes, we need all referenced objects loaded
-    // Walk from catalog to ensure we have everything
-    this.ensureObjectsLoaded();
-
-    // Full save
+    // Full save (collectReachableRefs in writeComplete will load all reachable objects)
     const result = writeComplete(this.ctx.registry, {
       version: this.ctx.info.version,
       root,
@@ -2865,56 +2860,5 @@ export class PDF {
     this._pendingSecurity = { action: "none" };
 
     return result;
-  }
-
-  /**
-   * Ensure all reachable objects are loaded into the registry.
-   *
-   * Walks from the catalog to load all referenced objects.
-   */
-  private ensureObjectsLoaded(): void {
-    const visited = new Set<string>();
-
-    const walk = (obj: PdfObject | null): void => {
-      if (obj === null) {
-        return;
-      }
-
-      if (obj instanceof PdfRef) {
-        const key = `${obj.objectNumber} ${obj.generation}`;
-
-        if (visited.has(key)) {
-          return;
-        }
-
-        visited.add(key);
-
-        const resolved = this.getObject(obj);
-
-        walk(resolved);
-      } else if (obj instanceof PdfDict) {
-        for (const [, value] of obj) {
-          walk(value);
-        }
-      } else if (obj instanceof PdfArray) {
-        for (const item of obj) {
-          walk(item);
-        }
-      }
-    };
-
-    // Start from root
-    const root = this.ctx.info.trailer.getRef("Root");
-
-    if (root) {
-      walk(root);
-    }
-
-    // Also load Info if present
-    const infoRef = this.ctx.info.trailer.getRef("Info");
-
-    if (infoRef) {
-      walk(infoRef);
-    }
   }
 }

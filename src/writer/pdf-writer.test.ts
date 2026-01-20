@@ -48,7 +48,7 @@ describe("writeComplete", () => {
     expect(result.bytes[10]).toBeGreaterThan(127); // High byte
   });
 
-  it("writes all registered objects", async () => {
+  it("writes all reachable objects", async () => {
     const registry = new ObjectRegistry();
 
     const catalog = PdfDict.of({ Type: PdfName.Catalog });
@@ -57,10 +57,10 @@ describe("writeComplete", () => {
     const info = PdfDict.of({
       Title: PdfString.fromString("Test PDF"),
     });
+    const infoRef = registry.register(info);
 
-    registry.register(info);
-
-    const result = writeComplete(registry, { root: catalogRef });
+    // Pass info as the info option so it's reachable
+    const result = writeComplete(registry, { root: catalogRef, info: infoRef });
     const text = new TextDecoder().decode(result.bytes);
 
     expect(text).toContain("1 0 obj");
@@ -92,10 +92,13 @@ describe("writeComplete", () => {
 
   it("includes trailer with /Size", async () => {
     const registry = new ObjectRegistry();
-    const catalog = PdfDict.of({ Type: PdfName.Catalog });
-    const catalogRef = registry.register(catalog);
 
-    registry.register(new PdfDict()); // Second object
+    // Create a second object that's reachable from catalog
+    const secondObj = new PdfDict();
+    const secondRef = registry.register(secondObj);
+
+    const catalog = PdfDict.of({ Type: PdfName.Catalog, Extra: secondRef });
+    const catalogRef = registry.register(catalog);
 
     const result = writeComplete(registry, { root: catalogRef });
     const text = new TextDecoder().decode(result.bytes);
@@ -177,14 +180,15 @@ describe("writeComplete", () => {
 
   it("compresses streams by default", async () => {
     const registry = new ObjectRegistry();
-    const catalog = PdfDict.of({ Type: PdfName.Catalog });
-    const catalogRef = registry.register(catalog);
 
     // Create uncompressed stream with repeated data (compresses well)
     const uncompressedData = new TextEncoder().encode("AAAAAAAAAA".repeat(100));
     const stream = new PdfStream([], uncompressedData);
+    const streamRef = registry.register(stream);
 
-    registry.register(stream);
+    // Catalog must reference the stream for it to be reachable
+    const catalog = PdfDict.of({ Type: PdfName.Catalog, TestStream: streamRef });
+    const catalogRef = registry.register(catalog);
 
     const result = writeComplete(registry, { root: catalogRef });
     const text = new TextDecoder().decode(result.bytes);
@@ -197,14 +201,15 @@ describe("writeComplete", () => {
 
   it("does not compress streams when compressStreams is false", async () => {
     const registry = new ObjectRegistry();
-    const catalog = PdfDict.of({ Type: PdfName.Catalog });
-    const catalogRef = registry.register(catalog);
 
     // Create uncompressed stream
     const uncompressedData = new TextEncoder().encode("AAAAAAAAAA".repeat(100));
     const stream = new PdfStream([], uncompressedData);
+    const streamRef = registry.register(stream);
 
-    registry.register(stream);
+    // Catalog must reference the stream for it to be reachable
+    const catalog = PdfDict.of({ Type: PdfName.Catalog, TestStream: streamRef });
+    const catalogRef = registry.register(catalog);
 
     const result = writeComplete(registry, {
       root: catalogRef,
@@ -220,16 +225,17 @@ describe("writeComplete", () => {
 
   it("does not re-compress already filtered streams", async () => {
     const registry = new ObjectRegistry();
-    const catalog = PdfDict.of({ Type: PdfName.Catalog });
-    const catalogRef = registry.register(catalog);
 
     // Create stream that already has a filter (e.g., image)
     const stream = new PdfStream(
       [["Filter", PdfName.of("DCTDecode")]],
       new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), // JPEG header
     );
+    const streamRef = registry.register(stream);
 
-    registry.register(stream);
+    // Catalog must reference the stream for it to be reachable
+    const catalog = PdfDict.of({ Type: PdfName.Catalog, TestStream: streamRef });
+    const catalogRef = registry.register(catalog);
 
     const result = writeComplete(registry, { root: catalogRef });
     const text = new TextDecoder().decode(result.bytes);
@@ -237,6 +243,147 @@ describe("writeComplete", () => {
     // Should keep original filter, not add FlateDecode
     expect(text).toContain("/Filter /DCTDecode");
     expect(text).not.toContain("/FlateDecode");
+  });
+
+  describe("garbage collection", () => {
+    it("excludes orphan objects not reachable from root", () => {
+      const registry = new ObjectRegistry();
+
+      // Create an orphan object (not referenced by anything)
+      const orphan = PdfDict.of({ Type: PdfName.of("Orphan") });
+      registry.register(orphan);
+
+      // Create the catalog (no reference to orphan)
+      const catalog = PdfDict.of({ Type: PdfName.Catalog });
+      const catalogRef = registry.register(catalog);
+
+      const result = writeComplete(registry, { root: catalogRef });
+      const text = new TextDecoder().decode(result.bytes);
+
+      // Should NOT include orphan object
+      expect(text).not.toContain("/Type /Orphan");
+      expect(text).not.toContain("1 0 obj"); // Orphan was obj 1
+      // Should include catalog
+      expect(text).toContain("/Type /Catalog");
+      expect(text).toContain("2 0 obj"); // Catalog is obj 2
+    });
+
+    it("includes objects reachable through indirect references", () => {
+      const registry = new ObjectRegistry();
+
+      // Create a chain of objects: catalog -> dict1 -> dict2
+      const dict2 = PdfDict.of({ Type: PdfName.of("Level2") });
+      const dict2Ref = registry.register(dict2);
+
+      const dict1 = PdfDict.of({ Type: PdfName.of("Level1"), Child: dict2Ref });
+      const dict1Ref = registry.register(dict1);
+
+      const catalog = PdfDict.of({ Type: PdfName.Catalog, Child: dict1Ref });
+      const catalogRef = registry.register(catalog);
+
+      const result = writeComplete(registry, { root: catalogRef });
+      const text = new TextDecoder().decode(result.bytes);
+
+      // All objects should be included
+      expect(text).toContain("/Type /Catalog");
+      expect(text).toContain("/Type /Level1");
+      expect(text).toContain("/Type /Level2");
+      expect(text).toContain("/Size 4"); // 0 (free) + 3 objects
+    });
+
+    it("handles circular references without infinite loop", () => {
+      const registry = new ObjectRegistry();
+
+      // Create circular reference: A -> B -> A
+      const dictA = PdfDict.of({ Type: PdfName.of("A") });
+      const dictARef = registry.register(dictA);
+
+      const dictB = PdfDict.of({ Type: PdfName.of("B"), PointsTo: dictARef });
+      const dictBRef = registry.register(dictB);
+
+      // Complete the circle
+      dictA.set("PointsTo", dictBRef);
+
+      // Use A as the catalog
+      const result = writeComplete(registry, { root: dictARef });
+      const text = new TextDecoder().decode(result.bytes);
+
+      // Both objects should be included (no infinite loop)
+      expect(text).toContain("/Type /A");
+      expect(text).toContain("/Type /B");
+      expect(text).toContain("/Size 3"); // 0 (free) + 2 objects
+    });
+
+    it("includes Info dictionary objects when provided", () => {
+      const registry = new ObjectRegistry();
+
+      const catalog = PdfDict.of({ Type: PdfName.Catalog });
+      const catalogRef = registry.register(catalog);
+
+      // Info dict with nested reference
+      const nested = PdfDict.of({ Type: PdfName.of("Nested") });
+      const nestedRef = registry.register(nested);
+
+      const info = PdfDict.of({ Title: PdfString.fromString("Test"), Extra: nestedRef });
+      const infoRef = registry.register(info);
+
+      const result = writeComplete(registry, { root: catalogRef, info: infoRef });
+      const text = new TextDecoder().decode(result.bytes);
+
+      // All three objects should be included
+      expect(text).toContain("/Type /Catalog");
+      expect(text).toContain("/Type /Nested");
+      expect(text).toContain("/Title");
+    });
+
+    it("includes objects reachable through arrays", () => {
+      const registry = new ObjectRegistry();
+
+      const item1 = PdfDict.of({ Type: PdfName.of("Item1") });
+      const item1Ref = registry.register(item1);
+
+      const item2 = PdfDict.of({ Type: PdfName.of("Item2") });
+      const item2Ref = registry.register(item2);
+
+      const catalog = PdfDict.of({
+        Type: PdfName.Catalog,
+        Items: new PdfArray([item1Ref, item2Ref]),
+      });
+      const catalogRef = registry.register(catalog);
+
+      const result = writeComplete(registry, { root: catalogRef });
+      const text = new TextDecoder().decode(result.bytes);
+
+      // All objects should be included
+      expect(text).toContain("/Type /Catalog");
+      expect(text).toContain("/Type /Item1");
+      expect(text).toContain("/Type /Item2");
+    });
+
+    it("correctly removes previously reachable objects after modification", () => {
+      const registry = new ObjectRegistry();
+
+      // Initially create catalog with a child
+      const child = PdfDict.of({ Type: PdfName.of("Child") });
+      const childRef = registry.register(child);
+
+      const catalog = PdfDict.of({ Type: PdfName.Catalog, Child: childRef });
+      const catalogRef = registry.register(catalog);
+
+      // First save - both should be included
+      const result1 = writeComplete(registry, { root: catalogRef });
+      const text1 = new TextDecoder().decode(result1.bytes);
+      expect(text1).toContain("/Type /Child");
+
+      // Remove the child reference
+      catalog.delete("Child");
+
+      // Second save - child should be excluded (orphan)
+      const result2 = writeComplete(registry, { root: catalogRef });
+      const text2 = new TextDecoder().decode(result2.bytes);
+      expect(text2).not.toContain("/Type /Child");
+      expect(text2).toContain("/Type /Catalog");
+    });
   });
 });
 

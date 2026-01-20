@@ -323,9 +323,11 @@ describe("Font subsetting options", () => {
     const font1 = pdf1.embedFont(fontBytes);
     const font2 = pdf2.embedFont(fontBytes);
 
-    // Encode just a few characters in both
-    font1.encodeText("ABC");
-    font2.encodeText("ABC");
+    // Actually draw text to ensure fonts are reachable from the page
+    const page1 = pdf1.getPage(0)!;
+    const page2 = pdf2.getPage(0)!;
+    page1.drawText("ABC", { x: 10, y: 10, font: font1, size: 12 });
+    page2.drawText("ABC", { x: 10, y: 10, font: font2, size: 12 });
 
     // Save both ways
     const subsetBytes = await pdf1.save({ subsetFonts: true });

@@ -16,7 +16,7 @@ import { PdfArray } from "#src/objects/pdf-array";
 import { PdfDict } from "#src/objects/pdf-dict";
 import { PdfName } from "#src/objects/pdf-name";
 import type { PdfObject } from "#src/objects/pdf-object";
-import type { PdfRef } from "#src/objects/pdf-ref";
+import { PdfRef } from "#src/objects/pdf-ref";
 import { PdfStream } from "#src/objects/pdf-stream";
 import { PdfString } from "#src/objects/pdf-string";
 import type { StandardSecurityHandler } from "#src/security/standard-handler";
@@ -242,6 +242,63 @@ function encryptStreamDict(stream: PdfStream, ctx: EncryptionContext): PdfStream
 }
 
 /**
+ * Collect all refs reachable from the document root and trailer entries.
+ *
+ * Walks the object graph starting from Root, Info, and Encrypt (if present),
+ * returning the set of all object keys (as "objNum gen" strings) that are reachable.
+ * This is used for garbage collection during full saves.
+ */
+function collectReachableRefs(
+  registry: ObjectRegistry,
+  root: PdfRef,
+  info?: PdfRef,
+  encrypt?: PdfRef,
+): Set<string> {
+  const visited = new Set<string>();
+
+  const walk = (obj: PdfObject | null): void => {
+    if (obj === null) {
+      return;
+    }
+
+    if (obj instanceof PdfRef) {
+      const key = `${obj.objectNumber} ${obj.generation}`;
+
+      if (visited.has(key)) {
+        return;
+      }
+
+      visited.add(key);
+
+      const resolved = registry.resolve(obj);
+
+      walk(resolved);
+    } else if (obj instanceof PdfDict) {
+      // PdfStream extends PdfDict, so this handles both
+      for (const [, value] of obj) {
+        walk(value);
+      }
+    } else if (obj instanceof PdfArray) {
+      for (const item of obj) {
+        walk(item);
+      }
+    }
+  };
+
+  walk(root);
+
+  if (info) {
+    walk(info);
+  }
+
+  if (encrypt) {
+    walk(encrypt);
+  }
+
+  return visited;
+}
+
+/**
  * Write a complete PDF from scratch.
  *
  * Structure:
@@ -277,15 +334,17 @@ export function writeComplete(registry: ObjectRegistry, options: WriteOptions): 
   // Track offsets for xref
   const offsets = new Map<number, { offset: number; generation: number }>();
 
-  // Collect all objects
-  const allObjects = new Map<PdfRef, PdfObject>();
+  // Collect only reachable objects (garbage collection)
+  // This ensures orphan objects are not written to the output
+  const reachableKeys = collectReachableRefs(registry, options.root, options.info, options.encrypt);
 
+  // Write only reachable objects and record offsets
   for (const [ref, obj] of registry.entries()) {
-    allObjects.set(ref, obj);
-  }
+    const key = `${ref.objectNumber} ${ref.generation}`;
 
-  // Write objects and record offsets
-  for (const [ref, obj] of allObjects) {
+    if (!reachableKeys.has(key)) {
+      continue; // Skip orphan objects
+    }
     // Prepare object (compress streams if needed)
     let prepared = prepareObjectForWrite(obj, compress);
 

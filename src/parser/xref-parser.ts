@@ -136,7 +136,14 @@ export class XRefParser {
     this.skipWhitespaceFromCurrent();
 
     // Read subsections until we hit "trailer"
-    while (!this.peekKeyword("trailer")) {
+    // Skip whitespace before each check (some PDFs have extra newlines between entries and trailer)
+    while (true) {
+      this.skipWhitespaceFromCurrent();
+
+      if (this.peekKeyword("trailer")) {
+        break;
+      }
+
       this.parseSubsection(entries);
     }
 
