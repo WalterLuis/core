@@ -36,7 +36,7 @@ export {
   type RadioGroupOptions,
   type RadioSymbol,
   type SignatureFieldOptions,
-  TextAlignment,
+  type TextAlignment,
   type TextFieldOptions,
 } from "./api/pdf-form";
 export {

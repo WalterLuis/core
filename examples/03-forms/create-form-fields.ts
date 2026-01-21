@@ -7,7 +7,7 @@
  * Run: npx tsx examples/03-forms/create-form-fields.ts
  */
 
-import { black, PDF, rgb, TextAlignment } from "../../src/index";
+import { black, PDF, rgb } from "../../src/index";
 import { formatBytes, saveOutput } from "../utils";
 
 async function main() {
@@ -169,7 +169,7 @@ async function main() {
 
   const refField = form.createTextField("referenceNumber", {
     fontSize: 12,
-    alignment: TextAlignment.Right,
+    alignment: "right",
     maxLength: 10,
     defaultValue: "REF-0001",
   });

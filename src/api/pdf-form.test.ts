@@ -3,7 +3,6 @@ import { loadFixture } from "#src/test-utils";
 import { describe, expect, it } from "vitest";
 
 import { PDF } from "./pdf";
-import { TextAlignment } from "./pdf-form";
 
 describe("PDFForm", () => {
   describe("loading", () => {
@@ -359,9 +358,7 @@ describe("PDFForm", () => {
       const props = form!.properties;
 
       expect(typeof props.defaultAppearance).toBe("string");
-      expect([TextAlignment.Left, TextAlignment.Center, TextAlignment.Right]).toContain(
-        props.defaultAlignment,
-      );
+      expect(["left", "center", "right"]).toContain(props.defaultAlignment);
       expect(typeof props.needAppearances).toBe("boolean");
       expect(typeof props.hasSignatures).toBe("boolean");
       expect(typeof props.isAppendOnly).toBe("boolean");
@@ -393,14 +390,6 @@ describe("PDFForm", () => {
   });
 });
 
-describe("TextAlignment", () => {
-  it("has correct values", () => {
-    expect(TextAlignment.Left).toBe(0);
-    expect(TextAlignment.Center).toBe(1);
-    expect(TextAlignment.Right).toBe(2);
-  });
-});
-
 describe("Field Creation", () => {
   describe("createTextField", () => {
     it("creates a text field with default options", async () => {
@@ -422,13 +411,13 @@ describe("Field Creation", () => {
       const field = form.createTextField("name", {
         maxLength: 50,
         multiline: false,
-        alignment: TextAlignment.Center,
+        alignment: "center",
         defaultValue: "John Doe",
       });
 
       expect(field.getValue()).toBe("John Doe");
       expect(field.maxLength).toBe(50);
-      expect(field.alignment).toBe(TextAlignment.Center);
+      expect(field.alignment).toBe(1); // PDF quadding value
     });
 
     it("throws on duplicate field name", async () => {

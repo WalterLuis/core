@@ -70,15 +70,37 @@ import type { PDFContext } from "./pdf-context";
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Text alignment constants for form fields.
+ * Text alignment for form fields.
  */
-export const TextAlignment = {
-  Left: 0,
-  Center: 1,
-  Right: 2,
-} as const;
+export type TextAlignment = "left" | "center" | "right";
 
-export type TextAlignment = (typeof TextAlignment)[keyof typeof TextAlignment];
+/**
+ * Convert TextAlignment string to PDF quadding value.
+ */
+function alignmentToQuadding(alignment: TextAlignment): number {
+  switch (alignment) {
+    case "left":
+      return 0;
+    case "center":
+      return 1;
+    case "right":
+      return 2;
+  }
+}
+
+/**
+ * Convert PDF quadding value to TextAlignment string.
+ */
+function quaddingToAlignment(quadding: number): TextAlignment {
+  switch (quadding) {
+    case 1:
+      return "center";
+    case 2:
+      return "right";
+    default:
+      return "left";
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -541,7 +563,7 @@ export class PDFForm {
     }
 
     if (options.alignment !== undefined) {
-      fieldDict.set("Q", PdfNumber.of(options.alignment));
+      fieldDict.set("Q", PdfNumber.of(alignmentToQuadding(options.alignment)));
     }
 
     if (options.maxLength !== undefined && options.maxLength > 0) {
@@ -1250,8 +1272,7 @@ export class PDFForm {
   get properties(): FormProperties {
     return {
       defaultAppearance: this._acroForm.defaultAppearance,
-      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-      defaultAlignment: this._acroForm.defaultQuadding as TextAlignment,
+      defaultAlignment: quaddingToAlignment(this._acroForm.defaultQuadding),
       needAppearances: this._acroForm.needAppearances,
       hasSignatures: this._acroForm.hasSignatures,
       isAppendOnly: this._acroForm.isAppendOnly,

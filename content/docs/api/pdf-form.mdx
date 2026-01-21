@@ -359,7 +359,7 @@ Create a new text field.
 | `[options.multiline]`       | `boolean`          | `false`    | Multiline input   |
 | `[options.password]`        | `boolean`          | `false`    | Mask input        |
 | `[options.comb]`            | `boolean`          | `false`    | Fixed-width cells |
-| `[options.alignment]`       | `TextAlignment`    | `Left`     | Text alignment    |
+| `[options.alignment]`       | `TextAlignment`    | `"left"`   | Text alignment    |
 | `[options.defaultValue]`    | `string`           |            | Default value     |
 | `[options.backgroundColor]` | `Color`            |            | Background        |
 | `[options.borderColor]`     | `Color`            |            | Border            |
@@ -712,13 +712,7 @@ console.log(acroForm.defaultAppearance);
 ### TextAlignment
 
 ```typescript
-const TextAlignment = {
-  Left: 0,
-  Center: 1,
-  Right: 2,
-} as const;
-
-type TextAlignment = 0 | 1 | 2;
+type TextAlignment = "left" | "center" | "right";
 ```
 
 ### FieldValue
