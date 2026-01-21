@@ -220,9 +220,9 @@ export class PDFPage {
   readonly index: number;
 
   /** Document context for registering objects */
-  private readonly ctx?: PDFContext;
+  private readonly ctx: PDFContext;
 
-  constructor(ref: PdfRef, dict: PdfDict, index: number, ctx?: PDFContext) {
+  constructor(ref: PdfRef, dict: PdfDict, index: number, ctx: PDFContext) {
     this.ref = ref;
     this.dict = dict;
     this.index = index;
@@ -395,16 +395,24 @@ export class PDFPage {
   /**
    * Get the page's Resources dictionary.
    *
-   * Creates an empty one if it doesn't exist.
+   * If Resources is a reference, it's dereferenced.
+   * If Resources doesn't exist or is inherited from a parent,
+   * a new empty dict is created on this page.
    */
   getResources(): PdfDict {
     let resources = this.dict.get("Resources");
 
-    if (!(resources instanceof PdfDict)) {
-      resources = new PdfDict();
-
-      this.dict.set("Resources", resources);
+    if (resources instanceof PdfRef) {
+      resources = this.ctx.resolve(resources) ?? undefined;
     }
+
+    if (resources instanceof PdfDict) {
+      return resources;
+    }
+
+    resources = new PdfDict();
+
+    this.dict.set("Resources", resources);
 
     return resources;
   }
@@ -591,10 +599,6 @@ export class PDFPage {
    * ```
    */
   drawField(field: FormField, options: DrawFieldOptions): void {
-    if (!this.ctx) {
-      throw new Error("Cannot draw field on page without context");
-    }
-
     // Validate that field is a terminal field
     if (!(field instanceof TerminalField)) {
       throw new Error(`Cannot draw non-terminal field "${field.name}"`);
@@ -761,10 +765,6 @@ export class PDFPage {
     widget: WidgetAnnotation,
     options: DrawFieldOptions,
   ): void {
-    if (!this.ctx) {
-      return;
-    }
-
     // We need access to AcroForm for appearance generation
     // Load it via catalog
     const catalogDict = this.ctx.catalog.getDict();
@@ -1672,10 +1672,6 @@ export class PDFPage {
     subtype: "Highlight" | "Underline" | "StrikeOut" | "Squiggly",
     options: TextMarkupAnnotationOptions,
   ): PDFAnnotation {
-    if (!this.ctx) {
-      throw new Error("Cannot add annotation to page without context");
-    }
-
     // Use the static create method on the appropriate class
     let annotDict: PdfDict;
 
@@ -1730,10 +1726,6 @@ export class PDFPage {
    * ```
    */
   addLinkAnnotation(options: LinkAnnotationOptions): PDFLinkAnnotation {
-    if (!this.ctx) {
-      throw new Error("Cannot add annotation to page without context");
-    }
-
     const destination = options.destination;
 
     if (destination) {
@@ -1775,10 +1767,6 @@ export class PDFPage {
    * @returns The created annotation
    */
   addTextAnnotation(options: TextAnnotationOptions): PDFTextAnnotation {
-    if (!this.ctx) {
-      throw new Error("Cannot add annotation to page without context");
-    }
-
     const annotDict = PDFTextAnnotation.create(options);
 
     // Register and add to page
@@ -1796,10 +1784,6 @@ export class PDFPage {
    * @returns The created annotation
    */
   addLineAnnotation(options: LineAnnotationOptions): PDFLineAnnotation {
-    if (!this.ctx) {
-      throw new Error("Cannot add annotation to page without context");
-    }
-
     const annotDict = PDFLineAnnotation.create(options);
 
     // Register and add to page
@@ -1817,10 +1801,6 @@ export class PDFPage {
    * @returns The created annotation
    */
   addSquareAnnotation(options: SquareAnnotationOptions): PDFSquareAnnotation {
-    if (!this.ctx) {
-      throw new Error("Cannot add annotation to page without context");
-    }
-
     const annotDict = PDFSquareAnnotation.create(options);
 
     // Register and add to page
@@ -1838,10 +1818,6 @@ export class PDFPage {
    * @returns The created annotation
    */
   addCircleAnnotation(options: CircleAnnotationOptions): PDFCircleAnnotation {
-    if (!this.ctx) {
-      throw new Error("Cannot add annotation to page without context");
-    }
-
     const annotDict = PDFCircleAnnotation.create(options);
 
     // Register and add to page
@@ -1859,10 +1835,6 @@ export class PDFPage {
    * @returns The created annotation
    */
   addStampAnnotation(options: StampAnnotationOptions): PDFStampAnnotation {
-    if (!this.ctx) {
-      throw new Error("Cannot add annotation to page without context");
-    }
-
     const annotDict = PDFStampAnnotation.create(options);
 
     // Register and add to page
@@ -1880,10 +1852,6 @@ export class PDFPage {
    * @returns The created annotation
    */
   addInkAnnotation(options: InkAnnotationOptions): PDFInkAnnotation {
-    if (!this.ctx) {
-      throw new Error("Cannot add annotation to page without context");
-    }
-
     const annotDict = PDFInkAnnotation.create(options);
 
     // Register and add to page
@@ -1912,10 +1880,6 @@ export class PDFPage {
    * ```
    */
   removeAnnotation(annotation: PDFAnnotation): void {
-    if (!this.ctx) {
-      return;
-    }
-
     const annots = this.dict.getArray("Annots");
 
     if (!annots) {
@@ -2018,10 +1982,6 @@ export class PDFPage {
    * ```
    */
   flattenAnnotations(options?: FlattenAnnotationsOptions): number {
-    if (!this.ctx) {
-      return 0;
-    }
-
     const flattener = new AnnotationFlattener(this.ctx.registry);
     const count = flattener.flattenPage(this.dict, options);
 
@@ -2347,10 +2307,6 @@ export class PDFPage {
 
     // Embedded font - get reference from PDFFonts
     if (font instanceof EmbeddedFont) {
-      if (!this.ctx) {
-        throw new Error("Cannot use embedded fonts without document context");
-      }
-
       const fontRef = this.ctx.getFontRef(font);
 
       // Check if we already have this font reference
@@ -2557,10 +2513,6 @@ export class PDFPage {
    * This method checks the page first, then walks up the Parent chain.
    */
   private resolveInheritedResources(): PdfDict | null {
-    if (!this.ctx) {
-      return null;
-    }
-
     // Start with the page dict
     let currentDict: PdfDict | null = this.dict;
 
@@ -2682,10 +2634,6 @@ export class PDFPage {
       const decodedStreams = new Map<string, Uint8Array>();
 
       const preResolveValue = (value: unknown): void => {
-        if (!this.ctx) {
-          return;
-        }
-
         // If it's a ref, resolve it and cache
         if (value instanceof PdfRef) {
           const key = `${value.objectNumber} ${value.generation} R`;
