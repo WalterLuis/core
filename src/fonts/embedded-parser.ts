@@ -10,9 +10,8 @@
 import { parseCFF } from "#src/fontbox/cff/parser.ts";
 import { parseTTF } from "#src/fontbox/ttf/parser.ts";
 import { parsePfb } from "#src/fontbox/type1/pfb-parser.ts";
+import type { RefResolver } from "#src/helpers/types.ts";
 import type { PdfDict } from "#src/objects/pdf-dict.ts";
-import type { PdfName } from "#src/objects/pdf-name.ts";
-import { PdfRef } from "#src/objects/pdf-ref.ts";
 import { PdfStream } from "#src/objects/pdf-stream.ts";
 
 import {
@@ -28,15 +27,9 @@ import {
  */
 export interface EmbeddedParserOptions {
   /**
-   * Decode a stream object to its raw bytes.
-   * The stream should be fully decoded (all filters applied).
-   */
-  decodeStream: (stream: unknown) => Uint8Array | null;
-
-  /**
    * Resolve an indirect reference to its object.
    */
-  resolveRef?: (ref: unknown) => unknown;
+  resolver?: RefResolver;
 }
 
 /**
@@ -84,13 +77,13 @@ function tryParseFontFile2(
   descriptor: PdfDict,
   options: EmbeddedParserOptions,
 ): FontProgram | null {
-  const fontFile2 = resolveValue(descriptor.get("FontFile2"), options);
+  const fontFile2 = descriptor.get("FontFile2", options.resolver);
 
-  if (!fontFile2) {
+  if (!(fontFile2 instanceof PdfStream)) {
     return null;
   }
 
-  const data = options.decodeStream(fontFile2);
+  const data = fontFile2.getDecodedData();
 
   if (!data || data.length === 0) {
     return null;
@@ -115,15 +108,15 @@ function tryParseFontFile3(
   descriptor: PdfDict,
   options: EmbeddedParserOptions,
 ): FontProgram | null {
-  const fontFile3 = resolveValue(descriptor.get("FontFile3"), options);
+  const fontFile3 = descriptor.get("FontFile3", options.resolver);
 
-  if (!fontFile3) {
+  if (!(fontFile3 instanceof PdfStream)) {
     return null;
   }
 
   // FontFile3 should be a stream with a /Subtype
   const subtype = getStreamSubtype(fontFile3);
-  const data = options.decodeStream(fontFile3);
+  const data = fontFile3.getDecodedData();
 
   if (!data || data.length === 0) {
     return null;
@@ -167,13 +160,13 @@ function tryParseFontFile3(
  * Try to parse a Type1 font from /FontFile.
  */
 function tryParseFontFile(descriptor: PdfDict, options: EmbeddedParserOptions): FontProgram | null {
-  const fontFile = resolveValue(descriptor.get("FontFile"), options);
+  const fontFile = descriptor.get("FontFile", options.resolver);
 
-  if (!fontFile) {
+  if (!(fontFile instanceof PdfStream)) {
     return null;
   }
 
-  const data = options.decodeStream(fontFile);
+  const data = fontFile.getDecodedData();
 
   if (!data || data.length === 0) {
     return null;
@@ -254,30 +247,14 @@ function tryAutoDetectFontFile3(data: Uint8Array): FontProgram | null {
 /**
  * Get the /Subtype from a stream dictionary.
  */
-function getStreamSubtype(stream: unknown): string | undefined {
-  if (stream && stream instanceof PdfStream) {
+function getStreamSubtype(stream: PdfStream): string | undefined {
+  if (stream) {
     const subtype = stream.getName("Subtype");
 
     return subtype?.value;
   }
 
   return undefined;
-}
-
-/**
- * Resolve a value through indirect references.
- */
-function resolveValue(value: unknown, options: EmbeddedParserOptions): unknown {
-  if (!value) {
-    return null;
-  }
-
-  // If it's a reference and we have a resolver, resolve it
-  if (options.resolveRef && value instanceof PdfRef) {
-    return options.resolveRef(value);
-  }
-
-  return value;
 }
 
 /**

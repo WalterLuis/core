@@ -44,7 +44,12 @@ import {
   PDFStrikeOutAnnotation,
   PDFUnderlineAnnotation,
 } from "./text-markup";
-import { AnnotationFlags, type AnnotationSubtype, type FlattenAnnotationsOptions } from "./types";
+import {
+  AnnotationFlags,
+  isAnnotationSubtype,
+  type AnnotationSubtype,
+  type FlattenAnnotationsOptions,
+} from "./types";
 
 /**
  * Annotation types that should never be flattened.
@@ -73,39 +78,22 @@ export class AnnotationFlattener {
    * @returns Number of annotations flattened
    */
   flattenPage(pageDict: PdfDict, options: FlattenAnnotationsOptions = {}): number {
-    let annotsEntry = pageDict.get("Annots");
-
-    if (!annotsEntry) {
-      return 0;
-    }
-
-    if (annotsEntry instanceof PdfRef) {
-      annotsEntry = this.registry.resolve(annotsEntry) ?? undefined;
-    }
-
-    let annots = annotsEntry instanceof PdfArray ? annotsEntry : null;
+    let annots = pageDict.getArray("Annots", this.registry.resolve.bind(this.registry));
 
     if (!annots || annots.length === 0) {
       return 0;
     }
 
     // Get or create page resources (may be an indirect reference)
-    let resources = pageDict.get("Resources");
-
-    if (resources instanceof PdfRef) {
-      resources = this.registry.resolve(resources) ?? undefined;
-    }
+    let resources = pageDict.get("Resources", this.registry.resolve.bind(this.registry));
 
     if (!(resources instanceof PdfDict)) {
       resources = new PdfDict();
+
       pageDict.set("Resources", resources);
     }
 
-    let xObjects = resources.get("XObject");
-
-    if (xObjects instanceof PdfRef) {
-      xObjects = this.registry.resolve(xObjects) ?? undefined;
-    }
+    let xObjects = resources.get("XObject", this.registry.resolve.bind(this.registry));
 
     if (!(xObjects instanceof PdfDict)) {
       xObjects = new PdfDict();
@@ -115,12 +103,13 @@ export class AnnotationFlattener {
     // Build flattening content stream
     const content = new ContentStreamBuilder();
     const refsToRemove = new Set<string>();
+
     let xObjectIndex = 0;
     let flattenedCount = 0;
 
     // Process each annotation
     for (let i = 0; i < annots.length; i++) {
-      const entry = annots.at(i);
+      let entry = annots.at(i);
 
       if (!entry) {
         continue;
@@ -131,12 +120,11 @@ export class AnnotationFlattener {
 
       if (entry instanceof PdfRef) {
         annotRef = entry;
-        const resolved = this.registry.resolve(entry);
 
-        if (resolved instanceof PdfDict) {
-          annotDict = resolved;
-        }
-      } else if (entry instanceof PdfDict) {
+        entry = this.registry.resolve(entry) ?? undefined;
+      }
+
+      if (entry instanceof PdfDict) {
         annotDict = entry;
       }
 
@@ -156,7 +144,9 @@ export class AnnotationFlattener {
 
       // Get annotation subtype
       // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-      const subtype = annotDict.getName("Subtype")?.value as AnnotationSubtype | undefined;
+      const subtypeName = annotDict.getName("Subtype")?.value;
+
+      const subtype = isAnnotationSubtype(subtypeName) ? subtypeName : null;
 
       if (!subtype) {
         continue;
@@ -365,13 +355,7 @@ export class AnnotationFlattener {
    * Get annotation rectangle as [x1, y1, x2, y2].
    */
   private getAnnotationRect(annotDict: PdfDict): [number, number, number, number] {
-    let rectArray = annotDict.get("Rect");
-
-    if (rectArray instanceof PdfRef) {
-      rectArray = this.registry.resolve(rectArray) ?? undefined;
-    }
-
-    let rect = rectArray instanceof PdfArray ? rectArray : null;
+    const rect = annotDict.getArray("Rect", this.registry.resolve.bind(this.registry));
 
     if (!rect || rect.length < 4) {
       return [0, 0, 1, 1];
@@ -461,7 +445,7 @@ export class AnnotationFlattener {
    * Get appearance BBox, with fallback.
    */
   private getAppearanceBBox(appearance: PdfStream): [number, number, number, number] {
-    const bbox = appearance.getArray("BBox");
+    const bbox = appearance.getArray("BBox", this.registry.resolve.bind(this.registry));
 
     if (!bbox || bbox.length < 4) {
       return [0, 0, 1, 1];
@@ -478,7 +462,7 @@ export class AnnotationFlattener {
    * Get the appearance stream's transformation matrix.
    */
   private getAppearanceMatrix(appearance: PdfStream): Matrix {
-    const matrixArray = appearance.getArray("Matrix");
+    const matrixArray = appearance.getArray("Matrix", this.registry.resolve.bind(this.registry));
 
     if (!matrixArray || matrixArray.length < 6) {
       return Matrix.identity();
@@ -495,7 +479,7 @@ export class AnnotationFlattener {
    * Check if appearance stream has valid dimensions.
    */
   private isVisibleAppearance(appearance: PdfStream): boolean {
-    const bbox = appearance.getArray("BBox");
+    const bbox = appearance.getArray("BBox", this.registry.resolve.bind(this.registry));
 
     if (!bbox || bbox.length < 4) {
       return false;
@@ -526,8 +510,11 @@ export class AnnotationFlattener {
 
   /**
    * Wrap existing page content in q...Q and append new content.
+   *
+   * @todo Consider using PDFPage API for this.
    */
   private wrapAndAppendContent(page: PdfDict, newContent: Uint8Array): void {
+    // Don't resolve Contents - we need to preserve the original reference
     const existing = page.get("Contents");
 
     // Create prefix stream with "q\n"
@@ -550,7 +537,7 @@ export class AnnotationFlattener {
       return;
     }
 
-    // If Contents is an indirect reference, resolve to check if it's an array
+    // Resolve to check if it's an array, but keep original for building new array
     let resolved = existing;
 
     if (existing instanceof PdfRef) {
@@ -607,8 +594,11 @@ export class AnnotationFlattener {
 
     if (annotsEntry instanceof PdfRef) {
       const resolved = this.registry.resolve(annotsEntry);
+
       annots = resolved instanceof PdfArray ? resolved : undefined;
-    } else if (annotsEntry instanceof PdfArray) {
+    }
+
+    if (annotsEntry instanceof PdfArray) {
       annots = annotsEntry;
     }
 

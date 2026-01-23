@@ -1065,23 +1065,10 @@ export class PDFForm {
         continue;
       }
 
-      const annotsEntry = pageDict.get("Annots");
-
-      if (!annotsEntry) {
-        continue;
-      }
-
-      let annots: PdfArray | null = null;
-
-      if (annotsEntry instanceof PdfArray) {
-        annots = annotsEntry;
-      } else if (annotsEntry instanceof PdfRef) {
-        const resolved = this._ctx.registry.resolve(annotsEntry);
-
-        if (resolved instanceof PdfArray) {
-          annots = resolved;
-        }
-      }
+      const annots = pageDict.getArray(
+        "Annots",
+        this._ctx.registry.resolve.bind(this._ctx.registry),
+      );
 
       if (!annots) {
         continue;

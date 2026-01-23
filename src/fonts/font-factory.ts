@@ -5,7 +5,7 @@
  * appropriate font class (SimpleFont or Type0Font).
  */
 
-import type { PdfArray } from "#src/objects/pdf-array";
+import type { RefResolver } from "#src/helpers/types.ts";
 import type { PdfDict } from "#src/objects/pdf-dict";
 
 import { CompositeFont, parseCompositeFont } from "./composite-font";
@@ -23,12 +23,7 @@ export interface FontParseOptions {
   /**
    * Resolve indirect references to their objects.
    */
-  resolveRef?: (ref: unknown) => PdfDict | PdfArray | null;
-
-  /**
-   * Decode a stream object to its raw bytes.
-   */
-  decodeStream?: (stream: unknown) => Uint8Array | null;
+  resolver?: RefResolver;
 
   /**
    * Pre-parsed ToUnicode map (if available).
@@ -44,7 +39,7 @@ export interface FontParseOptions {
  * @returns A SimpleFont or CompositeFont instance
  */
 export function parseFont(dict: PdfDict, options: FontParseOptions = {}): PdfFont {
-  const subtype = dict.getName("Subtype")?.value;
+  const subtype = dict.getName("Subtype", options.resolver)?.value;
 
   switch (subtype) {
     case "Type0":
@@ -99,10 +94,7 @@ export class FontFactory {
   /**
    * Create a FontFactory with a reference resolver.
    */
-  static withResolver(
-    resolveRef: (ref: unknown) => PdfDict | PdfArray | null,
-    decodeStream?: (stream: unknown) => Uint8Array | null,
-  ): FontFactory {
-    return new FontFactory({ resolveRef, decodeStream });
+  static withResolver(resolver: RefResolver): FontFactory {
+    return new FontFactory({ resolver });
   }
 }

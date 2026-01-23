@@ -7,7 +7,7 @@
  * PDF Reference: Section 12.5.6.15 "File Attachment Annotations"
  */
 
-import type { PdfDict } from "#src/objects/pdf-dict";
+import { PdfDict } from "#src/objects/pdf-dict";
 import { PdfName } from "#src/objects/pdf-name";
 import type { PdfRef } from "#src/objects/pdf-ref";
 
@@ -22,7 +22,7 @@ export class PDFFileAttachmentAnnotation extends PDFMarkupAnnotation {
    * Icon to display.
    */
   get icon(): FileAttachmentIcon {
-    const name = this.dict.getName("Name");
+    const name = this.dict.getName("Name", this.registry.resolve.bind(this.registry));
 
     if (!name) {
       return "PushPin";
@@ -56,22 +56,7 @@ export class PDFFileAttachmentAnnotation extends PDFMarkupAnnotation {
    * Get the file specification dictionary.
    */
   getFileSpec(): PdfDict | null {
-    const fsRef = this.fileSpecRef;
-
-    if (!fsRef) {
-      // Check for direct file spec
-      const fsDict = this.dict.getDict("FS");
-
-      return fsDict ?? null;
-    }
-
-    const resolved = this.registry.resolve(fsRef);
-
-    if (resolved && resolved.type === "dict") {
-      return resolved;
-    }
-
-    return null;
+    return this.dict.getDict("FS", this.registry.resolve.bind(this.registry)) ?? null;
   }
 
   /**
@@ -85,13 +70,13 @@ export class PDFFileAttachmentAnnotation extends PDFMarkupAnnotation {
     }
 
     // Try UF (Unicode file name) first, then F, then DOS/Unix names
-    const uf = fs.getString("UF");
+    const uf = fs.getString("UF", this.registry.resolve.bind(this.registry));
 
     if (uf) {
       return uf.asString();
     }
 
-    const f = fs.getString("F");
+    const f = fs.getString("F", this.registry.resolve.bind(this.registry));
 
     if (f) {
       return f.asString();

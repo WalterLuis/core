@@ -47,7 +47,7 @@ export function createAnnotation(
   ref: PdfRef | null,
   registry: ObjectRegistry,
 ): PDFAnnotation {
-  const subtypeName = dict.getName("Subtype")?.value;
+  const subtypeName = dict.getName("Subtype", registry.resolve.bind(registry))?.value;
 
   const subtype = isAnnotationSubtype(subtypeName) ? subtypeName : "Text";
 
@@ -117,13 +117,13 @@ export function createAnnotation(
 /**
  * Check if an annotation is a Widget (form field).
  */
-export function isWidgetAnnotation(dict: PdfDict): boolean {
-  return dict.getName("Subtype")?.value === "Widget";
+export function isWidgetAnnotation(dict: PdfDict, registry?: ObjectRegistry): boolean {
+  return dict.getName("Subtype", registry?.resolve.bind(registry))?.value === "Widget";
 }
 
 /**
  * Check if an annotation is a Popup.
  */
-export function isPopupAnnotation(dict: PdfDict): boolean {
-  return dict.getName("Subtype")?.value === "Popup";
+export function isPopupAnnotation(dict: PdfDict, registry?: ObjectRegistry): boolean {
+  return dict.getName("Subtype", registry?.resolve.bind(registry))?.value === "Popup";
 }

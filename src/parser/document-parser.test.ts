@@ -265,12 +265,12 @@ describe("DocumentParser", () => {
       // Pages tree - 1 page
       const pagesRef = catalog?.getRef("Pages");
       expect(pagesRef?.objectNumber).toBe(2);
-      const pages = doc.getObject(pagesRef!) as PdfDict;
-      expect(pages.getName("Type")?.value).toBe("Pages");
-      expect(pages.getNumber("Count")?.value).toBe(1);
+      const pages = catalog?.getDict("Pages", doc.getObject.bind(doc));
+      expect(pages?.getName("Type")?.value).toBe("Pages");
+      expect(pages?.getNumber("Count")?.value).toBe(1);
 
       // Page object
-      const kidsArray = pages.getArray("Kids");
+      const kidsArray = pages?.getArray("Kids");
       expect(kidsArray?.length).toBe(1);
       const pageRef = kidsArray?.at(0) as PdfRef;
       const page = doc.getObject(pageRef) as PdfDict;
@@ -304,11 +304,10 @@ describe("DocumentParser", () => {
       expect(catalog?.getName("Type")?.value).toBe("Catalog");
 
       // Verify we can traverse to pages
-      const pagesRef = catalog?.getRef("Pages");
-      expect(pagesRef).toBeDefined();
-      const pages = doc.getObject(pagesRef!) as PdfDict;
-      expect(pages.getName("Type")?.value).toBe("Pages");
-      expect(pages.getNumber("Count")?.value).toBeGreaterThan(0);
+      const pages = catalog?.getDict("Pages", doc.getObject.bind(doc));
+      expect(pages).toBeDefined();
+      expect(pages?.getName("Type")?.value).toBe("Pages");
+      expect(pages?.getNumber("Count")?.value).toBeGreaterThan(0);
     });
 
     it("parses sample.pdf - larger multi-object PDF", async () => {
@@ -325,9 +324,8 @@ describe("DocumentParser", () => {
       expect(catalog).not.toBeNull();
 
       // Verify pages
-      const pagesRef = catalog?.getRef("Pages");
-      const pages = doc.getObject(pagesRef!) as PdfDict;
-      const pageCount = pages.getNumber("Count")?.value;
+      const pages = catalog?.getDict("Pages", doc.getObject.bind(doc));
+      const pageCount = pages?.getNumber("Count")?.value;
       expect(pageCount).toBeGreaterThan(0);
     });
 
@@ -345,12 +343,12 @@ describe("DocumentParser", () => {
       expect(catalog?.getName("Type")?.value).toBe("Catalog");
 
       // Root pages node has 2 kids (intermediate Pages nodes)
-      const pagesRef = catalog?.getRef("Pages");
-      const pages = doc.getObject(pagesRef!) as PdfDict;
-      expect(pages.getName("Type")?.value).toBe("Pages");
-      expect(pages.getNumber("Count")?.value).toBe(4); // Total 4 pages
+      const resolve = doc.getObject.bind(doc);
+      const pages = catalog?.getDict("Pages", resolve);
+      expect(pages?.getName("Type")?.value).toBe("Pages");
+      expect(pages?.getNumber("Count")?.value).toBe(4); // Total 4 pages
 
-      const kids = pages.getArray("Kids");
+      const kids = pages?.getArray("Kids");
       expect(kids?.length).toBe(2); // 2 intermediate nodes
 
       // First intermediate node has 2 pages
@@ -385,11 +383,10 @@ describe("DocumentParser", () => {
       expect(catalog?.getName("Type")?.value).toBe("Catalog");
 
       // Has AcroForm (interactive forms)
-      const acroFormRef = catalog?.getRef("AcroForm");
-      expect(acroFormRef).toBeDefined();
+      const acroForm = catalog?.getDict("AcroForm", doc.getObject.bind(doc));
+      expect(acroForm).toBeDefined();
 
-      const acroForm = doc.getObject(acroFormRef!) as PdfDict;
-      const fields = acroForm.getArray("Fields");
+      const fields = acroForm?.getArray("Fields");
       expect(fields?.length).toBe(2); // 2 form fields
 
       // Verify first field
@@ -416,9 +413,8 @@ describe("DocumentParser", () => {
       expect(catalog?.getName("Type")?.value).toBe("Catalog");
 
       // Verify page tree is accessible
-      const pagesRef = catalog?.getRef("Pages");
-      const pages = doc.getObject(pagesRef!) as PdfDict;
-      expect(pages.getName("Type")?.value).toBe("Pages");
+      const pages = catalog?.getDict("Pages", doc.getObject.bind(doc));
+      expect(pages?.getName("Type")?.value).toBe("Pages");
     });
 
     it("parses simple-openoffice.pdf - OpenOffice-generated PDF", async () => {
@@ -435,9 +431,8 @@ describe("DocumentParser", () => {
       expect(catalog?.getName("Type")?.value).toBe("Catalog");
 
       // OpenOffice PDFs typically have metadata
-      const pagesRef = catalog?.getRef("Pages");
-      const pages = doc.getObject(pagesRef!) as PdfDict;
-      expect(pages.getNumber("Count")?.value).toBeGreaterThan(0);
+      const pages = catalog?.getDict("Pages", doc.getObject.bind(doc));
+      expect(pages?.getNumber("Count")?.value).toBeGreaterThan(0);
     });
 
     it("parses hello3.pdf - linearized PDF with hybrid xref", async () => {
@@ -455,10 +450,9 @@ describe("DocumentParser", () => {
 
       // Linearized PDFs have specific structure
       // Check we can access pages
-      const pagesRef = catalog?.getRef("Pages");
-      expect(pagesRef).toBeDefined();
-      const pages = doc.getObject(pagesRef!) as PdfDict;
-      expect(pages.getName("Type")?.value).toBe("Pages");
+      const pages = catalog?.getDict("Pages", doc.getObject.bind(doc));
+      expect(pages).toBeDefined();
+      expect(pages?.getName("Type")?.value).toBe("Pages");
     });
   });
 
@@ -477,9 +471,8 @@ describe("DocumentParser", () => {
       expect(catalog?.getName("Type")?.value).toBe("Catalog");
 
       // Navigate to page content
-      const pagesRef = catalog?.getRef("Pages");
-      const pages = doc.getObject(pagesRef!) as PdfDict;
-      const kids = pages.getArray("Kids");
+      const pages = catalog?.getDict("Pages", doc.getObject.bind(doc));
+      const kids = pages?.getArray("Kids");
       const pageRef = kids?.at(0) as PdfRef;
       const page = doc.getObject(pageRef) as PdfDict;
 
@@ -504,9 +497,8 @@ describe("DocumentParser", () => {
       expect(catalog?.getName("Type")?.value).toBe("Catalog");
 
       // Should have pages
-      const pagesRef = catalog?.getRef("Pages");
-      const pages = doc.getObject(pagesRef!) as PdfDict;
-      expect(pages.getNumber("Count")?.value).toBeGreaterThan(0);
+      const pages = catalog?.getDict("Pages", doc.getObject.bind(doc));
+      expect(pages?.getNumber("Count")?.value).toBeGreaterThan(0);
     });
 
     it("parses yaddatest.pdf - text content document", async () => {
@@ -523,9 +515,8 @@ describe("DocumentParser", () => {
       expect(catalog?.getName("Type")?.value).toBe("Catalog");
 
       // Verify page structure
-      const pagesRef = catalog?.getRef("Pages");
-      const pages = doc.getObject(pagesRef!) as PdfDict;
-      expect(pages.getName("Type")?.value).toBe("Pages");
+      const pages = catalog?.getDict("Pages", doc.getObject.bind(doc));
+      expect(pages?.getName("Type")?.value).toBe("Pages");
     });
   });
 
@@ -544,9 +535,8 @@ describe("DocumentParser", () => {
       expect(catalog?.getName("Type")?.value).toBe("Catalog");
 
       // Navigate to find a stream and verify it's parseable
-      const pagesRef = catalog?.getRef("Pages");
-      const pages = doc.getObject(pagesRef!) as PdfDict;
-      expect(pages.getNumber("Count")?.value).toBeGreaterThan(0);
+      const pages = catalog?.getDict("Pages", doc.getObject.bind(doc));
+      expect(pages?.getNumber("Count")?.value).toBeGreaterThan(0);
     });
 
     it("parses lzw-sample.pdf - LZWDecode streams", async () => {
@@ -563,9 +553,8 @@ describe("DocumentParser", () => {
       expect(catalog?.getName("Type")?.value).toBe("Catalog");
 
       // Verify page structure
-      const pagesRef = catalog?.getRef("Pages");
-      const pages = doc.getObject(pagesRef!) as PdfDict;
-      expect(pages.getName("Type")?.value).toBe("Pages");
+      const pages = catalog?.getDict("Pages", doc.getObject.bind(doc));
+      expect(pages?.getName("Type")?.value).toBe("Pages");
     });
   });
 
@@ -580,13 +569,12 @@ describe("DocumentParser", () => {
       expect(doc.version).toBeDefined();
 
       // Encrypted PDFs have /Encrypt in trailer
-      const encryptRef = doc.trailer.getRef("Encrypt");
-      expect(encryptRef).toBeDefined();
+      const encrypt = doc.trailer.getDict("Encrypt", doc.getObject.bind(doc));
+      expect(encrypt).toBeDefined();
 
-      // Load encrypt dict to verify encryption parameters
-      const encrypt = doc.getObject(encryptRef!) as PdfDict;
-      expect(encrypt.getName("Filter")?.value).toBe("Standard");
-      expect(encrypt.getNumber("V")?.value).toBe(1); // V=1 for 40-bit RC4
+      // Verify encryption parameters
+      expect(encrypt?.getName("Filter")?.value).toBe("Standard");
+      expect(encrypt?.getNumber("V")?.value).toBe(1); // V=1 for 40-bit RC4
     });
 
     it("detects encryption in PasswordSample-128bit.pdf (RC4 128-bit)", async () => {
@@ -598,12 +586,11 @@ describe("DocumentParser", () => {
 
       expect(doc.version).toBeDefined();
 
-      const encryptRef = doc.trailer.getRef("Encrypt");
-      expect(encryptRef).toBeDefined();
+      const encrypt = doc.trailer.getDict("Encrypt", doc.getObject.bind(doc));
+      expect(encrypt).toBeDefined();
 
-      const encrypt = doc.getObject(encryptRef!) as PdfDict;
-      expect(encrypt.getName("Filter")?.value).toBe("Standard");
-      expect(encrypt.getNumber("V")?.value).toBe(2); // V=2 for 128-bit RC4
+      expect(encrypt?.getName("Filter")?.value).toBe("Standard");
+      expect(encrypt?.getNumber("V")?.value).toBe(2); // V=2 for 128-bit RC4
     });
 
     it("detects encryption in PasswordSample-256bit.pdf (AES 256-bit)", async () => {
@@ -615,13 +602,12 @@ describe("DocumentParser", () => {
 
       expect(doc.version).toBeDefined();
 
-      const encryptRef = doc.trailer.getRef("Encrypt");
-      expect(encryptRef).toBeDefined();
+      const encrypt = doc.trailer.getDict("Encrypt", doc.getObject.bind(doc));
+      expect(encrypt).toBeDefined();
 
-      const encrypt = doc.getObject(encryptRef!) as PdfDict;
-      expect(encrypt.getName("Filter")?.value).toBe("Standard");
+      expect(encrypt?.getName("Filter")?.value).toBe("Standard");
       // V=5 for AES-256
-      expect(encrypt.getNumber("V")?.value).toBeGreaterThanOrEqual(4);
+      expect(encrypt?.getNumber("V")?.value).toBeGreaterThanOrEqual(4);
     });
 
     it("detects encryption in AESkeylength128.pdf (public key encryption)", async () => {
@@ -633,14 +619,13 @@ describe("DocumentParser", () => {
 
       expect(doc.version).toBeDefined();
 
-      const encryptRef = doc.trailer.getRef("Encrypt");
-      expect(encryptRef).toBeDefined();
+      const encrypt = doc.trailer.getDict("Encrypt", doc.getObject.bind(doc));
+      expect(encrypt).toBeDefined();
 
-      const encrypt = doc.getObject(encryptRef!) as PdfDict;
       // Adobe.PubSec = certificate-based (public key) encryption
-      expect(encrypt.getName("Filter")?.value).toBe("Adobe.PubSec");
+      expect(encrypt?.getName("Filter")?.value).toBe("Adobe.PubSec");
       // V=4 for AES-128
-      expect(encrypt.getNumber("V")?.value).toBe(4);
+      expect(encrypt?.getNumber("V")?.value).toBe(4);
     });
 
     it("detects encryption in AESkeylength256.pdf (public key encryption)", async () => {
@@ -652,14 +637,13 @@ describe("DocumentParser", () => {
 
       expect(doc.version).toBeDefined();
 
-      const encryptRef = doc.trailer.getRef("Encrypt");
-      expect(encryptRef).toBeDefined();
+      const encrypt = doc.trailer.getDict("Encrypt", doc.getObject.bind(doc));
+      expect(encrypt).toBeDefined();
 
-      const encrypt = doc.getObject(encryptRef!) as PdfDict;
       // Adobe.PubSec = certificate-based (public key) encryption
-      expect(encrypt.getName("Filter")?.value).toBe("Adobe.PubSec");
+      expect(encrypt?.getName("Filter")?.value).toBe("Adobe.PubSec");
       // V=5 for AES-256
-      expect(encrypt.getNumber("V")?.value).toBe(5);
+      expect(encrypt?.getNumber("V")?.value).toBe(5);
     });
   });
 
@@ -920,9 +904,8 @@ describe("DocumentParser", () => {
       expect(catalog).not.toBeNull();
 
       // Metadata says 11 pages
-      const pagesRef = catalog?.getRef("Pages");
-      if (pagesRef) {
-        const pagesDict = doc.getObject(pagesRef) as PdfDict;
+      const pagesDict = catalog?.getDict("Pages", doc.getObject.bind(doc));
+      if (pagesDict) {
         expect(pagesDict.getNumber("Count")?.value).toBe(11);
       }
 

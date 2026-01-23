@@ -17,9 +17,13 @@
  * >>
  */
 
+import type { RefResolver } from "#src/helpers/types.ts";
 import { PdfArray } from "#src/objects/pdf-array";
-import type { PdfDict } from "#src/objects/pdf-dict";
+import { PdfDict } from "#src/objects/pdf-dict";
+import { PdfName } from "#src/objects/pdf-name.ts";
+import type { PdfObject } from "#src/objects/pdf-object.ts";
 import { PdfRef } from "#src/objects/pdf-ref.ts";
+import { PdfStream } from "#src/objects/pdf-stream.ts";
 
 import { CIDFont, parseCIDFont } from "./cid-font";
 import { CMap, parseCMap } from "./cmap";
@@ -139,39 +143,27 @@ export class CompositeFont extends PdfFont {
  * Parse CMap from encoding value.
  */
 function parseCMapFromEncoding(
-  encodingValue: unknown,
+  encodingValue: PdfObject | undefined,
   options: {
-    resolveRef?: (ref: unknown) => PdfDict | PdfArray | null;
-    decodeStream?: (stream: unknown) => Uint8Array | null;
+    resolver?: RefResolver;
   },
 ): CMap {
-  if (!encodingValue || typeof encodingValue !== "object") {
-    return CMap.identityH();
+  let encoding = encodingValue;
+
+  if (encoding instanceof PdfRef && options.resolver) {
+    encoding = options.resolver(encoding) ?? undefined;
   }
 
-  const enc = encodingValue as { type?: string; value?: string };
-
   // Predefined CMap (e.g., Identity-H)
-  if (enc.type === "name" && enc.value) {
-    return CMap.getPredefined(enc.value) ?? CMap.identityH();
+  if (encoding instanceof PdfName && encoding.value) {
+    return CMap.getPredefined(encoding.value) ?? CMap.identityH();
   }
 
   // Embedded CMap stream
-  if (enc.type === "stream" && options.decodeStream) {
-    const data = options.decodeStream(encodingValue);
+  if (encoding instanceof PdfStream) {
+    const data = encoding.getDecodedData();
 
     return data ? parseCMap(data) : CMap.identityH();
-  }
-
-  // Reference to CMap stream
-  if (enc.type === "ref" && options.resolveRef && options.decodeStream) {
-    const resolved = options.resolveRef(encodingValue);
-
-    if (resolved && (resolved as { type?: string }).type === "stream") {
-      const data = options.decodeStream(resolved);
-
-      return data ? parseCMap(data) : CMap.identityH();
-    }
   }
 
   return CMap.identityH();
@@ -183,43 +175,29 @@ function parseCMapFromEncoding(
 export function parseCompositeFont(
   dict: PdfDict,
   options: {
-    resolveRef?: (ref: unknown) => PdfDict | PdfArray | null;
-    decodeStream?: (stream: unknown) => Uint8Array | null;
+    resolver?: RefResolver;
     toUnicodeMap?: ToUnicodeMap | null;
   } = {},
 ): CompositeFont {
-  const baseFontName = dict.getName("BaseFont")?.value ?? "Unknown";
+  const baseFontName = dict.getName("BaseFont", options.resolver)?.value ?? "Unknown";
 
   // Parse encoding (CMap)
-  const cmap = parseCMapFromEncoding(dict.get("Encoding"), options);
+  const cmap = parseCMapFromEncoding(dict.get("Encoding", options.resolver), options);
 
   // Parse DescendantFonts (should be array with one CIDFont)
   // DescendantFonts can be inline array or a ref to an array
   let cidFont: CIDFont;
-  let descendants = dict.get("DescendantFonts");
+  let descendants = dict.get("DescendantFonts", options.resolver);
   let descendantsArray: PdfArray | null = null;
-
-  // If DescendantFonts is a ref, resolve it
-  if (descendants instanceof PdfRef && options.resolveRef) {
-    descendants = options.resolveRef(descendants) ?? undefined;
-  }
 
   if (descendants instanceof PdfArray) {
     descendantsArray = descendants;
   }
 
   if (descendantsArray && descendantsArray.length > 0) {
-    const firstDescendant = descendantsArray.at(0);
+    const firstDescendant = descendantsArray.at(0, options.resolver);
 
-    if (firstDescendant?.type === "ref" && options.resolveRef) {
-      const cidFontDict = options.resolveRef(firstDescendant);
-
-      if (cidFontDict?.type === "dict") {
-        cidFont = parseCIDFont(cidFontDict, options);
-      } else {
-        cidFont = createDefaultCIDFont(baseFontName);
-      }
-    } else if (firstDescendant?.type === "dict") {
+    if (firstDescendant instanceof PdfDict) {
       cidFont = parseCIDFont(firstDescendant, options);
     } else {
       cidFont = createDefaultCIDFont(baseFontName);

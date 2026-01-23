@@ -64,21 +64,8 @@ export class AcroForm implements AcroFormLike {
    * @param pageTree Optional page tree for efficient page lookups during flattening
    */
   static load(catalog: PdfDict, registry: ObjectRegistry, pageTree?: PDFPageTree): AcroForm | null {
-    let acroFormEntry = catalog.get("AcroForm");
-
-    if (!acroFormEntry) {
-      return null;
-    }
-
-    let dict: PdfDict | null = null;
-
-    if (acroFormEntry instanceof PdfRef) {
-      acroFormEntry = registry.resolve(acroFormEntry) ?? undefined;
-    }
-
-    if (acroFormEntry instanceof PdfDict) {
-      dict = acroFormEntry;
-    }
+    const resolve = registry.resolve.bind(registry);
+    const dict = catalog.getDict("AcroForm", resolve);
 
     if (!dict) {
       return null;
@@ -91,21 +78,7 @@ export class AcroForm implements AcroFormLike {
    * Default resources dictionary (fonts, etc.).
    */
   getDefaultResources(): PdfDict | null {
-    let dr = this.dict.get("DR");
-
-    if (!dr) {
-      return null;
-    }
-
-    if (dr instanceof PdfRef) {
-      dr = this.registry.resolve(dr) ?? undefined;
-    }
-
-    if (dr instanceof PdfDict) {
-      return dr;
-    }
-
-    return null;
+    return this.dict.getDict("DR", this.registry.resolve.bind(this.registry)) ?? null;
   }
 
   /**
@@ -322,13 +295,15 @@ export class AcroForm implements AcroFormLike {
 
     this.existingFontsCache = new Map();
 
-    const dr = this.dict.getDict("DR");
+    const resolve = this.registry.resolve.bind(this.registry);
+
+    const dr = this.dict.getDict("DR", resolve);
 
     if (!dr) {
       return;
     }
 
-    const fonts = dr.getDict("Font");
+    const fonts = dr.getDict("Font", resolve);
 
     if (!fonts) {
       return;
@@ -685,8 +660,10 @@ export class AcroForm implements AcroFormLike {
    * @returns The font name used in the /DR dictionary
    */
   addFontToResources(fontRef: PdfRef, name?: string): string {
+    const resolve = this.registry.resolve.bind(this.registry);
+
     // Ensure /DR exists
-    let dr = this.dict.getDict("DR");
+    let dr = this.dict.getDict("DR", resolve);
 
     if (!dr) {
       dr = new PdfDict();
@@ -694,7 +671,7 @@ export class AcroForm implements AcroFormLike {
     }
 
     // Ensure /DR/Font exists
-    let fontsDict = dr.getDict("Font");
+    let fontsDict = dr.getDict("Font", resolve);
 
     if (!fontsDict) {
       fontsDict = new PdfDict();

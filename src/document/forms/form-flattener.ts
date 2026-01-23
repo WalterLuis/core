@@ -246,7 +246,7 @@ export class FormFlattener {
         continue;
       }
 
-      const annots = pageDict.getArray("Annots");
+      const annots = pageDict.getArray("Annots", this.registry.resolve.bind(this.registry));
 
       if (!annots) {
         continue;
@@ -282,14 +282,15 @@ export class FormFlattener {
     }
 
     // Get or create page resources
-    let resources = pageDict.getDict("Resources");
+    const resolve = this.registry.resolve.bind(this.registry);
+    let resources = pageDict.getDict("Resources", resolve);
 
     if (!resources) {
       resources = new PdfDict();
       pageDict.set("Resources", resources);
     }
 
-    let xObjects = resources.getDict("XObject");
+    let xObjects = resources.getDict("XObject", resolve);
 
     if (!xObjects) {
       xObjects = new PdfDict();
@@ -364,7 +365,7 @@ export class FormFlattener {
    * Per PDFBox: BBox must exist and have width/height > 0.
    */
   private isVisibleAppearance(appearance: PdfStream): boolean {
-    const bbox = appearance.getArray("BBox");
+    const bbox = appearance.getArray("BBox", this.registry.resolve.bind(this.registry));
 
     if (!bbox || bbox.length < 4) {
       return false;
@@ -523,7 +524,7 @@ export class FormFlattener {
    * Get the appearance stream's transformation matrix.
    */
   private getAppearanceMatrix(appearance: PdfStream): Matrix {
-    const matrixArray = appearance.getArray("Matrix");
+    const matrixArray = appearance.getArray("Matrix", this.registry.resolve.bind(this.registry));
 
     if (!matrixArray || matrixArray.length < 6) {
       return Matrix.identity();
@@ -541,7 +542,7 @@ export class FormFlattener {
    */
   private getAppearanceBBox(appearance: PdfStream): [number, number, number, number] {
     // PdfStream extends PdfDict, so we call getArray directly
-    const bbox = appearance.getArray("BBox");
+    const bbox = appearance.getArray("BBox", this.registry.resolve.bind(this.registry));
 
     if (!bbox || bbox.length < 4) {
       return [0, 0, 1, 1]; // Fallback
@@ -558,24 +559,7 @@ export class FormFlattener {
    * Remove specific annotations from page.
    */
   private removeAnnotations(page: PdfDict, toRemove: Set<string>): void {
-    // Get Annots - may be direct array or a reference to an array
-    const annotsEntry = page.get("Annots");
-
-    if (!annotsEntry) {
-      return;
-    }
-
-    let annots: PdfArray | null = null;
-
-    if (annotsEntry instanceof PdfArray) {
-      annots = annotsEntry;
-    } else if (annotsEntry instanceof PdfRef) {
-      const resolved = this.registry.resolve(annotsEntry);
-
-      if (resolved instanceof PdfArray) {
-        annots = resolved;
-      }
-    }
+    const annots = page.getArray("Annots", this.registry.resolve.bind(this.registry));
 
     if (!annots) {
       return;

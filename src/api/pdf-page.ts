@@ -353,9 +353,9 @@ export class PDFPage {
    * Page rotation in degrees (0, 90, 180, or 270).
    */
   get rotation(): 0 | 90 | 180 | 270 {
-    const rotate = this.dict.get("Rotate");
+    const rotate = this.dict.getNumber("Rotate", this.ctx.resolve.bind(this.ctx));
 
-    if (rotate instanceof PdfNumber) {
+    if (rotate) {
       const value = rotate.value % 360;
       // Normalize to 0, 90, 180, 270
 
@@ -400,11 +400,7 @@ export class PDFPage {
    * a new empty dict is created on this page.
    */
   getResources(): PdfDict {
-    let resources = this.dict.get("Resources");
-
-    if (resources instanceof PdfRef) {
-      resources = this.ctx.resolve(resources) ?? undefined;
-    }
+    let resources = this.dict.get("Resources", this.ctx.resolve.bind(this.ctx));
 
     if (resources instanceof PdfDict) {
       return resources;
@@ -1382,19 +1378,10 @@ export class PDFPage {
         continue;
       }
 
-      let annotDict: PdfDict | null = null;
-      let annotRef: PdfRef | null = null;
+      const resolved = entry instanceof PdfRef ? this.ctx.resolve(entry) : entry;
 
-      if (entry instanceof PdfRef) {
-        annotRef = entry;
-        const resolved = this.ctx.resolve(entry);
-
-        if (resolved instanceof PdfDict) {
-          annotDict = resolved;
-        }
-      } else if (entry instanceof PdfDict) {
-        annotDict = entry;
-      }
+      const annotRef = entry instanceof PdfRef ? entry : null;
+      const annotDict = resolved instanceof PdfDict ? resolved : null;
 
       if (!annotDict) {
         continue;
@@ -1439,18 +1426,10 @@ export class PDFPage {
         continue;
       }
 
-      let annotDict: PdfDict | null = null;
-      let annotRef: PdfRef | null = null;
+      const resolved = entry instanceof PdfRef ? this.ctx.resolve(entry) : entry;
 
-      if (entry instanceof PdfRef) {
-        annotRef = entry;
-
-        entry = this.ctx.resolve(entry) ?? undefined;
-      }
-
-      if (entry instanceof PdfDict) {
-        annotDict = entry;
-      }
+      const annotRef = entry instanceof PdfRef ? entry : null;
+      const annotDict = resolved instanceof PdfDict ? resolved : null;
 
       if (!annotDict || !isPopupAnnotation(annotDict)) {
         continue;
@@ -2126,18 +2105,38 @@ export class PDFPage {
     if (!existingContents) {
       // No existing content - just set our stream
       this.dict.set("Contents", newContent);
-    } else if (existingContents instanceof PdfRef) {
+
+      return;
+    }
+
+    if (existingContents instanceof PdfRef) {
       // Reference to a stream - wrap in array with our content first
       this.dict.set("Contents", new PdfArray([newContent, existingContents]));
-      this._contentWrapped = true; // Mark as modified to prevent double-wrapping in appendContent
-    } else if (existingContents instanceof PdfStream) {
+
+      // Mark as modified to prevent double-wrapping in appendContent
+      this._contentWrapped = true;
+
+      return;
+    }
+
+    if (existingContents instanceof PdfStream) {
       // Direct stream - wrap in array with our content first
       this.dict.set("Contents", new PdfArray([newContent, existingContents]));
-      this._contentWrapped = true; // Mark as modified to prevent double-wrapping in appendContent
-    } else if (existingContents instanceof PdfArray) {
+
+      // Mark as modified to prevent double-wrapping in appendContent
+      this._contentWrapped = true;
+
+      return;
+    }
+
+    if (existingContents instanceof PdfArray) {
       // Array of streams/refs - prepend our stream
       existingContents.insert(0, newContent);
-      this._contentWrapped = true; // Mark as modified to prevent double-wrapping in appendContent
+
+      // Mark as modified to prevent double-wrapping in appendContent
+      this._contentWrapped = true;
+
+      return;
     }
   }
 
@@ -2164,37 +2163,54 @@ export class PDFPage {
     // First time appending: wrap existing content in q/Q to isolate CTM changes
     if (!this._contentWrapped) {
       this._contentWrapped = true;
+
       const qStream = this.createContentStream("q\n");
       const QStream = this.createContentStream("\nQ");
 
       if (existingContents instanceof PdfRef) {
         this.dict.set("Contents", new PdfArray([qStream, existingContents, QStream, newContent]));
-      } else if (existingContents instanceof PdfStream) {
+
+        return;
+      }
+
+      if (existingContents instanceof PdfStream) {
         this.dict.set("Contents", new PdfArray([qStream, existingContents, QStream, newContent]));
-      } else if (existingContents instanceof PdfArray) {
+
+        return;
+      }
+
+      if (existingContents instanceof PdfArray) {
         // Insert q at beginning, Q after existing, then our content
         const newArray = new PdfArray([qStream]);
+
         for (let i = 0; i < existingContents.length; i++) {
           const item = existingContents.at(i);
+
           if (item) {
             newArray.push(item);
           }
         }
+
         newArray.push(QStream);
         newArray.push(newContent);
-        this.dict.set("Contents", newArray);
-      }
-    } else {
-      // Already wrapped - just append our new content
-      const contents = this.dict.get("Contents");
 
-      if (contents instanceof PdfArray) {
-        contents.push(newContent);
-      } else if (contents !== undefined) {
-        // Unexpected state - contents should be an array after wrapping
-        // Wrap in array now to recover
-        this.dict.set("Contents", new PdfArray([contents, newContent]));
+        this.dict.set("Contents", newArray);
+
+        return;
       }
+    }
+
+    // Existing content is already wrapped - just append our content
+    if (existingContents instanceof PdfArray) {
+      existingContents.push(newContent);
+
+      return;
+    }
+
+    if (existingContents !== undefined) {
+      // Unexpected state - contents should be an array after wrapping
+      // Wrap in array now to recover
+      this.dict.set("Contents", new PdfArray([existingContents, newContent]));
     }
   }
 
@@ -2202,7 +2218,7 @@ export class PDFPage {
    * Get a box (MediaBox, CropBox, etc.) from the page dictionary.
    */
   private getBox(name: string): Rectangle | null {
-    const box = this.dict.get(name);
+    const box = this.dict.get(name, this.ctx.resolve.bind(this.ctx));
 
     if (!(box instanceof PdfArray) || box.length < 4) {
       return null;
@@ -2260,6 +2276,7 @@ export class PDFPage {
    */
   private appendOperators(ops: Operator[]): void {
     const content = ops.map(op => op.toString()).join("\n");
+
     this.appendContent(content);
   }
 
@@ -2268,7 +2285,8 @@ export class PDFPage {
    */
   private addFontResource(font: FontInput): string {
     const resources = this.getResources();
-    let fonts = resources.get("Font");
+
+    let fonts = resources.get("Font", this.ctx.resolve.bind(this.ctx));
 
     if (!(fonts instanceof PdfDict)) {
       fonts = new PdfDict();
@@ -2284,7 +2302,7 @@ export class PDFPage {
       // Check if we already have this font
       for (const [existingName, value] of fonts) {
         if (value instanceof PdfDict) {
-          const baseFont = value.get("BaseFont");
+          const baseFont = value.get("BaseFont", this.ctx.resolve.bind(this.ctx));
 
           if (baseFont instanceof PdfName && baseFont.value === font) {
             return existingName.value;
@@ -2432,19 +2450,10 @@ export class PDFPage {
    * Get the concatenated content stream bytes.
    */
   private getContentBytes(): Uint8Array {
-    const contents = this.dict.get("Contents");
+    const contents = this.dict.get("Contents", this.ctx.resolve.bind(this.ctx));
 
     if (!contents) {
       return new Uint8Array(0);
-    }
-
-    // Single stream reference
-    if (contents instanceof PdfRef && this.ctx) {
-      const stream = this.ctx.resolve(contents);
-
-      if (stream instanceof PdfStream) {
-        return stream.getDecodedData();
-      }
     }
 
     // Direct stream
@@ -2457,15 +2466,9 @@ export class PDFPage {
       const chunks: Uint8Array[] = [];
 
       for (let i = 0; i < contents.length; i++) {
-        const item = contents.at(i);
+        const item = contents.at(i, this.ctx.resolve.bind(this.ctx));
 
-        if (item instanceof PdfRef && this.ctx) {
-          const stream = this.ctx.resolve(item);
-
-          if (stream instanceof PdfStream) {
-            chunks.push(stream.getDecodedData());
-          }
-        } else if (item instanceof PdfStream) {
+        if (item instanceof PdfStream) {
           chunks.push(item.getDecodedData());
         }
       }
@@ -2518,29 +2521,17 @@ export class PDFPage {
 
     while (currentDict) {
       // Check for Resources on the current node
-      const resourcesEntry = currentDict.get("Resources");
+      const resources = currentDict.get("Resources", this.ctx.resolve.bind(this.ctx));
 
-      if (resourcesEntry instanceof PdfRef) {
-        const resolved = this.ctx.resolve(resourcesEntry);
-
-        if (resolved instanceof PdfDict) {
-          return resolved;
-        }
-      } else if (resourcesEntry instanceof PdfDict) {
-        return resourcesEntry;
+      if (resources instanceof PdfDict) {
+        return resources;
       }
 
       // Walk up to the Parent node
-      const parentEntry = currentDict.get("Parent");
+      const parent = currentDict.get("Parent", this.ctx.resolve.bind(this.ctx));
 
-      if (parentEntry instanceof PdfRef) {
-        const parent = this.ctx.resolve(parentEntry);
-
-        if (parent instanceof PdfDict) {
-          currentDict = parent;
-        } else {
-          break;
-        }
+      if (parent instanceof PdfDict) {
+        currentDict = parent;
       } else {
         break;
       }
@@ -2560,185 +2551,42 @@ export class PDFPage {
       return () => null;
     }
 
-    let fontDict: PdfDict | null = null;
-    const fontEntry = resourcesDict.get("Font");
+    const font = resourcesDict.getDict("Font", this.ctx.resolve.bind(this.ctx));
 
-    // Resolve if it's a reference
-    if (fontEntry instanceof PdfRef && this.ctx) {
-      const resolved = this.ctx.resolve(fontEntry);
-
-      if (resolved instanceof PdfDict) {
-        fontDict = resolved;
-      }
-    } else if (fontEntry instanceof PdfDict) {
-      fontDict = fontEntry;
-    }
-
-    if (!fontDict) {
+    if (!font) {
       return () => null;
     }
 
     // Preload all font dictionaries and build the cache
     const fontCache = new Map<string, PdfFont>();
 
-    for (const [nameObj, fontEntry] of fontDict) {
-      const name = nameObj.value;
-      let fontDictEntry: PdfDict | null = null;
+    for (const [key, entry] of font) {
+      const name = key.value;
+      const resolved = entry instanceof PdfRef ? this.ctx.resolve(entry) : entry;
 
-      if (fontEntry instanceof PdfRef && this.ctx) {
-        const resolved = this.ctx.resolve(fontEntry);
+      let entryDict = resolved instanceof PdfDict ? resolved : null;
 
-        if (resolved instanceof PdfDict) {
-          fontDictEntry = resolved;
-        }
-      } else if (fontEntry instanceof PdfDict) {
-        fontDictEntry = fontEntry;
-      }
-
-      if (!fontDictEntry) {
+      if (!entryDict) {
         continue;
       }
 
       // Parse ToUnicode CMap if present
       let toUnicodeMap = null;
-      const toUnicodeEntry = fontDictEntry.get("ToUnicode");
 
-      if (toUnicodeEntry && this.ctx) {
-        let toUnicodeStream: PdfStream | null = null;
+      const toUnicode = entryDict.get("ToUnicode", this.ctx.resolve.bind(this.ctx));
+      const toUnicodeStream = toUnicode instanceof PdfStream ? toUnicode : null;
 
-        if (toUnicodeEntry instanceof PdfRef) {
-          const resolved = this.ctx.resolve(toUnicodeEntry);
-
-          if (resolved instanceof PdfStream) {
-            toUnicodeStream = resolved;
-          }
-        } else if (toUnicodeEntry instanceof PdfStream) {
-          toUnicodeStream = toUnicodeEntry;
-        }
-
-        if (toUnicodeStream) {
-          try {
-            const decoded = toUnicodeStream.getDecodedData();
-            toUnicodeMap = parseToUnicode(decoded);
-          } catch {
-            // ToUnicode parsing failed - continue without it
-          }
+      if (toUnicodeStream) {
+        try {
+          toUnicodeMap = parseToUnicode(toUnicodeStream.getDecodedData());
+        } catch {
+          // ToUnicode parsing failed - continue without it
         }
       }
 
-      // Pre-resolve all refs that parseFont might need (DescendantFonts, FontDescriptor, etc.)
-      // This is necessary because parseFont uses a synchronous resolveRef callback,
-      // but ctx.getObject() doesn't work for all refs - only ctx.resolve() does.
-      const resolvedRefs = new Map<string, PdfDict | PdfArray | PdfStream>();
-      // Pre-decoded stream data (keyed by ref string for consistent lookup)
-      const decodedStreams = new Map<string, Uint8Array>();
-
-      const preResolveValue = (value: unknown): void => {
-        // If it's a ref, resolve it and cache
-        if (value instanceof PdfRef) {
-          const key = `${value.objectNumber} ${value.generation} R`;
-          if (resolvedRefs.has(key)) {
-            return;
-          }
-
-          const resolved = this.ctx.resolve(value);
-          if (
-            resolved instanceof PdfDict ||
-            resolved instanceof PdfArray ||
-            resolved instanceof PdfStream
-          ) {
-            resolvedRefs.set(key, resolved);
-            // Pre-decode streams (for font file data)
-            if (resolved instanceof PdfStream) {
-              try {
-                const decoded = resolved.getDecodedData();
-                decodedStreams.set(key, decoded);
-              } catch {
-                // Decoding failed - will use raw data as fallback
-              }
-            }
-            // Recursively resolve nested values
-            preResolveValue(resolved);
-          }
-        } else if (value instanceof PdfDict) {
-          // Traverse dict values
-          for (const [, v] of value) {
-            preResolveValue(v);
-          }
-        } else if (value instanceof PdfArray) {
-          // Traverse array items
-          for (let i = 0; i < value.length; i++) {
-            preResolveValue(value.at(i));
-          }
-        }
-      };
-
-      // Pre-resolve DescendantFonts (critical for composite fonts)
-      const descendantFontsEntry = fontDictEntry.get("DescendantFonts");
-      preResolveValue(descendantFontsEntry);
-
-      // Pre-resolve FontDescriptor (for simple fonts)
-      const fontDescriptorEntry = fontDictEntry.get("FontDescriptor");
-      preResolveValue(fontDescriptorEntry);
-
-      // Pre-resolve Encoding if it's a ref
-      const encodingEntry = fontDictEntry.get("Encoding");
-      preResolveValue(encodingEntry);
-
-      // Pre-resolve Widths if it's a ref (for simple fonts)
-      const widthsEntry = fontDictEntry.get("Widths");
-      preResolveValue(widthsEntry);
-
-      // Parse the font with resolved references
-      const pdfFont = parseFont(fontDictEntry, {
-        resolveRef: ref => {
-          if (ref instanceof PdfRef && this.ctx) {
-            const obj = this.ctx.resolve(ref);
-
-            if (obj instanceof PdfDict || obj instanceof PdfArray || obj instanceof PdfStream) {
-              return obj;
-            }
-          }
-
-          return null;
-        },
-        decodeStream: stream => {
-          // Check if it's a ref - look up pre-decoded data by ref key
-          if (stream instanceof PdfRef) {
-            const key = `${stream.objectNumber} ${stream.generation} R`;
-            const decoded = decodedStreams.get(key);
-
-            if (decoded) {
-              return decoded;
-            }
-
-            // Fallback to resolving and using raw data
-            const preResolved = resolvedRefs.get(key);
-
-            if (preResolved instanceof PdfStream) {
-              return preResolved.data;
-            }
-          }
-
-          // Direct stream - need to find the ref key that resolved to this stream
-          if (stream instanceof PdfStream) {
-            // Search for the stream in resolvedRefs to find its key
-            for (const [key, resolved] of resolvedRefs) {
-              if (resolved === stream) {
-                const decoded = decodedStreams.get(key);
-
-                if (decoded) {
-                  return decoded;
-                }
-              }
-            }
-
-            // Fallback to raw data
-            return stream.data;
-          }
-
-          return null;
-        },
+      // Parse the font
+      const pdfFont = parseFont(entryDict, {
+        resolver: this.ctx.resolve.bind(this.ctx),
         toUnicodeMap,
       });
 

@@ -78,7 +78,7 @@ export class PDFAnnotation {
    * Annotation subtype (e.g., "Text", "Highlight", "Link").
    */
   get type(): AnnotationSubtype {
-    const subtype = this.dict.getName("Subtype")?.value;
+    const subtype = this.dict.getName("Subtype", this.registry.resolve.bind(this.registry))?.value;
 
     return isAnnotationSubtype(subtype) ? subtype : "Text";
   }
@@ -87,7 +87,7 @@ export class PDFAnnotation {
    * Annotation rectangle in page coordinates.
    */
   get rect(): Rect {
-    const arr = this.dict.getArray("Rect");
+    const arr = this.dict.getArray("Rect", this.registry.resolve.bind(this.registry));
 
     if (!arr || arr.length < 4) {
       return { x: 0, y: 0, width: 0, height: 0 };
@@ -109,7 +109,7 @@ export class PDFAnnotation {
    * Set the annotation rectangle.
    */
   setRect(rect: Rect): void {
-    const arr = this.dict.getArray("Rect");
+    const arr = this.dict.getArray("Rect", this.registry.resolve.bind(this.registry));
 
     if (arr && arr.length >= 4) {
       arr.set(0, PdfNumber.of(rect.x));
@@ -135,7 +135,7 @@ export class PDFAnnotation {
    * Text content or description of the annotation.
    */
   get contents(): string | null {
-    const str = this.dict.getString("Contents");
+    const str = this.dict.getString("Contents", this.registry.resolve.bind(this.registry));
 
     return str?.asString() ?? null;
   }
@@ -152,7 +152,7 @@ export class PDFAnnotation {
    * Annotation name (unique identifier within page).
    */
   get name(): string | null {
-    const name = this.dict.getString("NM");
+    const name = this.dict.getString("NM", this.registry.resolve.bind(this.registry));
 
     return name?.asString() ?? null;
   }
@@ -169,7 +169,7 @@ export class PDFAnnotation {
    * Modification date.
    */
   get modificationDate(): string | null {
-    const m = this.dict.getString("M");
+    const m = this.dict.getString("M", this.registry.resolve.bind(this.registry));
 
     return m?.asString() ?? null;
   }
@@ -186,7 +186,7 @@ export class PDFAnnotation {
    * Annotation flags.
    */
   get flags(): number {
-    return this.dict.getNumber("F")?.value ?? 0;
+    return this.dict.getNumber("F", this.registry.resolve.bind(this.registry))?.value ?? 0;
   }
 
   /**
@@ -244,7 +244,7 @@ export class PDFAnnotation {
    * Annotation color.
    */
   get color(): Color | null {
-    const arr = this.dict.getArray("C");
+    const arr = this.dict.getArray("C", this.registry.resolve.bind(this.registry));
 
     return parseColorArray(arr);
   }
@@ -266,19 +266,19 @@ export class PDFAnnotation {
    * Get the border style.
    */
   getBorderStyle(): BorderStyle | null {
-    const bs = this.dict.getDict("BS");
+    const bs = this.dict.getDict("BS", this.registry.resolve.bind(this.registry));
 
     if (!bs) {
       return null;
     }
 
-    const width = bs.getNumber("W")?.value ?? 1;
-    const styleCode = bs.getName("S")?.value ?? "S";
+    const width = bs.getNumber("W", this.registry.resolve.bind(this.registry))?.value ?? 1;
+    const styleCode = bs.getName("S", this.registry.resolve.bind(this.registry))?.value ?? "S";
     const style = BORDER_STYLE_MAP[styleCode] ?? "solid";
 
     const result: BorderStyle = { width, style };
 
-    const dashArr = bs.getArray("D");
+    const dashArr = bs.getArray("D", this.registry.resolve.bind(this.registry));
 
     if (dashArr) {
       result.dashArray = [];
@@ -320,13 +320,9 @@ export class PDFAnnotation {
    * Check if the annotation has a normal appearance stream.
    */
   hasNormalAppearance(): boolean {
-    let ap = this.dict.get("AP");
+    const ap = this.dict.getDict("AP", this.registry.resolve.bind(this.registry));
 
-    if (ap instanceof PdfRef) {
-      ap = this.registry.resolve(ap) ?? undefined;
-    }
-
-    if (ap instanceof PdfDict) {
+    if (ap) {
       return ap.has("N");
     }
 
@@ -379,26 +375,13 @@ export class PDFAnnotation {
    * Get an appearance stream by type.
    */
   private getAppearance(type: "N" | "R" | "D"): PdfStream | null {
-    let ap = this.dict.get("AP");
+    let ap = this.dict.getDict("AP", this.registry.resolve.bind(this.registry));
 
-    if (ap instanceof PdfRef) {
-      ap = this.registry.resolve(ap) ?? undefined;
-    }
-
-    if (!(ap instanceof PdfDict)) {
+    if (!ap) {
       return null;
     }
 
-    let entry = ap.get(type);
-
-    if (!entry) {
-      return null;
-    }
-
-    // Resolve if it's a reference
-    if (entry instanceof PdfRef) {
-      entry = this.registry.resolve(entry) ?? undefined;
-    }
+    let entry = ap.get(type, this.registry.resolve.bind(this.registry));
 
     if (entry instanceof PdfStream) {
       return entry;
@@ -413,16 +396,14 @@ export class PDFAnnotation {
    * Set an appearance stream by type.
    */
   private setAppearance(type: "N" | "R" | "D", stream: PdfStream): void {
-    let ap = this.dict.get("AP");
-
-    if (ap instanceof PdfRef) {
-      ap = this.registry.resolve(ap) ?? undefined;
-    }
+    let ap = this.dict.getDict("AP", this.registry.resolve.bind(this.registry));
 
     if (ap instanceof PdfDict) {
       // Register the stream and store the reference
       const streamRef = this.registry.register(stream);
+
       ap.set(type, streamRef);
+
       this.markModified();
 
       return;

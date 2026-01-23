@@ -92,7 +92,7 @@ export class PDFInkAnnotation extends PDFMarkupAnnotation {
    * Each path is an array of points.
    */
   get inkPaths(): Point[][] {
-    const inkList = this.dict.getArray("InkList");
+    const inkList = this.dict.getArray("InkList", this.registry.resolve.bind(this.registry));
 
     if (!inkList) {
       return [];

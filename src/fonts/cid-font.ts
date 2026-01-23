@@ -18,9 +18,12 @@
  * >>
  */
 
+import type { RefResolver } from "#src/helpers/types.ts";
+import { PdfName } from "#src/index.ts";
 import { PdfArray } from "#src/objects/pdf-array";
 import type { PdfDict } from "#src/objects/pdf-dict";
 import { PdfRef } from "#src/objects/pdf-ref.ts";
+import { PdfStream } from "#src/objects/pdf-stream.ts";
 
 import { type EmbeddedParserOptions, parseEmbeddedProgram } from "./embedded-parser";
 import { FontDescriptor } from "./font-descriptor";
@@ -267,8 +270,7 @@ export function parseCIDWidths(wArray: PdfArray): CIDWidthMap {
 export function parseCIDFont(
   dict: PdfDict,
   options: {
-    resolveRef?: (ref: unknown) => PdfDict | PdfArray | null;
-    decodeStream?: (stream: unknown) => Uint8Array | null;
+    resolver?: RefResolver;
   } = {},
 ): CIDFont {
   const subtypeName = dict.getName("Subtype");
@@ -282,7 +284,7 @@ export function parseCIDFont(
     supplement: 0,
   };
 
-  const sysInfoDict = dict.getDict("CIDSystemInfo");
+  const sysInfoDict = dict.getDict("CIDSystemInfo", options.resolver);
 
   if (sysInfoDict) {
     cidSystemInfo = {
@@ -297,14 +299,9 @@ export function parseCIDFont(
 
   // Parse /W array (can be inline or a ref)
   let widths = new CIDWidthMap();
-  let w = dict.get("W");
+  let w = dict.get("W", options.resolver);
 
   let wArray: PdfArray | null = null;
-
-  // W might be a ref to an array - resolve it
-  if (w instanceof PdfRef && options.resolveRef) {
-    w = options.resolveRef(w) ?? undefined;
-  }
 
   if (w instanceof PdfArray) {
     wArray = w;
@@ -318,38 +315,28 @@ export function parseCIDFont(
   let descriptor: FontDescriptor | null = null;
   let embeddedProgram: FontProgram | null = null;
 
-  const descriptorRef = dict.get("FontDescriptor");
+  const fontDescriptor = dict.getDict("FontDescriptor", options.resolver);
 
-  if (descriptorRef && options.resolveRef) {
-    const descriptorDict = options.resolveRef(descriptorRef);
+  if (fontDescriptor) {
+    descriptor = FontDescriptor.parse(fontDescriptor);
 
-    if (descriptorDict && descriptorDict.type === "dict") {
-      descriptor = FontDescriptor.parse(descriptorDict);
-
-      // Try to parse embedded font program from FontDescriptor
-      if (options.decodeStream) {
-        const parserOptions: EmbeddedParserOptions = {
-          decodeStream: options.decodeStream,
-          resolveRef: options.resolveRef as ((ref: unknown) => unknown) | undefined,
-        };
-
-        embeddedProgram = parseEmbeddedProgram(descriptorDict, parserOptions);
-      }
-    }
+    embeddedProgram = parseEmbeddedProgram(fontDescriptor, {
+      resolver: options.resolver,
+    });
   }
 
   // Parse CIDToGIDMap
   let cidToGidMap: "Identity" | Uint16Array | null = "Identity";
-  const cidToGidValue = dict.get("CIDToGIDMap");
+  const cidToGidValue = dict.get("CIDToGIDMap", options.resolver);
 
   if (cidToGidValue) {
-    if (cidToGidValue.type === "name" && cidToGidValue.value === "Identity") {
+    if (cidToGidValue instanceof PdfName && cidToGidValue.value === "Identity") {
       cidToGidMap = "Identity";
     }
 
     // Stream-based CIDToGIDMap - decode to Uint16Array
-    if (cidToGidValue.type === "stream" && options.decodeStream) {
-      const mapData = options.decodeStream(cidToGidValue);
+    if (cidToGidValue instanceof PdfStream) {
+      const mapData = cidToGidValue.getDecodedData();
 
       if (mapData && mapData.length >= 2) {
         // CIDToGIDMap is a stream of 2-byte big-endian integers

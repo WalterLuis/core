@@ -3,6 +3,7 @@
  */
 
 import type { PdfDict } from "#src/objects/pdf-dict";
+import { PdfNumber } from "#src/objects/pdf-number.ts";
 
 /**
  * Font flags as defined in PDF spec Table 123.
@@ -128,7 +129,8 @@ export class FontDescriptor {
     if (bboxArray && bboxArray.length >= 4) {
       for (let i = 0; i < 4; i++) {
         const item = bboxArray.at(i);
-        if (item && item.type === "number") {
+
+        if (item instanceof PdfNumber) {
           fontBBox[i] = item.value;
         }
       }

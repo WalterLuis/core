@@ -73,6 +73,7 @@ export class PDFPageTree {
 
       if (type === "Page") {
         pages.push(ref);
+
         loadedPages.set(key, node);
       } else if (type === "Pages") {
         const kids = node.getArray("Kids");

@@ -2588,4 +2588,124 @@ describe("Drawing API Integration", () => {
       await saveTestOutput("drawing/images-reuse.pdf", bytes);
     });
   });
+
+  describe("content stream integrity", () => {
+    it("preserves original content after many append operations", async () => {
+      // Regression test: multiple appendContent calls should not corrupt the Contents array
+      // Previously, a missing `return` caused nested arrays that lost original content
+      const bytes = await loadFixture("text", "proposal.pdf");
+      const pdf = await PDF.load(bytes);
+      const page = pdf.getPage(0)!;
+
+      // Draw many rectangles (simulates highlighting every character)
+      for (let i = 0; i < 100; i++) {
+        page.drawRectangle({
+          x: 10 + (i % 10) * 50,
+          y: 700 - Math.floor(i / 10) * 50,
+          width: 40,
+          height: 40,
+          borderColor: rgb(0.5, 0.5, 0.5),
+          borderWidth: 0.5,
+        });
+      }
+
+      // The Contents should still be a flat array of streams, not nested
+      const { PdfArray } = await import("#src/objects/pdf-array");
+      const { PdfStream } = await import("#src/objects/pdf-stream");
+
+      const contents = page.dict.get("Contents");
+      expect(contents).toBeInstanceOf(PdfArray);
+
+      // Verify no nested arrays - all items should resolve to streams
+      if (contents instanceof PdfArray) {
+        for (let i = 0; i < contents.length; i++) {
+          const item = contents.at(i);
+
+          // Items should not be nested arrays
+          expect(item).not.toBeInstanceOf(PdfArray);
+        }
+      }
+
+      // Save should succeed
+      const savedBytes = await pdf.save();
+      expect(isPdfHeader(savedBytes)).toBe(true);
+    });
+
+    it("preserves original content after many prepend operations", async () => {
+      // Test that prependContent also maintains a flat Contents array
+      // Uses drawPage with background:true which triggers prependContent
+      const bytes = await loadFixture("text", "proposal.pdf");
+      const pdf = await PDF.load(bytes);
+      const page = pdf.getPage(0)!;
+
+      // Embed a page from the same PDF to use as background stamp
+      const stampPage = await pdf.embedPage(pdf, 0);
+
+      // Draw as background many times (uses prependContent)
+      for (let i = 0; i < 20; i++) {
+        page.drawPage(stampPage, {
+          x: i * 5,
+          y: i * 5,
+          scale: 0.1,
+          background: true,
+        });
+      }
+
+      const { PdfArray } = await import("#src/objects/pdf-array");
+
+      const contents = page.dict.get("Contents");
+      expect(contents).toBeInstanceOf(PdfArray);
+
+      // Verify no nested arrays
+      if (contents instanceof PdfArray) {
+        for (let i = 0; i < contents.length; i++) {
+          const item = contents.at(i);
+          expect(item).not.toBeInstanceOf(PdfArray);
+        }
+      }
+
+      const savedBytes = await pdf.save();
+      expect(isPdfHeader(savedBytes)).toBe(true);
+    });
+
+    it("preserves original content with mixed append and prepend", async () => {
+      // Test interleaved append and prepend operations
+      const bytes = await loadFixture("text", "proposal.pdf");
+      const pdf = await PDF.load(bytes);
+      const page = pdf.getPage(0)!;
+
+      const stampPage = await pdf.embedPage(pdf, 0);
+
+      for (let i = 0; i < 30; i++) {
+        if (i % 2 === 0) {
+          // Background (prepend)
+          page.drawPage(stampPage, { x: i * 3, y: i * 3, scale: 0.05, background: true });
+        } else {
+          // Foreground (append)
+          page.drawRectangle({
+            x: 10 + (i % 10) * 50,
+            y: 700 - Math.floor(i / 10) * 50,
+            width: 40,
+            height: 40,
+            color: rgb(0.5, 0.5, 0.5),
+          });
+        }
+      }
+
+      const { PdfArray } = await import("#src/objects/pdf-array");
+
+      const contents = page.dict.get("Contents");
+      expect(contents).toBeInstanceOf(PdfArray);
+
+      if (contents instanceof PdfArray) {
+        for (let i = 0; i < contents.length; i++) {
+          const item = contents.at(i);
+          expect(item).not.toBeInstanceOf(PdfArray);
+        }
+      }
+
+      const savedBytes = await pdf.save();
+      expect(isPdfHeader(savedBytes)).toBe(true);
+    });
+  });
 });

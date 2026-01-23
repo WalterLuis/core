@@ -25,7 +25,7 @@ export class PDFCaretAnnotation extends PDFMarkupAnnotation {
    * "P" = paragraph symbol, "None" = no symbol.
    */
   get symbol(): CaretSymbol {
-    const sy = this.dict.getName("Sy");
+    const sy = this.dict.getName("Sy", this.registry.resolve.bind(this.registry));
 
     if (sy?.value === "P") {
       return "P";
@@ -39,6 +39,7 @@ export class PDFCaretAnnotation extends PDFMarkupAnnotation {
    */
   setSymbol(symbol: CaretSymbol): void {
     this.dict.set("Sy", PdfName.of(symbol));
+
     this.markModified();
   }
 }

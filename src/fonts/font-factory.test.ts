@@ -124,13 +124,16 @@ describe("parseFont", () => {
       ]);
 
       const font = parseFont(dict, {
-        resolveRef: ref => {
+        resolver: ref => {
           if (ref instanceof PdfRef && ref.objectNumber === 10) {
+            console.log("resolving");
             return descriptorDict;
           }
           return null;
         },
       }) as SimpleFont;
+
+      console.log(font);
 
       expect(font.descriptor).not.toBeNull();
       expect(font.descriptor?.fontName).toBe("ArialMT");
@@ -189,7 +192,7 @@ describe("FontFactory class", () => {
     expect(font.baseFontName).toBe("Courier");
   });
 
-  it("should use resolveRef from options", () => {
+  it("should use resolver from options", () => {
     const descriptorDict = new PdfDict([
       [PdfName.of("Type"), PdfName.of("FontDescriptor")],
       [PdfName.of("FontName"), PdfName.of("TestFont")],
@@ -235,23 +238,19 @@ describe("real PDF font parsing", () => {
     expect(pageDict).toBeInstanceOf(PdfDict);
 
     // Get Resources -> Font -> F1
-    const resourcesRef = pageDict.get("Resources");
-    const resourcesDict = resourcesRef ? (doc.getObject(resourcesRef as PdfRef) as PdfDict) : null;
-
+    const resolver = (ref: PdfRef) => doc.getObject(ref);
+    const resourcesDict = pageDict.getDict("Resources", resolver);
     expect(resourcesDict).toBeInstanceOf(PdfDict);
 
-    const fontDictRef = resourcesDict?.get("Font");
-    const fontDict = fontDictRef ? (doc.getObject(fontDictRef as PdfRef) as PdfDict) : null;
-
+    const fontDict = resourcesDict?.getDict("Font", resolver);
     expect(fontDict).toBeInstanceOf(PdfDict);
 
     // Get F1 font
-    const f1Ref = fontDict?.get("F1");
-    const f1Dict = f1Ref ? (doc.getObject(f1Ref as PdfRef) as PdfDict) : null;
+    const f1Dict = fontDict?.getDict("F1", resolver);
 
     expect(f1Dict).toBeInstanceOf(PdfDict);
 
-    // Parse the font (no resolveRef needed - this font has no indirect refs)
+    // Parse the font (no resolver needed - this font has no indirect refs)
     const font = parseFont(f1Dict!) as SimpleFont;
 
     expect(font).toBeInstanceOf(SimpleFont);
@@ -281,23 +280,18 @@ describe("real PDF font parsing", () => {
     const pageDict = doc.getObject(pages[0]) as PdfDict;
 
     // Navigate to font resources
-    const resourcesRef = pageDict.get("Resources");
-    const resourcesDict = resourcesRef ? (doc.getObject(resourcesRef as PdfRef) as PdfDict) : null;
+    const resolver = (ref: PdfRef) => doc.getObject(ref);
+    const resourcesDict = pageDict.getDict("Resources", resolver);
 
     if (!resourcesDict) {
       // Some PDFs have inline resources
       return;
     }
 
-    const fontDictRef = resourcesDict.get("Font");
-    if (!fontDictRef) {
+    const fontDict = resourcesDict.getDict("Font", resolver);
+    if (!fontDict) {
       return;
     }
-
-    const fontDict =
-      fontDictRef instanceof PdfRef
-        ? (doc.getObject(fontDictRef) as PdfDict)
-        : (fontDictRef as PdfDict);
 
     // Find first font
     let firstFontDict: PdfDict | null = null;
@@ -398,16 +392,15 @@ describe("real PDF font parsing", () => {
     const pageDict = doc.getObject(pages[0]) as PdfDict;
 
     // This PDF has inline resources in the page dict
-    const resources = pageDict.getDict("Resources");
+    const resolver = (ref: PdfRef) => doc.getObject(ref);
+    const resources = pageDict.getDict("Resources", resolver);
     expect(resources).toBeInstanceOf(PdfDict);
 
-    const fontDict = resources?.getDict("Font");
+    const fontDict = resources?.getDict("Font", resolver);
     expect(fontDict).toBeInstanceOf(PdfDict);
 
     // Get F1 font
-    const f1Ref = fontDict?.get("F1");
-    const f1Dict = f1Ref ? (doc.getObject(f1Ref as PdfRef) as PdfDict) : null;
-
+    const f1Dict = fontDict?.getDict("F1", resolver);
     expect(f1Dict).toBeInstanceOf(PdfDict);
 
     const font = parseFont(f1Dict!) as SimpleFont;
@@ -430,33 +423,31 @@ describe("real PDF font parsing", () => {
     expect(pages.length).toBeGreaterThan(0);
 
     const pageDict = doc.getObject(pages[0]) as PdfDict;
+    const resolver = (ref: PdfRef) => doc.getObject(ref);
 
     // Navigate to font resources
-    const resources = pageDict.getDict("Resources");
+    const resources = pageDict.getDict("Resources", resolver);
     expect(resources).toBeInstanceOf(PdfDict);
 
-    const fontDict = resources?.getDict("Font");
+    const fontDict = resources?.getDict("Font", resolver);
     expect(fontDict).toBeInstanceOf(PdfDict);
 
     // Get C2_0 - the Type0 font (TT0 is TrueType)
-    const c2Ref = fontDict?.get("C2_0");
-    expect(c2Ref).toBeDefined();
-
-    const c2Dict = doc.getObject(c2Ref as PdfRef) as PdfDict;
+    const c2Dict = fontDict?.getDict("C2_0", resolver);
     expect(c2Dict).toBeInstanceOf(PdfDict);
-    expect(c2Dict.getName("Subtype")?.value).toBe("Type0");
+    expect(c2Dict!.getName("Subtype")?.value).toBe("Type0");
 
     // Create a sync resolver for the font parsing
     // We need to pre-resolve the descendant fonts
-    const descendantsArray = c2Dict.getArray("DescendantFonts");
+    const descendantsArray = c2Dict!.getArray("DescendantFonts");
     expect(descendantsArray).toBeDefined();
 
     const cidFontRef = descendantsArray?.at(0);
     const cidFontDict = doc.getObject(cidFontRef as PdfRef) as PdfDict;
 
     // Parse the font with resolver
-    const font = parseFont(c2Dict, {
-      resolveRef: ref => {
+    const font = parseFont(c2Dict!, {
+      resolver: ref => {
         if (ref instanceof PdfRef) {
           // Return pre-resolved CIDFont
           if (ref.objectNumber === (cidFontRef as PdfRef).objectNumber) {
@@ -519,7 +510,7 @@ describe("real PDF font parsing", () => {
     ]);
 
     const font = parseFont(type0Dict, {
-      resolveRef: ref => {
+      resolver: ref => {
         if (ref instanceof PdfRef && ref.objectNumber === 99) {
           return cidFontDict;
         }

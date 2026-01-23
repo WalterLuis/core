@@ -189,18 +189,16 @@ export class WidgetAnnotation {
       return null;
     }
 
-    const n = ap.get("N");
+    const resolve = this.registry.resolve.bind(this.registry);
+    const n = ap.get("N", resolve);
 
     if (!n) {
       return null;
     }
 
-    // N can be a ref to a dict of states
-    const nResolved = n.type === "ref" ? this.registry.getObject(n) : n;
-
     // If N is a dict (not a stream), find the non-"Off" key
-    if (nResolved instanceof PdfDict && !(nResolved instanceof PdfStream)) {
-      for (const key of nResolved.keys()) {
+    if (n instanceof PdfDict && !(n instanceof PdfStream)) {
+      for (const key of n.keys()) {
         if (key.value !== "Off") {
           return key.value;
         }
@@ -223,19 +221,17 @@ export class WidgetAnnotation {
       return false;
     }
 
-    const n = ap.get("N");
+    const resolve = this.registry.resolve.bind(this.registry);
+    const n = ap.get("N", resolve);
 
     if (!n) {
       return false;
     }
 
-    // N can be a ref to a dict of states
-    const nResolved = n.type === "ref" ? this.registry.getObject(n) : n;
-
     // If N is a dict (not a stream), check for each state
-    if (nResolved instanceof PdfDict && !(nResolved instanceof PdfStream)) {
+    if (n instanceof PdfDict && !(n instanceof PdfStream)) {
       for (const state of states) {
-        if (!nResolved.has(state)) {
+        if (!n.has(state)) {
           return false;
         }
       }
@@ -273,14 +269,11 @@ export class WidgetAnnotation {
       return null;
     }
 
-    let n = ap.get("N");
+    const resolve = this.registry.resolve.bind(this.registry);
+    const n = ap.get("N", resolve);
 
     if (!n) {
       return null;
-    }
-
-    if (n instanceof PdfRef) {
-      n = this.registry.resolve(n) ?? undefined;
     }
 
     if (n instanceof PdfStream) {
@@ -289,15 +282,7 @@ export class WidgetAnnotation {
 
     if (n instanceof PdfDict) {
       const stateKey = state ?? this.appearanceState ?? "Off";
-      let stateEntry = n.get(stateKey);
-
-      if (!stateEntry) {
-        return null;
-      }
-
-      if (stateEntry instanceof PdfRef) {
-        stateEntry = this.registry.resolve(stateEntry) ?? undefined;
-      }
+      const stateEntry = n.get(stateKey, resolve);
 
       if (stateEntry instanceof PdfStream) {
         return stateEntry;
@@ -319,14 +304,11 @@ export class WidgetAnnotation {
       return null;
     }
 
-    let r = ap.get("R");
+    const resolve = this.registry.resolve.bind(this.registry);
+    const r = ap.get("R", resolve);
 
     if (!r) {
       return null;
-    }
-
-    if (r instanceof PdfRef) {
-      r = this.registry.resolve(r) ?? undefined;
     }
 
     if (r instanceof PdfStream) {
@@ -335,15 +317,7 @@ export class WidgetAnnotation {
 
     if (r instanceof PdfDict) {
       const stateKey = state ?? this.appearanceState ?? "Off";
-      let stateEntry = r.get(stateKey);
-
-      if (!stateEntry) {
-        return null;
-      }
-
-      if (stateEntry instanceof PdfRef) {
-        stateEntry = this.registry.resolve(stateEntry) ?? undefined;
-      }
+      const stateEntry = r.get(stateKey, resolve);
 
       if (stateEntry instanceof PdfStream) {
         return stateEntry;
@@ -365,14 +339,11 @@ export class WidgetAnnotation {
       return null;
     }
 
-    let d = ap.get("D");
+    const resolve = this.registry.resolve.bind(this.registry);
+    const d = ap.get("D", resolve);
 
     if (!d) {
       return null;
-    }
-
-    if (d instanceof PdfRef) {
-      d = this.registry.resolve(d) ?? undefined;
     }
 
     if (d instanceof PdfStream) {
@@ -381,15 +352,7 @@ export class WidgetAnnotation {
 
     if (d instanceof PdfDict) {
       const stateKey = state ?? this.appearanceState ?? "Off";
-      let stateEntry = d.get(stateKey);
-
-      if (!stateEntry) {
-        return null;
-      }
-
-      if (stateEntry instanceof PdfRef) {
-        stateEntry = this.registry.resolve(stateEntry) ?? undefined;
-      }
+      const stateEntry = d.get(stateKey, resolve);
 
       if (stateEntry instanceof PdfStream) {
         return stateEntry;
@@ -437,24 +400,8 @@ export class WidgetAnnotation {
    * Get appearance characteristics (/MK dictionary).
    */
   getAppearanceCharacteristics(): AppearanceCharacteristics | null {
-    // MK can be a direct dict or a reference
-    const mkEntry = this.dict.get("MK");
-
-    if (!mkEntry) {
-      return null;
-    }
-
-    let mk: PdfDict | null = null;
-
-    if (mkEntry instanceof PdfDict) {
-      mk = mkEntry;
-    } else if (mkEntry.type === "ref") {
-      const resolved = this.registry.getObject(mkEntry);
-
-      if (resolved instanceof PdfDict) {
-        mk = resolved;
-      }
-    }
+    const resolve = this.registry.resolve.bind(this.registry);
+    const mk = this.dict.getDict("MK", resolve);
 
     if (!mk) {
       return null;

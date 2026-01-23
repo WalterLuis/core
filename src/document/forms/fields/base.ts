@@ -122,14 +122,9 @@ export abstract class FormField {
 
       visited.add(current);
 
-      const value = current.get(key);
+      const value = current.get(key, this.registry.resolve.bind(this.registry));
 
       if (value !== undefined) {
-        // Resolve refs
-        if (value instanceof PdfRef) {
-          return this.registry.getObject(value);
-        }
-
         return value;
       }
 
@@ -480,11 +475,8 @@ export abstract class TerminalField extends FormField {
    * This ensures getAppearanceCharacteristics() can work synchronously.
    */
   private resolveMK(dict: PdfDict): void {
-    const mkEntry = dict.get("MK");
-
-    if (mkEntry instanceof PdfRef) {
-      this.registry.resolve(mkEntry);
-    }
+    // Access MK with resolver to ensure any ref is resolved and cached
+    dict.getDict("MK", this.registry.resolve.bind(this.registry));
   }
 
   /**

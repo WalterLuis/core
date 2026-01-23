@@ -130,41 +130,14 @@ export function hasLayers(ctx: PDFContext): boolean {
     return false;
   }
 
-  let ocProperties: PdfObject | null | undefined = catalog.get("OCProperties");
-
-  if (!ocProperties) {
-    return false;
-  }
-
-  let ocPropsDict: PdfDict | null = null;
-
-  if (ocProperties instanceof PdfRef) {
-    ocProperties = ctx.resolve(ocProperties) ?? undefined;
-  }
-
-  if (ocProperties instanceof PdfDict) {
-    ocPropsDict = ocProperties;
-  }
+  const resolve = ctx.resolve.bind(ctx);
+  const ocPropsDict = catalog.getDict("OCProperties", resolve);
 
   if (!ocPropsDict) {
     return false;
   }
 
-  let ocgs: PdfObject | null | undefined = ocPropsDict.get("OCGs");
-
-  if (!ocgs) {
-    return false;
-  }
-
-  let ocgsArray: PdfArray | null = null;
-
-  if (ocgs instanceof PdfRef) {
-    ocgs = ctx.resolve(ocgs) ?? undefined;
-  }
-
-  if (ocgs instanceof PdfArray) {
-    ocgsArray = ocgs;
-  }
+  const ocgsArray = ocPropsDict.getArray("OCGs", resolve);
 
   if (!ocgsArray || ocgsArray.length === 0) {
     return false;
@@ -186,49 +159,21 @@ export function getLayers(ctx: PDFContext): LayerInfo[] {
     return [];
   }
 
-  let ocProperties: PdfObject | null | undefined = catalog.get("OCProperties");
-
-  if (!ocProperties) {
-    return [];
-  }
-
-  let ocPropsDict: PdfDict | null = null;
-
-  if (ocProperties instanceof PdfRef) {
-    ocProperties = ctx.resolve(ocProperties) ?? undefined;
-  }
-
-  if (ocProperties instanceof PdfDict) {
-    ocPropsDict = ocProperties;
-  }
+  const resolve = ctx.resolve.bind(ctx);
+  const ocPropsDict = catalog.getDict("OCProperties", resolve);
 
   if (!ocPropsDict) {
     return [];
   }
 
-  // Get OCGs array
-  let ocgs: PdfObject | null | undefined = ocPropsDict.get("OCGs");
-
-  if (!ocgs) {
-    return [];
-  }
-
-  let ocgsArray: PdfArray | null = null;
-
-  if (ocgs instanceof PdfRef) {
-    ocgs = ctx.resolve(ocgs) ?? undefined;
-  }
-
-  if (ocgs instanceof PdfArray) {
-    ocgsArray = ocgs;
-  }
+  const ocgsArray = ocPropsDict.getArray("OCGs", resolve);
 
   if (!ocgsArray) {
     return [];
   }
 
   // Parse default config
-  const defaultConfig = parseDefaultConfig(ocPropsDict.get("D"), ref => ctx.resolve(ref));
+  const defaultConfig = parseDefaultConfig(ocPropsDict.get("D"), resolve);
 
   const layers: LayerInfo[] = [];
 
@@ -311,56 +256,30 @@ export function validateOCGStructure(ctx: PDFContext): void {
     throw new Error("Malformed PDF: No catalog");
   }
 
-  let ocProperties: PdfObject | null | undefined = catalog.get("OCProperties");
-
-  if (!ocProperties) {
+  // Check if OCProperties exists first (without resolving)
+  if (!catalog.get("OCProperties")) {
     return; // No layers is valid
   }
 
-  let ocPropsDict: PdfDict | null = null;
-
-  if (ocProperties instanceof PdfRef) {
-    ocProperties = ctx.resolve(ocProperties) ?? undefined;
-  }
-
-  if (ocProperties instanceof PdfDict) {
-    ocPropsDict = ocProperties;
-  }
+  const resolve = ctx.resolve.bind(ctx);
+  const ocPropsDict = catalog.getDict("OCProperties", resolve);
 
   if (!ocPropsDict) {
     throw new Error("Malformed PDF: OCProperties is not a dictionary");
   }
 
-  let ocgs: PdfObject | null | undefined = ocPropsDict.get("OCGs");
-
-  if (ocgs !== undefined) {
-    let ocgsArray: PdfArray | null = null;
-
-    if (ocgs instanceof PdfRef) {
-      ocgs = ctx.resolve(ocgs) ?? undefined;
-    }
-
-    if (ocgs instanceof PdfArray) {
-      ocgsArray = ocgs;
-    }
+  // Validate OCGs if present
+  if (ocPropsDict.get("OCGs") !== undefined) {
+    const ocgsArray = ocPropsDict.getArray("OCGs", resolve);
 
     if (!ocgsArray) {
       throw new Error("Malformed PDF: OCProperties.OCGs is not an array");
     }
   }
 
-  let defaultConfig: PdfObject | null | undefined = ocPropsDict.get("D");
-
-  if (defaultConfig !== undefined) {
-    let dDict: PdfDict | null = null;
-
-    if (defaultConfig instanceof PdfRef) {
-      defaultConfig = ctx.resolve(defaultConfig) ?? undefined;
-    }
-
-    if (defaultConfig instanceof PdfDict) {
-      dDict = defaultConfig;
-    }
+  // Validate D if present
+  if (ocPropsDict.get("D") !== undefined) {
+    const dDict = ocPropsDict.getDict("D", resolve);
 
     if (!dDict) {
       throw new Error("Malformed PDF: OCProperties.D is not a dictionary");

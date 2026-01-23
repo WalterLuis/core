@@ -1,3 +1,4 @@
+import type { RefResolver } from "#src/helpers/types.ts";
 import type { ByteWriter } from "#src/io/byte-writer";
 
 import type { PdfObject } from "./pdf-object";
@@ -42,9 +43,16 @@ export class PdfArray implements PdfPrimitive {
 
   /**
    * Get item at index. Returns undefined if out of bounds.
+   * If resolver is provided, resolves indirect references.
    */
-  at(index: number): PdfObject | undefined {
-    return this.items.at(index);
+  at(index: number, resolver?: RefResolver): PdfObject | undefined {
+    const value = this.items.at(index);
+
+    if (resolver && value?.type === "ref") {
+      return resolver(value) ?? undefined;
+    }
+
+    return value;
   }
 
   /**
@@ -52,19 +60,23 @@ export class PdfArray implements PdfPrimitive {
    */
   set(index: number, value: PdfObject): void {
     this.items[index] = value;
+
     this.dirty = true;
   }
 
   push(...values: PdfObject[]): void {
     this.items.push(...values);
+
     this.dirty = true;
   }
 
   pop(): PdfObject | undefined {
     const value = this.items.pop();
+
     if (value !== undefined) {
       this.dirty = true;
     }
+
     return value;
   }
 

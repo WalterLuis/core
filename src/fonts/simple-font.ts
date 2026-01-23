@@ -18,13 +18,13 @@
  * >>
  */
 
+import type { RefResolver } from "#src/helpers/types.ts";
 import { unicodeToGlyphName } from "#src/helpers/unicode";
-import { PdfArray } from "#src/objects/pdf-array";
-import type { PdfDict } from "#src/objects/pdf-dict";
+import { PdfDict } from "#src/objects/pdf-dict";
+import { PdfName } from "#src/objects/pdf-name.ts";
 import { PdfNumber } from "#src/objects/pdf-number.ts";
-import { PdfRef } from "#src/objects/pdf-ref.ts";
 
-import { type EmbeddedParserOptions, parseEmbeddedProgram } from "./embedded-parser";
+import { parseEmbeddedProgram } from "./embedded-parser";
 import { DifferencesEncoding } from "./encodings/differences";
 import type { FontEncoding } from "./encodings/encoding";
 import { MacRomanEncoding } from "./encodings/mac-roman";
@@ -266,35 +266,25 @@ export class SimpleFont extends PdfFont {
 export function parseSimpleFont(
   dict: PdfDict,
   options: {
-    resolveRef?: (ref: unknown) => PdfDict | PdfArray | null;
-    decodeStream?: (stream: unknown) => Uint8Array | null;
+    resolver?: RefResolver;
     toUnicodeMap?: ToUnicodeMap | null;
   } = {},
 ): SimpleFont {
-  const subtypeName = dict.getName("Subtype");
+  const subtypeName = dict.getName("Subtype", options.resolver);
   const subtype = isSimpleFontSubtype(subtypeName?.value) ? subtypeName.value : "TrueType";
-  const baseFontName = dict.getName("BaseFont")?.value ?? "Unknown";
-  const firstChar = dict.getNumber("FirstChar")?.value ?? 0;
-  const lastChar = dict.getNumber("LastChar")?.value ?? 255;
 
+  const baseFontName = dict.getName("BaseFont", options.resolver)?.value ?? "Unknown";
+  const firstChar = dict.getNumber("FirstChar", options.resolver)?.value ?? 0;
+  const lastChar = dict.getNumber("LastChar", options.resolver)?.value ?? 255;
   // Parse widths array (can be inline or a ref)
 
-  let w = dict.get("Widths");
-  let widthsArray: PdfArray | null = null;
-
-  if (w instanceof PdfRef && options.resolveRef) {
-    w = options.resolveRef(w) ?? undefined;
-  }
-
-  if (w instanceof PdfArray) {
-    widthsArray = w;
-  }
+  let widthsArray = dict.getArray("Widths", options.resolver);
 
   const widths: number[] = [];
 
   if (widthsArray) {
     for (let i = 0; i < widthsArray.length; i++) {
-      const item = widthsArray.at(i);
+      const item = widthsArray.at(i, options.resolver);
 
       if (item instanceof PdfNumber) {
         widths.push(item.value);
@@ -305,30 +295,20 @@ export function parseSimpleFont(
   }
 
   // Parse encoding
-  const encoding = parseEncoding(dict, options.resolveRef);
+  const encoding = parseEncoding(dict, options.resolver);
 
   // Parse FontDescriptor and embedded font program
   let descriptor: FontDescriptor | null = null;
   let embeddedProgram: FontProgram | null = null;
 
-  const descriptorRef = dict.get("FontDescriptor");
+  const fontDescriptor = dict.getDict("FontDescriptor", options.resolver);
 
-  if (descriptorRef && options.resolveRef) {
-    const descriptorDict = options.resolveRef(descriptorRef);
+  if (fontDescriptor) {
+    descriptor = FontDescriptor.parse(fontDescriptor);
 
-    if (descriptorDict && "getString" in descriptorDict) {
-      descriptor = FontDescriptor.parse(descriptorDict);
-
-      // Try to parse embedded font program from FontDescriptor
-      if (options.decodeStream) {
-        const parserOptions: EmbeddedParserOptions = {
-          decodeStream: options.decodeStream,
-          resolveRef: options.resolveRef as ((ref: unknown) => unknown) | undefined,
-        };
-
-        embeddedProgram = parseEmbeddedProgram(descriptorDict, parserOptions);
-      }
-    }
+    embeddedProgram = parseEmbeddedProgram(fontDescriptor, {
+      resolver: options.resolver,
+    });
   }
 
   return new SimpleFont({
@@ -347,15 +327,12 @@ export function parseSimpleFont(
 /**
  * Parse encoding from font dictionary.
  */
-function parseEncoding(
-  dict: PdfDict,
-  resolveRef?: (ref: unknown) => PdfDict | PdfArray | null,
-): FontEncoding {
-  const encodingValue = dict.get("Encoding");
+function parseEncoding(dict: PdfDict, resolver?: RefResolver): FontEncoding {
+  const encodingValue = dict.get("Encoding", resolver);
 
   if (!encodingValue) {
     // Default encoding based on font type
-    const baseFontName = dict.getName("BaseFont")?.value ?? "";
+    const baseFontName = dict.getName("BaseFont", resolver)?.value ?? "";
 
     if (baseFontName === "Symbol") {
       return SymbolEncoding.instance;
@@ -369,22 +346,13 @@ function parseEncoding(
   }
 
   // Name encoding (e.g., /WinAnsiEncoding)
-  if (encodingValue.type === "name") {
+  if (encodingValue instanceof PdfName) {
     return getEncodingByName(encodingValue.value);
   }
 
   // Dictionary encoding with /BaseEncoding and /Differences
-  if (encodingValue.type === "dict") {
-    return parseEncodingDict(encodingValue);
-  }
-
-  // Reference to encoding dict
-  if (encodingValue.type === "ref" && resolveRef) {
-    const resolved = resolveRef(encodingValue);
-
-    if (resolved && resolved.type === "dict") {
-      return parseEncodingDict(resolved);
-    }
+  if (encodingValue instanceof PdfDict) {
+    return parseEncodingDict(encodingValue, resolver);
   }
 
   return WinAnsiEncoding.instance;
@@ -393,15 +361,15 @@ function parseEncoding(
 /**
  * Parse encoding dictionary.
  */
-function parseEncodingDict(dict: PdfDict): FontEncoding {
+function parseEncodingDict(dict: PdfDict, resolver?: RefResolver): FontEncoding {
   // Get base encoding
-  const baseEncodingName = dict.getName("BaseEncoding");
+  const baseEncodingName = dict.getName("BaseEncoding", resolver);
   const baseEncoding = baseEncodingName
     ? getEncodingByName(baseEncodingName.value)
     : WinAnsiEncoding.instance;
 
   // Parse differences array
-  const differencesArray = dict.getArray("Differences");
+  const differencesArray = dict.getArray("Differences", resolver);
 
   if (!differencesArray || differencesArray.length === 0) {
     return baseEncoding;
@@ -414,9 +382,7 @@ function parseEncodingDict(dict: PdfDict): FontEncoding {
     const item = differencesArray.at(i);
 
     if (item) {
-      if (item.type === "number") {
-        items.push(item.value);
-      } else if (item.type === "name") {
+      if (item instanceof PdfNumber || item instanceof PdfName) {
         items.push(item.value);
       }
     }

@@ -65,7 +65,8 @@ export class FieldTree implements Iterable<FormField> {
    */
   static load(acroForm: FieldTreeSource, registry: ObjectRegistry): FieldTree {
     const dict = acroForm.getDict();
-    const fieldsArray = dict.getArray("Fields");
+    const resolve = registry.resolve.bind(registry);
+    const fieldsArray = dict.getArray("Fields", resolve);
 
     if (!fieldsArray) {
       return new FieldTree([]);
@@ -130,7 +131,7 @@ export class FieldTree implements Iterable<FormField> {
       }
 
       // Build fully-qualified name
-      const partialName = fieldDict.getString("T")?.asString() ?? "";
+      const partialName = fieldDict.getString("T", resolve)?.asString() ?? "";
       const fullName = parentName
         ? partialName
           ? `${parentName}.${partialName}`
@@ -167,7 +168,7 @@ export class FieldTree implements Iterable<FormField> {
         }
 
         // Queue children for processing
-        const kids = fieldDict.getArray("Kids");
+        const kids = fieldDict.getArray("Kids", resolve);
 
         if (kids) {
           for (let i = 0; i < kids.length; i++) {
@@ -262,7 +263,8 @@ export class FieldTree implements Iterable<FormField> {
  * - Its /Kids contain widgets (no /T) rather than child fields (have /T)
  */
 function checkIsTerminalField(dict: PdfDict, registry: ObjectRegistry): boolean {
-  const kids = dict.getArray("Kids");
+  const resolve = registry.resolve.bind(registry);
+  const kids = dict.getArray("Kids", resolve);
 
   if (!kids || kids.length === 0) {
     return true;

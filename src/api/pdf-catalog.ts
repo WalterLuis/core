@@ -11,7 +11,6 @@
 import { NameTree } from "#src/document/name-tree";
 import type { ObjectRegistry } from "#src/document/object-registry";
 import { PdfDict } from "#src/objects/pdf-dict";
-import { PdfRef } from "#src/objects/pdf-ref";
 
 /**
  * PDFCatalog provides access to the document catalog and its sub-structures.
@@ -50,13 +49,7 @@ export class PDFCatalog {
    * Get the /Names dictionary.
    */
   getNames(): PdfDict | null {
-    let namesEntry = this.dict.get("Names");
-
-    if (namesEntry instanceof PdfRef) {
-      namesEntry = this.registry.resolve(namesEntry) ?? undefined;
-    }
-
-    return namesEntry instanceof PdfDict ? namesEntry : null;
+    return this.dict.getDict("Names", this.registry.resolve.bind(this.registry)) ?? null;
   }
 
   /**
@@ -91,18 +84,7 @@ export class PDFCatalog {
       return null;
     }
 
-    const embeddedFilesEntry = names.get("EmbeddedFiles");
-    let embeddedFiles: PdfDict | null = null;
-
-    if (embeddedFilesEntry instanceof PdfRef) {
-      const resolved = this.registry.resolve(embeddedFilesEntry);
-
-      if (resolved instanceof PdfDict) {
-        embeddedFiles = resolved;
-      }
-    } else if (embeddedFilesEntry instanceof PdfDict) {
-      embeddedFiles = embeddedFilesEntry;
-    }
+    const embeddedFiles = names.getDict("EmbeddedFiles", this.registry.resolve.bind(this.registry));
 
     if (!embeddedFiles) {
       this._embeddedFilesTree = null;

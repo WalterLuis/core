@@ -99,15 +99,7 @@ export class NameTree {
 
       while (lo <= hi) {
         const mid = (lo + hi) >>> 1;
-        const kidRef = kids.at(mid);
-
-        if (!(kidRef instanceof PdfRef)) {
-          lo = mid + 1;
-
-          continue;
-        }
-
-        const kid = this.resolver(kidRef);
+        const kid = kids.at(mid, this.resolver);
 
         if (!(kid instanceof PdfDict)) {
           lo = mid + 1;
@@ -183,13 +175,8 @@ export class NameTree {
       } else {
         // Found it!
         const valueIndex = keyIndex + 1;
-        const value = names.at(valueIndex);
 
-        // Resolve if it's a reference
-        if (value instanceof PdfRef) {
-          return this.resolver(value);
-        }
-        return value ?? null;
+        return names.at(valueIndex, this.resolver) ?? null;
       }
     }
 
@@ -198,13 +185,7 @@ export class NameTree {
       const currentKey = extractKey(names.at(i));
 
       if (currentKey === key) {
-        const value = names.at(i + 1);
-
-        if (value instanceof PdfRef) {
-          return this.resolver(value);
-        }
-
-        return value ?? null;
+        return names.at(i + 1, this.resolver) ?? null;
       }
     }
 
@@ -242,22 +223,22 @@ export class NameTree {
         const kids = node.getArray("Kids");
 
         if (kids) {
-          for (const kidRef of kids) {
-            if (!(kidRef instanceof PdfRef)) {
-              continue;
+          for (let i = 0; i < kids.length; i++) {
+            const kidRef = kids.at(i);
+
+            // Cycle detection (only works for refs)
+            if (kidRef instanceof PdfRef) {
+              const refKey = `${kidRef.objectNumber}:${kidRef.generation}`;
+
+              if (visited.has(refKey)) {
+                console.warn(`NameTree: circular reference detected at ${refKey}`);
+                continue;
+              }
+
+              visited.add(refKey);
             }
 
-            // Cycle detection
-            const refKey = `${kidRef.objectNumber}:${kidRef.generation}`;
-
-            if (visited.has(refKey)) {
-              console.warn(`NameTree: circular reference detected at ${refKey}`);
-              continue;
-            }
-
-            visited.add(refKey);
-
-            const kid = this.resolver(kidRef);
+            const kid = kids.at(i, this.resolver);
 
             if (kid instanceof PdfDict) {
               queue.push({ node: kid, depth: depth + 1 });
@@ -276,13 +257,9 @@ export class NameTree {
               continue;
             }
 
-            let value: PdfObject | null | undefined = names.at(i + 1) ?? null;
+            const value = names.at(i + 1, this.resolver);
 
-            if (value instanceof PdfRef) {
-              value = this.resolver(value);
-            }
-
-            if (value !== null && value !== undefined) {
+            if (value !== undefined) {
               yield [key, value];
             }
           }

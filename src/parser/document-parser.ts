@@ -707,7 +707,7 @@ export class DocumentParser {
           }
         } else if (type?.value === "Pages") {
           // Intermediate node - recurse into kids
-          const kids = nodeOrRef.getArray("Kids");
+          const kids = nodeOrRef.getArray("Kids", getObject);
 
           if (kids) {
             for (let i = 0; i < kids.length; i++) {

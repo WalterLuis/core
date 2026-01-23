@@ -71,7 +71,7 @@ export class RadioField extends TerminalField {
    * that are different from the widget appearance state names.
    */
   getExportValues(): string[] {
-    const opt = this.dict.getArray("Opt");
+    const opt = this.dict.getArray("Opt", this.registry.resolve.bind(this.registry));
 
     if (!opt) {
       // Fall back to widget on-values

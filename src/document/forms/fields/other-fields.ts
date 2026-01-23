@@ -6,7 +6,6 @@
  */
 
 import { PdfDict } from "#src/objects/pdf-dict";
-import { PdfRef } from "#src/objects/pdf-ref";
 
 import { TerminalField } from "./base";
 
@@ -27,19 +26,7 @@ export class SignatureField extends TerminalField {
    * Get signature dictionary (if signed).
    */
   getSignatureDict(): PdfDict | null {
-    const v = this.dict.get("V");
-
-    if (!v) {
-      return null;
-    }
-
-    if (v instanceof PdfRef) {
-      const resolved = this.registry.getObject(v);
-
-      return resolved instanceof PdfDict ? resolved : null;
-    }
-
-    return v instanceof PdfDict ? v : null;
+    return this.dict.getDict("V", this.registry.resolve.bind(this.registry)) ?? null;
   }
 
   /**

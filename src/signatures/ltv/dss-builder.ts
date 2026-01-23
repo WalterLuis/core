@@ -104,26 +104,10 @@ export class DSSBuilder {
   ): Promise<DSSBuilder> {
     const builder = new DSSBuilder(registry, options);
 
-    const dssVal = catalog.get("DSS");
+    const resolve = registry.resolve.bind(registry);
+    const dss = catalog.getDict("DSS", resolve);
 
-    if (!dssVal) {
-      return builder;
-    }
-
-    // Resolve DSS if it's a reference
-    let dss: PdfDict;
-
-    if (dssVal instanceof PdfDict) {
-      dss = dssVal;
-    } else if (dssVal instanceof PdfRef) {
-      const resolved = registry.resolve(dssVal);
-
-      if (!(resolved instanceof PdfDict)) {
-        return builder;
-      }
-
-      dss = resolved;
-    } else {
+    if (!dss) {
       return builder;
     }
 
@@ -133,47 +117,15 @@ export class DSSBuilder {
     await builder.loadExistingData(dss, "CRLs", builder.crlMap, builder.existingCrlRefs);
 
     // Load existing VRI entries
-    const vriVal = dss.get("VRI");
+    const vri = dss.getDict("VRI", resolve);
 
-    if (vriVal) {
-      // Resolve VRI if it's a reference
-      let vri: PdfDict;
-
-      if (vriVal instanceof PdfDict) {
-        vri = vriVal;
-      } else if (vriVal instanceof PdfRef) {
-        const resolved = registry.resolve(vriVal);
-
-        if (!(resolved instanceof PdfDict)) {
-          return builder;
-        }
-
-        vri = resolved;
-      } else {
-        return builder;
-      }
-
+    if (vri) {
       for (const key of vri.keys()) {
-        const entryVal = vri.get(key);
+        // Use get() with resolver since key is PdfName, then check type
+        const entryVal = vri.get(key, resolve);
+        const entry = entryVal instanceof PdfDict ? entryVal : null;
 
-        if (entryVal) {
-          // Resolve VRI entry if it's a reference
-          let entry: PdfDict;
-
-          if (entryVal instanceof PdfDict) {
-            entry = entryVal;
-          } else if (entryVal instanceof PdfRef) {
-            const resolved = registry.resolve(entryVal);
-
-            if (!(resolved instanceof PdfDict)) {
-              continue;
-            }
-
-            entry = resolved;
-          } else {
-            continue;
-          }
-
+        if (entry) {
           // Extract cert/ocsp/crl hashes from the VRI entry
           const certHashes = await builder.extractRefHashes(entry, "Cert", builder.certMap);
           const ocspHashes = await builder.extractRefHashes(entry, "OCSP", builder.ocspMap);
@@ -181,9 +133,9 @@ export class DSSBuilder {
 
           // Get timestamp if present
           let timestamp: Date | undefined;
-          const tuVal = entry.get("TU");
+          const tuVal = entry.getString("TU", resolve);
 
-          if (tuVal instanceof PdfString) {
+          if (tuVal) {
             // Parse PDF date format - simplified
             timestamp = new Date();
           }
@@ -351,22 +303,8 @@ export class DSSBuilder {
     dataMap: Map<string, DataWithRef>,
     refMap: Map<string, PdfRef>,
   ): Promise<void> {
-    let arrayVal = dss.get(key);
-
-    if (!arrayVal) {
-      return;
-    }
-
-    // Resolve array if it's a reference
-    let array: PdfArray | undefined;
-
-    if (arrayVal instanceof PdfRef) {
-      arrayVal = this.registry.resolve(arrayVal) ?? undefined;
-    }
-
-    if (arrayVal instanceof PdfArray) {
-      array = arrayVal;
-    }
+    const resolve = this.registry.resolve.bind(this.registry);
+    const array = dss.getArray(key, resolve);
 
     if (!array) {
       return;
@@ -397,18 +335,9 @@ export class DSSBuilder {
     dataMap: Map<string, DataWithRef>,
   ): Promise<string[]> {
     const hashes: string[] = [];
+    const resolve = this.registry.resolve.bind(this.registry);
 
-    let arrayVal = entry.get(key);
-
-    if (!arrayVal) {
-      return hashes;
-    }
-
-    if (arrayVal instanceof PdfRef) {
-      arrayVal = this.registry.resolve(arrayVal) ?? undefined;
-    }
-
-    const array = arrayVal instanceof PdfArray ? arrayVal : null;
+    const array = entry.getArray(key, resolve);
 
     if (!array) {
       return hashes;

@@ -27,7 +27,7 @@ export class PDFFreeTextAnnotation extends PDFMarkupAnnotation {
    * Contains font and color operators.
    */
   get defaultAppearance(): string | null {
-    const da = this.dict.getString("DA");
+    const da = this.dict.getString("DA", this.registry.resolve.bind(this.registry));
 
     return da?.asString() ?? null;
   }
@@ -44,7 +44,7 @@ export class PDFFreeTextAnnotation extends PDFMarkupAnnotation {
    * Text justification: 0=left, 1=center, 2=right.
    */
   get justification(): FreeTextJustification {
-    const q = this.dict.getNumber("Q");
+    const q = this.dict.getNumber("Q", this.registry.resolve.bind(this.registry));
     const val = q?.value ?? 0;
 
     switch (val) {
@@ -78,7 +78,7 @@ export class PDFFreeTextAnnotation extends PDFMarkupAnnotation {
    * Contains CSS-style formatting.
    */
   get defaultStyle(): string | null {
-    const ds = this.dict.getString("DS");
+    const ds = this.dict.getString("DS", this.registry.resolve.bind(this.registry));
 
     return ds?.asString() ?? null;
   }
@@ -96,7 +96,7 @@ export class PDFFreeTextAnnotation extends PDFMarkupAnnotation {
    * Can be "FreeText", "FreeTextCallout", or "FreeTextTypeWriter".
    */
   get freeTextIntent(): string | null {
-    const it = this.dict.getName("IT");
+    const it = this.dict.getName("IT", this.registry.resolve.bind(this.registry));
 
     return it?.value ?? null;
   }

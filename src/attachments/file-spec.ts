@@ -135,18 +135,7 @@ function decodeFilename(str: PdfString): string {
  */
 export function getEmbeddedFileStream(fileSpec: PdfDict, resolver: RefResolver): PdfStream | null {
   // Get /EF (embedded file dictionary)
-  const efEntry = fileSpec.get("EF");
-  let ef: PdfDict | null = null;
-
-  if (efEntry instanceof PdfRef) {
-    const resolved = resolver(efEntry);
-
-    if (resolved instanceof PdfDict) {
-      ef = resolved;
-    }
-  } else if (efEntry instanceof PdfDict) {
-    ef = efEntry;
-  }
+  const ef = fileSpec.getDict("EF", resolver);
 
   if (!ef) {
     return null; // External file reference
@@ -211,18 +200,7 @@ export function parseFileSpec(
   }
 
   // Get params from stream
-  const paramsEntry = stream.get("Params");
-  let params: PdfDict | null = null;
-
-  if (paramsEntry instanceof PdfRef) {
-    const resolved = resolver(paramsEntry);
-
-    if (resolved instanceof PdfDict) {
-      params = resolved;
-    }
-  } else if (paramsEntry instanceof PdfDict) {
-    params = paramsEntry;
-  }
+  const params = stream.getDict("Params", resolver);
 
   if (params) {
     // Size

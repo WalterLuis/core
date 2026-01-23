@@ -23,7 +23,7 @@ import { PdfString } from "#src/objects/pdf-string";
 import { PDFAnnotation, rectToArray } from "./base";
 import { isDestinationType, type LinkAnnotationOptions, type LinkDestination } from "./types";
 
-function destinationPageToRef(page: unknown): PdfRef {
+function destinationPageToRef(page: PdfRef | PDFPage): PdfRef {
   if (page instanceof PdfRef) {
     return page;
   }
@@ -85,6 +85,7 @@ export class PDFLinkAnnotation extends PDFAnnotation {
         S: PdfName.of("URI"),
         URI: PdfString.fromString(options.uri),
       });
+
       annotDict.set("A", action);
     } else if (options.destination) {
       const dest = options.destination;
@@ -121,13 +122,13 @@ export class PDFLinkAnnotation extends PDFAnnotation {
    */
   get uri(): string | null {
     // First check for direct /A action
-    const action = this.dict.getDict("A");
+    const action = this.dict.getDict("A", this.registry.resolve.bind(this.registry));
 
     if (action) {
-      const actionType = action.getName("S")?.value;
+      const actionType = action.getName("S", this.registry.resolve.bind(this.registry))?.value;
 
       if (actionType === "URI") {
-        const uriStr = action.getString("URI");
+        const uriStr = action.getString("URI", this.registry.resolve.bind(this.registry));
 
         return uriStr?.asString() ?? null;
       }
@@ -141,20 +142,20 @@ export class PDFLinkAnnotation extends PDFAnnotation {
    */
   get destination(): LinkDestination | null {
     // First check for /Dest entry
-    const dest = this.dict.get("Dest");
+    const dest = this.dict.get("Dest", this.registry.resolve.bind(this.registry));
 
     if (dest) {
       return this.parseDestination(dest);
     }
 
     // Then check for GoTo action
-    const action = this.dict.getDict("A");
+    const action = this.dict.getDict("A", this.registry.resolve.bind(this.registry));
 
     if (action) {
-      const actionType = action.getName("S")?.value;
+      const actionType = action.getName("S", this.registry.resolve.bind(this.registry))?.value;
 
       if (actionType === "GoTo") {
-        const d = action.get("D");
+        const d = action.get("D", this.registry.resolve.bind(this.registry));
 
         if (d) {
           return this.parseDestination(d);
@@ -190,14 +191,15 @@ export class PDFLinkAnnotation extends PDFAnnotation {
     }
 
     // Check for remote GoTo
-    const action = this.dict.getDict("A");
+    const action = this.dict.getDict("A", this.registry.resolve.bind(this.registry));
 
     if (action) {
-      const actionType = action.getName("S")?.value;
+      const actionType = action.getName("S", this.registry.resolve.bind(this.registry))?.value;
 
       if (actionType === "GoToR") {
-        const file = action.getString("F")?.asString() ?? "";
-        const d = action.get("D");
+        const file =
+          action.getString("F", this.registry.resolve.bind(this.registry))?.asString() ?? "";
+        const d = action.get("D", this.registry.resolve.bind(this.registry));
 
         return {
           type: "gotoRemote",
@@ -219,7 +221,7 @@ export class PDFLinkAnnotation extends PDFAnnotation {
    * Highlight mode when the link is clicked.
    */
   get highlightMode(): HighlightMode {
-    const h = this.dict.getName("H");
+    const h = this.dict.getName("H", this.registry.resolve.bind(this.registry));
 
     switch (h?.value) {
       case "N":

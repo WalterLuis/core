@@ -9,6 +9,8 @@
     "curly": "error",
     "no-useless-concat": "off",
     "no-unused-vars": "off",
+    "prefer-const": "error",
+    "@typescript-eslint/prefer-const": "error",
     "@typescript-eslint/no-extraneous-class": "off",
     "@typescript-eslint/await-thenable": "error",
     "@typescript-eslint/no-floating-promises": "error",

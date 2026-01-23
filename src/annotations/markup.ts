@@ -37,7 +37,7 @@ export class PDFMarkupAnnotation extends PDFAnnotation {
    * Text label for the annotation (often the author name).
    */
   get title(): string | null {
-    const t = this.dict.getString("T");
+    const t = this.dict.getString("T", this.registry.resolve.bind(this.registry));
 
     return t?.asString() ?? null;
   }
@@ -55,7 +55,7 @@ export class PDFMarkupAnnotation extends PDFAnnotation {
    * Range 0-1, where 0 is fully transparent and 1 is fully opaque.
    */
   get opacity(): number {
-    const ca = this.dict.getNumber("CA");
+    const ca = this.dict.getNumber("CA", this.registry.resolve.bind(this.registry));
 
     return ca?.value ?? 1;
   }
@@ -73,7 +73,7 @@ export class PDFMarkupAnnotation extends PDFAnnotation {
    * Creation date (CreationDate).
    */
   get creationDate(): string | null {
-    const cd = this.dict.getString("CreationDate");
+    const cd = this.dict.getString("CreationDate", this.registry.resolve.bind(this.registry));
 
     return cd?.asString() ?? null;
   }
@@ -90,7 +90,7 @@ export class PDFMarkupAnnotation extends PDFAnnotation {
    * Subject - the subject of the annotation.
    */
   get subject(): string | null {
-    const subj = this.dict.getString("Subj");
+    const subj = this.dict.getString("Subj", this.registry.resolve.bind(this.registry));
 
     return subj?.asString() ?? null;
   }
@@ -191,7 +191,7 @@ export class PDFMarkupAnnotation extends PDFAnnotation {
    * Intent (IT) - the intent of the markup annotation.
    */
   get intent(): string | null {
-    const it = this.dict.getName("IT");
+    const it = this.dict.getName("IT", this.registry.resolve.bind(this.registry));
 
     return it?.value ?? null;
   }

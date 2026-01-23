@@ -8,7 +8,7 @@
  * PDF Reference: Section 12.7.3.3 "Variable Text"
  */
 
-import type { EmbeddedFont } from "#src/fonts/embedded-font";
+import { EmbeddedFont } from "#src/fonts/embedded-font";
 import { parseSimpleFont, type SimpleFont } from "#src/fonts/simple-font";
 import {
   FONT_BASIC_METRICS,
@@ -234,26 +234,17 @@ export function parseExistingFont(
   let ref: PdfRef | null = null;
   let simpleFont: SimpleFont | null = null;
 
-  if (fontObj?.type === "ref") {
+  if (fontObj instanceof PdfRef) {
     ref = fontObj;
+
     const resolved = registry.getObject(fontObj);
 
-    if (resolved?.type === "dict") {
+    if (resolved instanceof PdfDict) {
       // Parse as SimpleFont for accurate metrics
       try {
-        const resolveRef = (r: unknown) => {
-          if (r instanceof PdfRef) {
-            const obj = registry.getObject(r);
-
-            if (obj instanceof PdfDict || obj instanceof PdfArray || obj instanceof PdfStream) {
-              return obj;
-            }
-          }
-
-          return null;
-        };
-
-        simpleFont = parseSimpleFont(resolved, { resolveRef });
+        simpleFont = parseSimpleFont(resolved, {
+          resolver: registry.resolve.bind(registry),
+        });
       } catch (err) {
         console.warn(err);
         // Ignore parsing errors for existing fonts
@@ -268,7 +259,7 @@ export function parseExistingFont(
  * Check if a font is an EmbeddedFont.
  */
 export function isEmbeddedFont(font: FormFont): font is EmbeddedFont {
-  return "encodeText" in font && "getUsedGlyphIds" in font;
+  return font instanceof EmbeddedFont;
 }
 
 /**

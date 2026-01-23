@@ -91,7 +91,7 @@ export class PDFLineAnnotation extends PDFMarkupAnnotation {
    * Get the line endpoints.
    */
   get lineEndpoints(): { start: Point; end: Point } {
-    const l = this.dict.getArray("L");
+    const l = this.dict.getArray("L", this.registry.resolve.bind(this.registry));
 
     if (!l || l.length < 4) {
       return {
@@ -118,7 +118,7 @@ export class PDFLineAnnotation extends PDFMarkupAnnotation {
    * Set the line endpoints.
    */
   setLineEndpoints(start: Point, end: Point): void {
-    const arr = this.dict.getArray("L");
+    const arr = this.dict.getArray("L", this.registry.resolve.bind(this.registry));
 
     if (arr && arr.length >= 4) {
       arr.set(0, PdfNumber.of(start.x));
@@ -158,7 +158,7 @@ export class PDFLineAnnotation extends PDFMarkupAnnotation {
    * Line ending styles [start, end].
    */
   get lineEndingStyles(): [LineEndingStyle, LineEndingStyle] {
-    const le = this.dict.getArray("LE");
+    const le = this.dict.getArray("LE", this.registry.resolve.bind(this.registry));
 
     if (!le || le.length < 2) {
       return ["None", "None"];
@@ -184,7 +184,7 @@ export class PDFLineAnnotation extends PDFMarkupAnnotation {
    * Interior color (fill color for closed arrow heads).
    */
   get interiorColor(): Color | null {
-    const ic = this.dict.getArray("IC");
+    const ic = this.dict.getArray("IC", this.registry.resolve.bind(this.registry));
 
     return parseColorArray(ic);
   }
@@ -202,7 +202,7 @@ export class PDFLineAnnotation extends PDFMarkupAnnotation {
    * Line leader length (for dimension lines).
    */
   get leaderLength(): number {
-    const ll = this.dict.getNumber("LL");
+    const ll = this.dict.getNumber("LL", this.registry.resolve.bind(this.registry));
 
     return ll?.value ?? 0;
   }
@@ -211,7 +211,7 @@ export class PDFLineAnnotation extends PDFMarkupAnnotation {
    * Line leader line extension.
    */
   get leaderExtension(): number {
-    const lle = this.dict.getNumber("LLE");
+    const lle = this.dict.getNumber("LLE", this.registry.resolve.bind(this.registry));
 
     return lle?.value ?? 0;
   }
@@ -220,7 +220,7 @@ export class PDFLineAnnotation extends PDFMarkupAnnotation {
    * Caption flag - whether to show caption with the line.
    */
   get hasCaption(): boolean {
-    const cap = this.dict.getBool("Cap");
+    const cap = this.dict.getBool("Cap", this.registry.resolve.bind(this.registry));
 
     return cap?.value ?? false;
   }

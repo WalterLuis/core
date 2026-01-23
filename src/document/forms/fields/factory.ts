@@ -5,8 +5,6 @@
  */
 
 import { PdfDict } from "#src/objects/pdf-dict";
-import { PdfName } from "#src/objects/pdf-name";
-import { PdfNumber } from "#src/objects/pdf-number.ts";
 import type { PdfRef } from "#src/objects/pdf-ref";
 
 import type { ObjectRegistry } from "../../object-registry";
@@ -74,6 +72,7 @@ function getInheritableFieldName(
 ): string | null {
   let current: PdfDict | null = dict;
   const visited = new Set<PdfDict>();
+  const resolve = registry.resolve.bind(registry);
 
   while (current) {
     if (visited.has(current)) {
@@ -82,21 +81,19 @@ function getInheritableFieldName(
 
     visited.add(current);
 
-    const value = current.get(key);
+    const value = current.getName(key, resolve);
 
-    if (value instanceof PdfName) {
+    if (value) {
       return value.value;
     }
 
-    const parentRef = current.getRef("Parent");
+    const parent = current.getDict("Parent", resolve);
 
-    if (!parentRef) {
+    if (!parent) {
       break;
     }
 
-    const obj = registry.getObject(parentRef);
-
-    current = obj instanceof PdfDict ? obj : null;
+    current = parent;
   }
 
   return null;
@@ -108,6 +105,7 @@ function getInheritableFieldName(
 function getInheritableFieldNumber(dict: PdfDict, key: string, registry: ObjectRegistry): number {
   let current: PdfDict | null = dict;
   const visited = new Set<PdfDict>();
+  const resolve = registry.resolve.bind(registry);
 
   while (current) {
     if (visited.has(current)) {
@@ -116,21 +114,19 @@ function getInheritableFieldNumber(dict: PdfDict, key: string, registry: ObjectR
 
     visited.add(current);
 
-    const value = current.get(key);
+    const value = current.getNumber(key, resolve);
 
-    if (value instanceof PdfNumber) {
+    if (value) {
       return value.value;
     }
 
-    const parentRef = current.getRef("Parent");
+    const parent = current.getDict("Parent", resolve);
 
-    if (!parentRef) {
+    if (!parent) {
       break;
     }
 
-    const obj = registry.getObject(parentRef);
-
-    current = obj instanceof PdfDict ? obj : null;
+    current = parent;
   }
 
   return 0;

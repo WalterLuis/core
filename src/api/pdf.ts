@@ -1472,18 +1472,10 @@ export class PDF {
    */
   private getOrCreateViewerPreferences(): PdfDict {
     const catalog = this.ctx.catalog.getDict();
-    const existing = catalog.get("ViewerPreferences");
+    const existing = catalog.getDict("ViewerPreferences", this.ctx.resolve.bind(this.ctx));
 
-    if (existing instanceof PdfDict) {
+    if (existing) {
       return existing;
-    }
-
-    if (existing instanceof PdfRef) {
-      const resolved = this.ctx.registry.getObject(existing);
-
-      if (resolved instanceof PdfDict) {
-        return resolved;
-      }
     }
 
     // Create new ViewerPreferences
@@ -1561,30 +1553,7 @@ export class PDF {
       return null;
     }
 
-    // Pre-resolve Resources if it's a reference so sync getResources() works
-    this.ensurePageResourcesResolved(dict);
-
     return new PDFPage(ref, dict, index, this.ctx);
-  }
-
-  /**
-   * Ensure page resources are resolved (not a reference).
-   *
-   * Pages may have Resources as a PdfRef pointing to a shared resources dict.
-   * The sync getResources() method on PDFPage needs the actual dict, not a ref.
-   * This resolves the reference and replaces it in the page dict.
-   */
-  private ensurePageResourcesResolved(pageDict: PdfDict): void {
-    const resources = pageDict.get("Resources");
-
-    if (resources instanceof PdfRef) {
-      const resolved = this.ctx.resolve(resources);
-
-      if (resolved instanceof PdfDict) {
-        // Clone the dict so we don't modify shared resources
-        pageDict.set("Resources", resolved.clone());
-      }
-    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -1852,23 +1821,16 @@ export class PDF {
     // Copy resources from source to dest
     const copier = new ObjectCopier(source, this, { includeAnnotations: false });
 
-    let srcResources = srcPage.dict.get("Resources");
-    let resources: PdfDict | undefined = undefined;
+    const srcResources = srcPage.dict.getDict("Resources", source.getObject.bind(source));
 
-    if (srcResources instanceof PdfRef) {
-      srcResources = source.getObject(srcResources) ?? undefined;
-    }
+    let resources: PdfDict;
 
-    if (srcResources instanceof PdfDict) {
+    if (srcResources) {
       const copied = await copier.copyObject(srcResources);
 
       // This is guaranteed by our checks above
-      if (copied instanceof PdfDict) {
-        resources = copied;
-      }
-    }
-
-    if (!resources) {
+      resources = copied instanceof PdfDict ? copied : new PdfDict();
+    } else {
       resources = new PdfDict();
     }
 
@@ -1901,21 +1863,15 @@ export class PDF {
    * Get the concatenated content stream data from a page.
    */
   private getPageContentData(source: PDF, page: PDFPage): Uint8Array {
-    const contents = page.dict.get("Contents");
+    const contents = page.dict.get("Contents", source.getObject.bind(source));
 
     if (!contents) {
       return new Uint8Array(0);
     }
 
-    // Single stream
-    if (contents instanceof PdfRef) {
-      const stream = source.getObject(contents);
-
-      if (stream instanceof PdfStream) {
-        return stream.getDecodedData();
-      }
-
-      return new Uint8Array(0);
+    // Single stream (resolved from ref or direct)
+    if (contents instanceof PdfStream) {
+      return contents.getDecodedData();
     }
 
     // Array of streams - concatenate with newlines
@@ -1950,11 +1906,6 @@ export class PDF {
       }
 
       return result;
-    }
-
-    // Direct stream (unusual but possible)
-    if (contents instanceof PdfStream) {
-      return contents.getDecodedData();
     }
 
     return new Uint8Array(0);
