@@ -8,7 +8,7 @@ A modern PDF library for TypeScript. Parse, modify, and generate PDFs with a cle
 
 LibPDF was born from frustration. At [Documenso](https://documenso.com), we found ourselves wrestling with the JavaScript PDF ecosystem:
 
-- **PDF.js** is excellent for rendering, but it's read-only
+- **PDF.js** is excellent for rendering and even has annotation editing — but it requires a browser
 - **pdf-lib** has a great API, but chokes on slightly malformed documents
 - **pdfkit** only generates, no parsing at all
 
