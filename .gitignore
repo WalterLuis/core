@@ -48,5 +48,8 @@ examples/output/
 # Debug files
 debug/
 
+# Benchmark fixtures (downloaded at runtime)
+fixtures/benchmarks/
+
 # Temporary files
 tmp/
