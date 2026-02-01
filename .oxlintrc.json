@@ -42,5 +42,5 @@
       }
     }
   ],
-  "ignorePatterns": ["dist", "node_modules", "checkouts", ".docs"]
+  "ignorePatterns": ["dist", "node_modules", "checkouts", "tmp", ".docs"]
 }

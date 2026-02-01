@@ -1,0 +1,508 @@
+---
+title: Low-Level Drawing
+description: Direct control over PDF operators, gradients, patterns, and graphics state.
+---
+
+# Low-Level Drawing
+
+The low-level drawing API gives you direct control over PDF content stream operators. Use it when you need features beyond the high-level drawing methods: matrix transforms, clipping, gradients, repeating patterns, blend modes, or reusable content blocks.
+
+```typescript
+import { PDF, ops, rgb, ColorSpace } from "@libpdf/core";
+
+const pdf = PDF.create();
+const page = pdf.addPage();
+
+// Draw a rotated rectangle using raw operators
+page.drawOperators([
+  ops.pushGraphicsState(),
+  ops.concatMatrix(0.707, 0.707, -0.707, 0.707, 300, 400), // 45 degree rotation
+  ops.setNonStrokingRGB(1, 0, 0),
+  ops.rectangle(-50, -25, 100, 50),
+  ops.fill(),
+  ops.popGraphicsState(),
+]);
+```
+
+<Callout type="warn">
+  The low-level API requires understanding of PDF content stream structure.
+  Invalid operator sequences may produce corrupted PDFs. Use the high-level
+  methods when they're sufficient.
+</Callout>
+
+---
+
+## When to Use Low-Level Drawing
+
+The high-level methods (`drawRectangle`, `drawText`, etc.) cover most needs. Reach for the low-level API when you need:
+
+| Feature | Low-Level Approach |
+| --- | --- |
+| Matrix transforms | `ops.concatMatrix()` for arbitrary rotation/scale/skew |
+| Gradients | `createAxialShading()` or `createRadialShading()` |
+| Repeating patterns | `createTilingPattern()` or `createImagePattern()` |
+| Blend modes | `createExtGState({ blendMode: "Multiply" })` |
+| Clipping regions | `ops.clip()` with `ops.endPath()` |
+| Reusable graphics | `createFormXObject()` for stamps/watermarks |
+| Fine-grained control | Direct operator sequences |
+
+---
+
+## Operators
+
+All PDF content stream operators are available through the `ops` namespace:
+
+```typescript
+import { ops } from "@libpdf/core";
+```
+
+### Graphics State
+
+```typescript
+ops.pushGraphicsState()     // Save current state (q)
+ops.popGraphicsState()      // Restore saved state (Q)
+ops.setGraphicsState(name)  // Apply ExtGState resource (gs)
+ops.concatMatrix(a, b, c, d, e, f)  // Transform CTM (cm)
+```
+
+### Path Construction
+
+```typescript
+ops.moveTo(x, y)            // Begin subpath (m)
+ops.lineTo(x, y)            // Line to point (l)
+ops.curveTo(x1, y1, x2, y2, x3, y3)  // Cubic bezier (c)
+ops.rectangle(x, y, w, h)   // Rectangle shorthand (re)
+ops.closePath()             // Close subpath (h)
+```
+
+### Path Painting
+
+```typescript
+ops.stroke()                // Stroke path (S)
+ops.fill()                  // Fill path, non-zero winding (f)
+ops.fillEvenOdd()           // Fill path, even-odd rule (f*)
+ops.fillAndStroke()         // Fill then stroke (B)
+ops.endPath()               // Discard path without painting (n)
+```
+
+### Clipping
+
+```typescript
+ops.clip()                  // Set clip region, non-zero (W)
+ops.clipEvenOdd()           // Set clip region, even-odd (W*)
+```
+
+### Color
+
+```typescript
+ops.setStrokingGray(g)      // Stroke grayscale (G)
+ops.setNonStrokingGray(g)   // Fill grayscale (g)
+ops.setStrokingRGB(r, g, b) // Stroke RGB (RG)
+ops.setNonStrokingRGB(r, g, b)  // Fill RGB (rg)
+ops.setStrokingCMYK(c, m, y, k)  // Stroke CMYK (K)
+ops.setNonStrokingCMYK(c, m, y, k)  // Fill CMYK (k)
+ops.setStrokingColorSpace(cs)    // Set stroke color space (CS)
+ops.setNonStrokingColorSpace(cs) // Set fill color space (cs)
+ops.setStrokingColorN(name)      // Set stroke pattern (SCN)
+ops.setNonStrokingColorN(name)   // Set fill pattern (scn)
+```
+
+### Line Style
+
+```typescript
+ops.setLineWidth(w)         // Line width (w)
+ops.setLineCap(cap)         // 0=butt, 1=round, 2=square (J)
+ops.setLineJoin(join)       // 0=miter, 1=round, 2=bevel (j)
+ops.setMiterLimit(limit)    // Miter limit ratio (M)
+ops.setDashPattern(array, phase)  // Dash pattern (d)
+```
+
+### Text
+
+```typescript
+ops.beginText()             // Begin text object (BT)
+ops.endText()               // End text object (ET)
+ops.setFont(name, size)     // Set font (Tf)
+ops.moveText(tx, ty)        // Position text (Td)
+ops.setTextMatrix(a, b, c, d, e, f)  // Text matrix (Tm)
+ops.showText(string)        // Show text (Tj)
+```
+
+### XObjects and Shading
+
+```typescript
+ops.paintXObject(name)      // Draw XObject (Do)
+ops.paintShading(name)      // Paint shading (sh)
+```
+
+---
+
+## Transforms with Matrix
+
+Use the `Matrix` helper for readable transforms:
+
+```typescript
+import { Matrix, ops } from "@libpdf/core";
+
+const matrix = Matrix.identity()
+  .translate(200, 300)
+  .rotate(45)  // degrees
+  .scale(2, 1.5);
+
+page.drawOperators([
+  ops.pushGraphicsState(),
+  ops.concatMatrix(matrix),
+  ops.rectangle(0, 0, 100, 50),
+  ops.fill(),
+  ops.popGraphicsState(),
+]);
+```
+
+Or use raw matrix components:
+
+```typescript
+// Translation: move 100 points right, 200 points up
+ops.concatMatrix(1, 0, 0, 1, 100, 200)
+
+// Scale: 2x horizontal, 0.5x vertical
+ops.concatMatrix(2, 0, 0, 0.5, 0, 0)
+
+// Rotation: 45 degrees around origin
+const angle = 45 * Math.PI / 180;
+ops.concatMatrix(Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle), 0, 0)
+```
+
+---
+
+## Gradients
+
+Create linear or radial gradients with color stops:
+
+### Linear Gradient
+
+```typescript
+// CSS-style: angle + length
+const gradient = pdf.createLinearGradient({
+  angle: 90,  // 0=up, 90=right, 180=down, 270=left
+  length: 200,
+  stops: [
+    { offset: 0, color: rgb(1, 0, 0) },
+    { offset: 0.5, color: rgb(1, 1, 0) },
+    { offset: 1, color: rgb(0, 1, 0) },
+  ],
+});
+
+// Or explicit coordinates
+const axial = pdf.createAxialShading({
+  coords: [0, 0, 200, 0],  // x0, y0, x1, y1
+  stops: [
+    { offset: 0, color: rgb(0, 0, 1) },
+    { offset: 1, color: rgb(1, 0, 1) },
+  ],
+});
+```
+
+### Radial Gradient
+
+```typescript
+const radial = pdf.createRadialShading({
+  coords: [100, 100, 0, 100, 100, 80],  // x0, y0, r0, x1, y1, r1
+  stops: [
+    { offset: 0, color: rgb(1, 1, 1) },
+    { offset: 1, color: rgb(0, 0, 0) },
+  ],
+});
+```
+
+### Using Gradients
+
+Gradients can be painted directly with clipping, or wrapped in a pattern for use with PathBuilder:
+
+```typescript
+// Direct painting with clipping
+const shadingName = page.registerShading(gradient);
+
+page.drawOperators([
+  ops.pushGraphicsState(),
+  ops.rectangle(50, 50, 200, 100),
+  ops.clip(),
+  ops.endPath(),
+  ops.paintShading(shadingName),
+  ops.popGraphicsState(),
+]);
+
+// Or wrap in a pattern for PathBuilder
+const pattern = pdf.createShadingPattern({ shading: gradient });
+
+page.drawPath()
+  .rectangle(50, 200, 200, 100)
+  .fill({ pattern });
+```
+
+---
+
+## Patterns
+
+### Tiling Pattern
+
+Create repeating patterns using operators:
+
+```typescript
+const checkerboard = pdf.createTilingPattern({
+  bbox: { x: 0, y: 0, width: 20, height: 20 },
+  xStep: 20,
+  yStep: 20,
+  operators: [
+    ops.setNonStrokingGray(0.8),
+    ops.rectangle(0, 0, 10, 10),
+    ops.rectangle(10, 10, 10, 10),
+    ops.fill(),
+  ],
+});
+
+const patternName = page.registerPattern(checkerboard);
+
+page.drawOperators([
+  ops.setNonStrokingColorSpace(ColorSpace.Pattern),
+  ops.setNonStrokingColorN(patternName),
+  ops.rectangle(100, 100, 300, 200),
+  ops.fill(),
+]);
+```
+
+### Image Pattern
+
+Fill shapes with tiled images:
+
+```typescript
+const texture = pdf.embedImage(textureBytes);
+const pattern = pdf.createImagePattern({
+  image: texture,
+  width: 50,
+  height: 50,
+});
+
+page.drawPath()
+  .circle(200, 400, 80)
+  .fill({ pattern });
+```
+
+### Gradient Pattern
+
+Wrap a gradient for use with high-level methods:
+
+```typescript
+const gradient = pdf.createLinearGradient({
+  angle: 45,
+  length: 150,
+  stops: [
+    { offset: 0, color: rgb(0.2, 0.4, 0.8) },
+    { offset: 1, color: rgb(0.8, 0.2, 0.6) },
+  ],
+});
+
+const gradientPattern = pdf.createShadingPattern({ shading: gradient });
+
+// Works with drawRectangle, drawCircle, drawEllipse, drawPath
+page.drawRectangle({
+  x: 50,
+  y: 300,
+  width: 200,
+  height: 100,
+  pattern: gradientPattern,
+});
+```
+
+---
+
+## Extended Graphics State
+
+Control opacity, blend modes, and other advanced graphics settings:
+
+```typescript
+const gs = pdf.createExtGState({
+  fillOpacity: 0.5,
+  strokeOpacity: 0.8,
+  blendMode: "Multiply",
+});
+
+const gsName = page.registerExtGState(gs);
+
+page.drawOperators([
+  ops.pushGraphicsState(),
+  ops.setGraphicsState(gsName),
+  ops.setNonStrokingRGB(1, 0, 0),
+  ops.rectangle(100, 100, 200, 100),
+  ops.fill(),
+  ops.popGraphicsState(),
+]);
+```
+
+**Blend Modes**: `Normal`, `Multiply`, `Screen`, `Overlay`, `Darken`, `Lighten`, `ColorDodge`, `ColorBurn`, `HardLight`, `SoftLight`, `Difference`, `Exclusion`, `Hue`, `Saturation`, `Color`, `Luminosity`
+
+---
+
+## Form XObjects
+
+Create reusable content blocks for stamps, watermarks, or repeated elements:
+
+```typescript
+const font = pdf.embedFont(fontBytes);
+const fontName = page.registerFont(font);
+
+const stamp = pdf.createFormXObject({
+  bbox: { x: 0, y: 0, width: 120, height: 40 },
+  operators: [
+    ops.setNonStrokingRGB(0.8, 0.1, 0.1),
+    ops.rectangle(0, 0, 120, 40),
+    ops.fill(),
+    ops.beginText(),
+    ops.setFont(fontName, 14),
+    ops.setNonStrokingGray(1),
+    ops.moveText(10, 14),
+    ops.showText("CONFIDENTIAL"),
+    ops.endText(),
+  ],
+});
+
+const stampName = page.registerXObject(stamp);
+
+// Place on multiple pages
+for (const p of pdf.getPages()) {
+  p.drawOperators([
+    ops.pushGraphicsState(),
+    ops.concatMatrix(1, 0, 0, 1, p.width - 130, p.height - 50),
+    ops.paintXObject(stampName),
+    ops.popGraphicsState(),
+  ]);
+}
+```
+
+---
+
+## Clipping
+
+Restrict drawing to a region:
+
+```typescript
+page.drawOperators([
+  ops.pushGraphicsState(),
+  
+  // Define clip region (circle)
+  ops.moveTo(200, 300),
+  // ... circle path using bezier curves
+  ops.clip(),
+  ops.endPath(),  // Required after clip
+  
+  // Everything here is clipped to the circle
+  ops.paintShading(gradientName),
+  
+  ops.popGraphicsState(),  // Clipping is restored
+]);
+```
+
+<Callout type="info">
+  Always follow `ops.clip()` with a path-painting operator. Use `ops.endPath()` 
+  to discard the path, or `ops.fill()` to both clip and fill.
+</Callout>
+
+---
+
+## Resource Registration
+
+Register resources before using them in operators. All registration methods deduplicate automatically:
+
+```typescript
+// Fonts
+const fontName = page.registerFont(font);
+
+// Images
+const imageName = page.registerImage(image);
+
+// Shadings (gradients)
+const shadingName = page.registerShading(gradient);
+
+// Patterns
+const patternName = page.registerPattern(pattern);
+
+// Extended graphics state
+const gsName = page.registerExtGState(extGState);
+
+// Form XObjects
+const xobjectName = page.registerXObject(formXObject);
+```
+
+---
+
+## Complete Example: Gradient Button
+
+```typescript
+import { PDF, ops, rgb, Matrix, ColorSpace } from "@libpdf/core";
+
+const pdf = PDF.create();
+const page = pdf.addPage();
+
+// Create button gradient
+const gradient = pdf.createLinearGradient({
+  angle: 180,  // top to bottom
+  length: 40,
+  stops: [
+    { offset: 0, color: rgb(0.4, 0.6, 1) },
+    { offset: 1, color: rgb(0.2, 0.4, 0.8) },
+  ],
+});
+const pattern = pdf.createShadingPattern({ shading: gradient });
+const patternName = page.registerPattern(pattern);
+
+// Create shadow with transparency
+const shadow = pdf.createExtGState({ fillOpacity: 0.3 });
+const shadowName = page.registerExtGState(shadow);
+
+// Draw shadow
+page.drawOperators([
+  ops.pushGraphicsState(),
+  ops.setGraphicsState(shadowName),
+  ops.setNonStrokingGray(0),
+  ops.rectangle(103, 697, 150, 40),
+  ops.fill(),
+  ops.popGraphicsState(),
+]);
+
+// Draw button with gradient
+page.drawOperators([
+  ops.setNonStrokingColorSpace(ColorSpace.Pattern),
+  ops.setNonStrokingColorN(patternName),
+]);
+
+// Rounded rectangle path
+page.drawPath()
+  .moveTo(110, 700)
+  .lineTo(250, 700)
+  .curveTo(255, 700, 260, 705, 260, 710)
+  .lineTo(260, 730)
+  .curveTo(260, 735, 255, 740, 250, 740)
+  .lineTo(110, 740)
+  .curveTo(105, 740, 100, 735, 100, 730)
+  .lineTo(100, 710)
+  .curveTo(100, 705, 105, 700, 110, 700)
+  .close()
+  .fill({ pattern });
+
+// Add button text
+page.drawText("Click Me", {
+  x: 145,
+  y: 714,
+  size: 14,
+  color: rgb(1, 1, 1),
+});
+
+await Bun.write("button.pdf", await pdf.save());
+```
+
+---
+
+## See Also
+
+- [Drawing Guide](/docs/guides/drawing) - High-level drawing methods
+- [PDFPage API](/docs/api/pdf-page) - Page methods including `drawOperators`
+- [PDF API](/docs/api/pdf) - Document methods for creating resources

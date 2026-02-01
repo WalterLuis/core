@@ -562,6 +562,192 @@ Note: Unlike `drawSvgPath()`, the `appendSvgPath()` method defaults to `flipY: f
 
 ---
 
+## Low-Level Drawing
+
+For advanced graphics operations, PDFPage provides methods to emit raw operators and register resources. See [Low-Level Drawing](/docs/advanced/low-level-drawing) for detailed usage.
+
+### drawOperators(operators)
+
+Emit raw PDF operators to the page content stream.
+
+| Param       | Type         | Description                 |
+| ----------- | ------------ | --------------------------- |
+| `operators` | `Operator[]` | Array of operators to emit  |
+
+```typescript
+import { ops } from "@libpdf/core";
+
+page.drawOperators([
+  ops.pushGraphicsState(),
+  ops.concatMatrix(1, 0, 0, 1, 100, 200),
+  ops.setNonStrokingRGB(1, 0, 0),
+  ops.rectangle(0, 0, 50, 50),
+  ops.fill(),
+  ops.popGraphicsState(),
+]);
+```
+
+<Callout type="warn">
+  The caller is responsible for valid operator sequences. Invalid sequences
+  may produce corrupted PDFs.
+</Callout>
+
+---
+
+### registerFont(font)
+
+Register a font resource and return its operator name.
+
+| Param  | Type                           | Description        |
+| ------ | ------------------------------ | ------------------ |
+| `font` | `EmbeddedFont \| Standard14FontName` | Font to register |
+
+**Returns**: `string` - Resource name (e.g., `"F0"`)
+
+```typescript
+const font = pdf.embedFont(fontBytes);
+const fontName = page.registerFont(font);
+
+page.drawOperators([
+  ops.beginText(),
+  ops.setFont(fontName, 12),
+  ops.moveText(100, 700),
+  ops.showText("Hello"),
+  ops.endText(),
+]);
+```
+
+---
+
+### registerImage(image)
+
+Register an image resource and return its operator name.
+
+| Param   | Type       | Description        |
+| ------- | ---------- | ------------------ |
+| `image` | `PDFImage` | Embedded image     |
+
+**Returns**: `string` - Resource name (e.g., `"Im0"`)
+
+```typescript
+const image = pdf.embedImage(imageBytes);
+const imageName = page.registerImage(image);
+
+page.drawOperators([
+  ops.pushGraphicsState(),
+  ops.concatMatrix(100, 0, 0, 100, 200, 500),
+  ops.paintXObject(imageName),
+  ops.popGraphicsState(),
+]);
+```
+
+---
+
+### registerShading(shading)
+
+Register a shading (gradient) resource and return its operator name.
+
+| Param     | Type         | Description  |
+| --------- | ------------ | ------------ |
+| `shading` | `PDFShading` | Shading resource |
+
+**Returns**: `string` - Resource name (e.g., `"Sh0"`)
+
+```typescript
+const gradient = pdf.createAxialShading({...});
+const shadingName = page.registerShading(gradient);
+
+page.drawOperators([
+  ops.pushGraphicsState(),
+  ops.rectangle(50, 50, 100, 100),
+  ops.clip(),
+  ops.endPath(),
+  ops.paintShading(shadingName),
+  ops.popGraphicsState(),
+]);
+```
+
+---
+
+### registerPattern(pattern)
+
+Register a pattern resource and return its operator name.
+
+| Param     | Type         | Description      |
+| --------- | ------------ | ---------------- |
+| `pattern` | `PDFPattern` | Pattern resource |
+
+**Returns**: `string` - Resource name (e.g., `"P0"`)
+
+```typescript
+import { ColorSpace } from "@libpdf/core";
+
+const pattern = pdf.createTilingPattern({...});
+const patternName = page.registerPattern(pattern);
+
+page.drawOperators([
+  ops.setNonStrokingColorSpace(ColorSpace.Pattern),
+  ops.setNonStrokingColorN(patternName),
+  ops.rectangle(100, 100, 200, 200),
+  ops.fill(),
+]);
+```
+
+---
+
+### registerExtGState(state)
+
+Register an extended graphics state and return its operator name.
+
+| Param   | Type          | Description    |
+| ------- | ------------- | -------------- |
+| `state` | `PDFExtGState` | Graphics state |
+
+**Returns**: `string` - Resource name (e.g., `"GS0"`)
+
+```typescript
+const gs = pdf.createExtGState({
+  fillOpacity: 0.5,
+  blendMode: "Multiply",
+});
+const gsName = page.registerExtGState(gs);
+
+page.drawOperators([
+  ops.pushGraphicsState(),
+  ops.setGraphicsState(gsName),
+  ops.setNonStrokingRGB(1, 0, 0),
+  ops.rectangle(100, 100, 50, 50),
+  ops.fill(),
+  ops.popGraphicsState(),
+]);
+```
+
+---
+
+### registerXObject(xobject)
+
+Register a Form XObject or embedded page and return its operator name.
+
+| Param     | Type                              | Description      |
+| --------- | --------------------------------- | ---------------- |
+| `xobject` | `PDFFormXObject \| PDFEmbeddedPage` | XObject to register |
+
+**Returns**: `string` - Resource name (e.g., `"Fm0"`)
+
+```typescript
+const stamp = pdf.createFormXObject({...});
+const stampName = page.registerXObject(stamp);
+
+page.drawOperators([
+  ops.pushGraphicsState(),
+  ops.concatMatrix(1, 0, 0, 1, 200, 700),
+  ops.paintXObject(stampName),
+  ops.popGraphicsState(),
+]);
+```
+
+---
+
 ## Form Field Drawing
 
 ### drawField(field, options)

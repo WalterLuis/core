@@ -562,13 +562,46 @@ page.drawText("Lorem ipsum dolor sit amet, consectetur adipiscing elit.", {
 await writeFile("styled-document.pdf", await pdf.save());
 ```
 
+## Pattern Fills
+
+Shape drawing methods support pattern fills in addition to solid colors:
+
+```ts
+// Create a gradient pattern
+const gradient = pdf.createLinearGradient({
+  angle: 90,
+  length: 100,
+  stops: [
+    { offset: 0, color: rgb(1, 0, 0) },
+    { offset: 1, color: rgb(0, 0, 1) },
+  ],
+});
+const pattern = pdf.createShadingPattern({ shading: gradient });
+
+// Use with drawRectangle, drawCircle, drawEllipse, or drawPath
+page.drawRectangle({
+  x: 50,
+  y: 500,
+  width: 200,
+  height: 100,
+  pattern,
+});
+
+// Also works with PathBuilder
+page.drawPath()
+  .circle(300, 550, 50)
+  .fill({ pattern });
+```
+
+See [Low-Level Drawing](/docs/advanced/low-level-drawing) for gradients, tiling patterns, and more.
+
 ## Next Steps
 
 <Cards>
   <Card title="Fonts" href="/docs/guides/fonts">
     Embed and subset fonts
   </Card>
-  <Card title="Images" href="/docs/guides/images">
-    Image formats and optimization
+  <Card title="Low-Level Drawing" href="/docs/advanced/low-level-drawing">
+    Gradients, patterns, and transforms
   </Card>
 </Cards>
