@@ -11,6 +11,7 @@ import { clearAllDirtyFlags, collectChanges } from "#src/document/change-collect
 import type { ObjectRegistry } from "#src/document/object-registry";
 import { FilterPipeline } from "#src/filters/filter-pipeline";
 import { CR, LF } from "#src/helpers/chars";
+import { max } from "#src/helpers/math";
 import { ByteWriter } from "#src/io/byte-writer";
 import { PdfArray } from "#src/objects/pdf-array";
 import { PdfDict } from "#src/objects/pdf-dict";
@@ -431,7 +432,11 @@ export function writeComplete(registry: ObjectRegistry, options: WriteOptions): 
     });
 
     // Size is max object number + 1
-    const size = Math.max(0, ...entries.map(e => e.objectNumber)) + 1;
+    const size =
+      max(
+        entries.map(e => e.objectNumber),
+        0,
+      ) + 1;
 
     writeXRefStream(writer, {
       entries,
@@ -445,7 +450,11 @@ export function writeComplete(registry: ObjectRegistry, options: WriteOptions): 
     });
   } else {
     // Size is max object number + 1
-    const size = Math.max(0, ...entries.map(e => e.objectNumber)) + 1;
+    const size =
+      max(
+        entries.map(e => e.objectNumber),
+        0,
+      ) + 1;
 
     writeXRefTable(writer, {
       entries,
